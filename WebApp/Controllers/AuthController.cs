@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebApp.Payloads;
 using WebApp.Services.UserService;
 using WebApp.Services.UserService.Dto;
 
@@ -8,7 +9,6 @@ namespace WebApp.Controllers;
 [ApiController, Route("/api/auth")]
 public class AuthController(IUserAppService userAppService) : ControllerBase
 {
-
     /// <summary>
     /// Authenticate user
     /// </summary>
@@ -28,9 +28,9 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
         Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
         {
             HttpOnly = true,
-            Secure = false,
-            SameSite = SameSiteMode.Lax,
-            Path = "/api/auth",
+            //Secure = true,
+            //SameSite = SameSiteMode.None,
+            Path = "/",
             Expires = res.ExpireAt!.Value.AddDays(30)
         });
         // Remove refresh token from the response body:
@@ -54,9 +54,9 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
         Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
         {
             HttpOnly = true,
-            Secure = false,
-            SameSite = SameSiteMode.Lax,
-            Path = "/api/auth",
+            //Secure = true,
+            //SameSite = SameSiteMode.None,
+            Path = "/",
             Expires = res.ExpireAt!.Value.AddDays(30)
         });
         res.RefreshToken = null;
@@ -82,25 +82,29 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
     /// <summary>
     /// Change working organization
     /// </summary>
-    /// <param name="orgId">The organization ID</param>
+    /// <param name="request">A request payload that contain the organization ID to change to.</param>
     /// <returns>The new access token and refresh token</returns>
-    [HttpPost("change-org/{orgId}")]
+    [HttpPost("change-org")]
     [Authorize]
-    public async Task<IActionResult> ChangeWorkingOrganization(string orgId)
+    public async Task<IActionResult> ChangeWorkingOrganization([FromBody] ChangeOrgRequest request)
     {
-        var res = await userAppService.ChangeWorkingOrganization(orgId);
+        if (string.IsNullOrEmpty(request.OrgId))
+        {
+            return BadRequest("You must provide an org id.");
+        }
+        var res = await userAppService.ChangeWorkingOrganization(request.OrgId);
         if (!res.Success)
         {
-            return BadRequest(res.Message);
+            return BadRequest(res);
         }
 
         // Add new refresh token to the response cookies:
         Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
         {
             HttpOnly = true,
-            Secure = false,
-            SameSite = SameSiteMode.Lax,
-            Path = "/api/auth",
+            //Secure = true,
+            //SameSite = SameSiteMode.None,
+            Path = "/",
             Expires = res.ExpireAt!.Value.AddDays(30)
         });
         // Remove refresh token from the response body:
