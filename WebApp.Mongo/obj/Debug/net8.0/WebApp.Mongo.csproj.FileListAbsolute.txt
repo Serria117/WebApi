@@ -28,3 +28,4 @@ D:\Personal\WebApi\WebApp.Mongo\obj\Debug\net8.0\WebApp.Mongo.dll
 D:\Personal\WebApi\WebApp.Mongo\obj\Debug\net8.0\refint\WebApp.Mongo.dll
 D:\Personal\WebApi\WebApp.Mongo\obj\Debug\net8.0\WebApp.Mongo.pdb
 D:\Personal\WebApi\WebApp.Mongo\obj\Debug\net8.0\ref\WebApp.Mongo.dll
+D:\Personal\WebApi\WebApp.Mongo\obj\Debug\net8.0\WebApp.Mongo.sourcelink.json

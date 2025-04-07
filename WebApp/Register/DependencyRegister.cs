@@ -16,6 +16,14 @@ namespace WebApp.Register;
 
 public static class DependencyRegister
 {
+    /// <summary>
+    /// Configures MongoDB related services for dependency injection.
+    /// </summary>
+    /// <param name="s">The service collection to which the services are added.</param>
+    /// <param name="settings">The MongoDB settings containing connection details.</param>
+    /// <remarks>
+    /// Registers MongoDB settings and client as singletons, and database and repositories as scoped services.
+    /// </remarks>
     public static void AddMongoServices(this IServiceCollection s, MongoDbSettings settings)
     {
         s.AddSingleton(settings);
@@ -26,8 +34,19 @@ public static class DependencyRegister
         s.AddScoped<IInvoiceMongoRepository, InvoiceMongoRepository>();
         s.AddScoped<IUserMongoRepository, UserMongoRepository>();
         s.AddScoped<ISoldInvoiceMongoRepository, SoldInvoiceMongoRepository>();
+        s.AddScoped<IOrgMongoRepository, OrgMongoRepository>();
+        s.AddScoped<IBlacklistedTokenMongoRepository, BlacklistedTokenMongoRepository>();
+        s.AddScoped<IRefreshTokenMongoRepository, RefreshTokenMongoRepository>();
     }
 
+    /// <summary>
+    /// Configures application services for dependency injection.
+    /// </summary>
+    /// <param name="s">The service collection to which the services are added.</param>
+    /// <remarks>
+    /// Registers various application services, including notification, repository, and business services,
+    /// with appropriate lifetimes such as singleton, scoped, and transient.
+    /// </remarks>
     public static void AddAppServices(this IServiceCollection s)
     {
         //Add notification service here:

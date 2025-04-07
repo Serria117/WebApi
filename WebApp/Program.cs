@@ -160,7 +160,7 @@ services.AddSingleton<IRestClient>(new RestClient(new RestClientOptions(restSett
 services.AddSingleton<CustomMap>();
 
 services.AddHttpContextAccessor();
-services.AddSingleton<JwtService>();
+services.AddScoped<JwtService>();
 
 /* Add application services */
 services.AddAppServices();

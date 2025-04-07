@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver.Core.WireProtocol.Messages;
 using WebApp.Core.DomainEntities;
+using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.CommonService;
@@ -29,6 +31,8 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                     IAppRepository<Province, int> provinceRepo,
                                     IAppRepository<District, int> districtRepo,
                                     IAppRepository<TaxOffice, int> taxOfficeRepo,
+                                    IAppRepository<User, Guid> userRepo,
+                                    IOrgMongoRepository orgMongoRepository,
                                     IUserManager userManager) : AppServiceBase(userManager), IOrganizationAppService
 {
     public async Task<AppResponse> Create(OrganizationInputDto dto)
@@ -40,10 +44,20 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
         if (!invalidMessage.IsNullOrEmpty()) return AppResponse.Error("Invalid input", invalidMessage);
 
         var newOrg = dto.ToEntity();
+
+        // Attach location:
         newOrg.District = districtRepo.Attach(dto.DistrictId!.Value);
         newOrg.TaxOffice = taxOfficeRepo.Attach(dto.TaxOfficeId!.Value);
 
+        // Add the user who create the new organization to its users list:
+        if (UserId is not null && Guid.TryParse(UserId, out var uId))
+        {
+            newOrg.Users.Add(userRepo.Attach(uId));
+        }
+
         var saved = await orgRepo.CreateAsync(newOrg);
+        //store new Id in mongo:
+        await orgMongoRepository.InsertOrgId(new OrgDoc { OrgId = saved.Id.ToString() });
         return AppResponse.SuccessResponse(saved.ToDisplayDto());
     }
 
@@ -99,6 +113,7 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
 
         await orgRepo.CreateManyAsync(entitiesToSave);
 
+
         return new AppResponse
         {
             Success = true,
@@ -125,15 +140,22 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
 
     public async Task<AppResponse> Find(PageRequest page)
     {
+        var userId = UserId;
         var keyword = page.Keyword.RemoveSpace()?.UnSign();
-        var pagedResult = (await orgRepo.Find(o => !o.Deleted
-                                                   && (string.IsNullOrEmpty(keyword) ||
-                                                       o.UnsignName.Contains(keyword) ||
-                                                       (o.ShortName != null &&
-                                                       o.ShortName.Contains(keyword)) ||
-                                                       o.TaxId.Contains(keyword)),
+        var pagedResult = (await orgRepo.Find(filter: o => !o.Deleted &&
+                                                           o.Users.Any(u => u.Id.ToString() == userId) &&
+                                                           (string.IsNullOrEmpty(keyword) ||
+                                                            o.UnsignName.Contains(keyword) ||
+                                                            (o.ShortName != null &&
+                                                             o.ShortName.Contains(keyword)) ||
+                                                            o.TaxId.Contains(keyword)),
                                               sortBy: page.SortBy, order: page.OrderBy,
-                                              include: [nameof(Organization.TaxOffice), nameof(Organization.District)])
+                                              include:
+                                              [
+                                                  nameof(Organization.TaxOffice),
+                                                  nameof(Organization.District),
+                                                  nameof(Organization.Users)
+                                              ])
                                         .AsSplitQuery()
                                         .AsNoTracking()
                                         .ToPagedListAsync(page.Number, page.Size))
@@ -165,7 +187,11 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
     public async Task<AppResponse> GetOneById(Guid id)
     {
         var org = await orgRepo.Find(filter: x => x.Id == id,
-                                     include: [nameof(Organization.TaxOffice), nameof(Organization.District)])
+                                     include:
+                                     [
+                                         nameof(Organization.TaxOffice),
+                                         nameof(Organization.District)
+                                     ])
                                .FirstOrDefaultAsync();
         return org == null
             ? AppResponse.Error(ResponseMessage.NotFound)

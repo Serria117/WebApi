@@ -1,32 +1,80 @@
 ﻿using System.Globalization;
 using System.Xml.Linq;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
 using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.CommonService;
+using WebApp.Services.Mappers;
+using WebApp.Services.UserService;
+using X.Extensions.PagedList.EF;
 
 namespace WebApp.Services.DocumentService;
 
 public interface IDocumentAppService
 {
-    Task<AppResponse> GetFilesByOrgAndTypeAsync(Guid orgId, DocumentType documentType);
-    Task<AppResponse> UploadDocFileAsync(string orgId, List<IFormFile> files);
-    Task<AppResponse> GetFileByIdAsync(Guid orgId, int documentId);
+    
+    /// <summary>
+    /// Asynchronously retrieves files by organization and document type.
+    /// </summary>
+    /// <param name="documentType">The type of the document to filter by.</param>
+    /// <param name="requestParam">The request parameters for pagination and filtering.</param>
+    /// <returns>
+    /// An <see cref="AppResponse"/> containing a paginated list of documents that match the specified criteria.
+    /// </returns>
+    Task<AppResponse> GetFilesByOrgAndTypeAsync(DocumentType documentType, RequestParam requestParam);
+
+    /// <summary>
+    /// Asynchronously uploads document files for a specified organization.
+    /// </summary>
+    /// <param name="files">A list of files to be uploaded.</param>
+    /// <returns>An <see cref="AppResponse"/> indicating the result of the operation, including the number of files uploaded successfully and any validation errors.</returns>
+    /// <remarks>
+    /// Validates each file against the organization's criteria, saves them to a designated directory,
+    /// and extracts metadata from the files for further processing. If no files are provided or the organization is not found,
+    /// an error response is returned.
+    /// </remarks>
+    Task<AppResponse> UploadDocFileAsync(List<IFormFile> files);
+    
+    /// <summary>
+    /// Asynchronously retrieves a file path by its document ID for the current working organization.
+    /// </summary>
+    /// <param name="documentId">The ID of the document to retrieve.</param>
+    /// <returns>
+    /// An <see cref="AppResponse"/> containing the file path if found, 
+    /// or a 404 error response if the document is not found.
+    /// </returns>
+    Task<AppResponse> GetFileByIdAsync(int documentId);
+    
+    /// <summary>
+    /// Deletes a document file by its ID.
+    /// </summary>
+    /// <param name="documentId">The ID of the document to delete.</param>
+    /// <returns>An <see cref="AppResponse"/> indicating the result of the operation.
+    /// Returns a 404 error if the document is not found, a 500 error if an exception occurs,
+    /// or a success response if the file is deleted successfully.</returns>
+    Task<AppResponse> DeleteFileByIdAsync(int documentId);
 }
 
 public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                                 IAppRepository<Organization, Guid> orgRepository,
                                 ILogger<DocumentAppService> logger,
-                                IHostEnvironment env) : IDocumentAppService
+                                IUserManager userManager,
+                                IHostEnvironment env) : AppServiceBase(userManager), IDocumentAppService
 {
-    public async Task<AppResponse> UploadDocFileAsync(string orgId, List<IFormFile> files)
+    public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {
         if (files.Count == 0) return AppResponse.Error("No file uploaded");
-        var org = await orgRepository.FindByIdAsync(Guid.Parse(orgId));
-        if (org is null) return AppResponse.Error404("Organization not found");
+        (bool result, Guid orgId) = GetId(WorkingOrg);
+        if (!result)
+        {
+            return AppResponse.Error400("You must select working organization first");
+        }
 
+        var org = await orgRepository.FindByIdAsync(orgId);
+        if (org is null) return AppResponse.Error404("Organization not found");
         var uploadFiles = new List<OrgDocument>();
         var uploadDir = Path.Combine(env.ContentRootPath, "Uploads", org.TaxId);
 
@@ -34,31 +82,37 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         {
             Directory.CreateDirectory(uploadDir);
         }
-        
+
         var validationError = new List<string>();
 
-        foreach (var file in files)
+        foreach (var file in files.Where(file => file.Length != 0))
         {
-            if (!(await ValidateDocument(org, file)))
+            using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+            var validated = await ValidateDocument(org, memoryStream, file.FileName);
+            if (!(validated.Result))
             {
-                validationError.Add(file.FileName);
+                validationError.Add(validated.Error);
                 continue;
             }
+            memoryStream.Position = 0;
             var uniqueFileName = $"{file.FileName}_{Ulid.NewUlid()}.xml";
             var filePath = Path.Combine(uploadDir, uniqueFileName);
+            // read document and extract some extra metadata:
+            // await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            var doc = await XDocument.LoadAsync(memoryStream, LoadOptions.None, CancellationToken.None);
+            var hash = CalculateMd5Hash(doc);
+            var type = GetDocumentTypeFromXml(doc);
             
+            var soLan = doc.GetXmlNodeValue("soLan");
+            var docDate = doc.GetXmlNodeValue("ngayLapTKhai");
+
             // save the file to the stream
             await using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
-                //await stream.DisposeAsync();
             }
-            // read document and extract some extra metadata:
-            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            var doc = await XDocument.LoadAsync(fileStream, LoadOptions.None, CancellationToken.None);
-            var type = GetDocumentTypeFromXml(doc);
-            var soLan = doc.GetXmlNodeValue("soLan");
-            var docDate = doc.GetXmlNodeValue("ngayLapTKhai");
             
             // create the document object
             var uploadFile = new OrgDocument
@@ -76,7 +130,8 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                 FileName = file.FileName,
                 FilePath = filePath,
                 UploadTime = DateTime.Now,
-                FileSize = file.Length
+                FileSize = file.Length,
+                Hash = hash
             };
 
             uploadFiles.Add(uploadFile);
@@ -91,19 +146,28 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             error = validationError.Count,
             validationError
         });
+
+
     }
 
-    public async Task<AppResponse> GetFilesByOrgAndTypeAsync(Guid orgId, DocumentType documentType)
+    public async Task<AppResponse> GetFilesByOrgAndTypeAsync(DocumentType documentType,
+                                                             RequestParam requestParam)
     {
+        (bool result, Guid orgId) = GetId(WorkingOrg);
+        if (!result)
+        {
+            return AppResponse.Error400("You must select working organization first");
+        }
+
         var org = await orgRepository.FindByIdAsync(orgId);
         if (org is null) return AppResponse.Error404("Organization not found");
-
+        var pageRequest = PageRequest.GetPage(requestParam);
         var files = await docRepository.FindAndSort(x => x.Organization.Id == orgId && x.DocumentType == documentType,
                                                     [],
                                                     ["CreateAt DESC"])
-                                       .ToListAsync();
+                                       .ToPagedListAsync(pageRequest.Number, pageRequest.Size);
 
-        return AppResponse.SuccessResponse(files.Select(f => new
+        return AppResponse.SuccessResponse(files.MapPagedList(f => new
         {
             f.Id,
             f.FileName,
@@ -118,17 +182,41 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         }));
     }
 
-    public async Task<AppResponse> GetFileByIdAsync(Guid orgId, int documentId)
+    
+    public async Task<AppResponse> GetFileByIdAsync(int documentId)
     {
-        var f = await docRepository.Find(filter: x => x.Organization.Id == orgId && x.Id == documentId,
-                                         include: "Organization")
+        var file = await docRepository.Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == documentId,
+                                         include: nameof(OrgDocument.Organization))
                                    .FirstOrDefaultAsync();
-        if (f is not null)
-        {
-            return AppResponse.SuccessResponse(f.FilePath);
-        }
+        return file is not null ? AppResponse.SuccessResponse(file.FilePath) : AppResponse.Error404("Document not found");
+    }
 
-        return AppResponse.Error404("Document not found");
+    public async Task<AppResponse> DeleteFileByIdAsync(int documentId)
+    {
+        try
+        {
+            var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg 
+                                                    && f.Id == documentId,
+                                               nameof(OrgDocument.Organization))
+                                         .FirstOrDefaultAsync();
+            if (doc is null)
+            {
+                return AppResponse.Error404("Document not found");
+            }
+
+            if (File.Exists(doc.FilePath))
+            {
+                File.Delete(doc.FilePath);
+            }
+
+            return (await docRepository.HardDeleteAsync(documentId))
+                ? AppResponse.Ok()
+                : AppResponse.Error500("Something went wrong");
+        }
+        catch (Exception e)
+        {
+            return AppResponse.Error500("Error while deleting file", e.Message);
+        }
     }
 
     private DocumentType GetDocumentTypeFromXml(XDocument doc)
@@ -159,19 +247,34 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         }
     }
 
-    private async Task<bool> ValidateDocument(Organization org, IFormFile file)
+    private async Task<(bool Result, string Error)> ValidateDocument(Organization org, Stream stream, string fileName)
     {
         try
         {
-            await using var stream = file.OpenReadStream();
+            //await using var stream = file.OpenReadStream();
             var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
             var taxId = document.GetXmlNodeValue("mst");
-            return taxId is null || taxId == org.TaxId;
+            var result = taxId is null || taxId == org.TaxId;
+            logger.LogInformation("Validated document with tax ID: {taxId}", taxId);
+            return result
+                ? (result, string.Empty)
+                : (result, $"Tax ID does not match the organization's tax ID in file: {fileName}");
         }
         catch (Exception e)
         {
             logger.LogError("Error while validating document. Caused by: {}", e.Message);
-            return false;
+            return (false, e.Message);
         }
+    }
+    
+    private static string CalculateMd5Hash(XDocument doc)
+    {
+        // Chuẩn hóa XML (loại bỏ khoảng trắng không cần thiết)
+        var normalizedXml = doc.ToString(SaveOptions.DisableFormatting);
+        
+        var bytes = System.Text.Encoding.UTF8.GetBytes(normalizedXml);
+        using var md5 = System.Security.Cryptography.MD5.Create();
+        var hashBytes = md5.ComputeHash(bytes);
+        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
     }
 }

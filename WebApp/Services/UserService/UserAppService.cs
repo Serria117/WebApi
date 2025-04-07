@@ -1,8 +1,9 @@
-﻿using System.Collections.Immutable;
-using System.Diagnostics;
+﻿using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq.Dynamic.Core;
-using AutoMapper;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.MongoRepositories;
@@ -12,7 +13,6 @@ using WebApp.Services.CommonService;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService.Dto;
 using X.Extensions.PagedList.EF;
-using X.PagedList;
 
 namespace WebApp.Services.UserService
 {
@@ -28,14 +28,23 @@ namespace WebApp.Services.UserService
         Task UnlockUser(Guid userId);
         Task<AppResponse> ChangeUserRoles(Guid id, List<int> roleIds);
         Task<AppResponse> SelfChangePassword(string oldPassword, string newPassword);
+        Task<AppResponse> AddOrganizationToUser(Guid user, ICollection<Guid> orgIds);
+        public Task<AuthenticationResponse> ChangeWorkingOrganization(string orgId);
+        Task<AuthenticationResponse> RefreshTokenAsync(string refreshToken);
+        Task RevokeRefreshTokenAsync(string refreshToken);
+        Task Logout(string accessToken);
     }
 
     public class UserAppAppService(IAppRepository<User, Guid> userRepository,
                                    IUserMongoRepository userMongoRepository,
+                                   IAppRepository<Organization, Guid> organizationRepository,
+                                   IBlacklistedTokenMongoRepository blacklistedTokenRepository,
+                                   IOrgMongoRepository orgMongoRepository,
                                    JwtService jwtService,
                                    IConfiguration configuration,
                                    IAppRepository<Role, int> roleRepository,
-                                   IUserManager userManager) : IUserAppService
+                                   IHttpContextAccessor http,
+                                   IUserManager userManager) : AppServiceBase(userManager), IUserAppService
     {
         public async Task<AppResponse> GetAllUsers(PageRequest page)
         {
@@ -73,7 +82,7 @@ namespace WebApp.Services.UserService
         {
             var stopWatch = Stopwatch.StartNew();
             var user = await FindUserByUserName(login.Username);
-            var passwordMatch = false;
+            bool passwordMatch = false;
 
             Console.WriteLine($"found user in db took: {stopWatch.ElapsedMilliseconds} ms");
 
@@ -107,8 +116,17 @@ namespace WebApp.Services.UserService
             }
 
             if (user is { LogInFailedCount: > 0, Locked: false }) await ResetAccount(user);
+            var orgId = string.Empty;
+            if (!string.IsNullOrEmpty(login.OrgId) && Guid.TryParse(login.OrgId, out Guid id))
+            {
+                if (await orgMongoRepository.ExistAsync(id.ToString())) ;
+                {
+                    orgId = id.ToString();
+                }
+            }
+
             var issuedAt = DateTime.UtcNow.ToLocalTime();
-            var accessToken = jwtService.GenerateToken(user, issuedAt);
+            var token = await jwtService.GenerateTokenAsync(user, issuedAt, orgId);
             Console.WriteLine($"Generate jwt took: {stopWatch.ElapsedMilliseconds} ms");
             return new AuthenticationResponse
             {
@@ -116,15 +134,50 @@ namespace WebApp.Services.UserService
                 Message = "Success",
                 Username = user.Username,
                 Id = user.Id,
-                AccessToken = accessToken,
+                AccessToken = token.AccessToken,
+                RefreshToken = token.RefreshToken,
                 IssueAt = issuedAt,
-                ExpireAt = jwtService.GetExpiration(accessToken)
+                ExpireAt = jwtService.GetExpiration(token.AccessToken)
             };
+        }
+
+        public async Task<AuthenticationResponse> RefreshTokenAsync(string refreshToken)
+        {
+            try
+            {
+                (string newAccessToken, string newRefreshToken) = await jwtService.RefreshTokenAsync(refreshToken);
+                return new AuthenticationResponse
+                {
+                    Success = true,
+                    Message = "Success",
+                    Username = jwtService.GetUsernameFromToken(newAccessToken),
+                    Id = Guid.Parse(jwtService.GetUsernameFromToken(newAccessToken)),
+                    AccessToken = newAccessToken,
+                    RefreshToken = newRefreshToken,
+                    IssueAt = jwtService.GetIssuedAt(newAccessToken),
+                    ExpireAt = jwtService.GetExpiration(newAccessToken)
+                };
+            }
+            catch (Exception e)
+            {
+                return new AuthenticationResponse(){Success = false, Message = e.Message };
+            }
+        }
+
+        public async Task RevokeRefreshTokenAsync(string refreshToken)
+        {
+            await jwtService.RevokeRefreshTokenAsync(refreshToken);
+        }
+
+        public async Task Logout(string accessToken)
+        {
+            var expDate = jwtService.GetExpiration(accessToken); 
+            await blacklistedTokenRepository.AddTokenToBlackList(accessToken, expDate);
         }
 
         public async Task<AppResponse> SelfChangePassword(string oldPassword, string newPassword)
         {
-            var id = userManager.CurrentUserId();
+            var id = UserManager.CurrentUserId();
             if (id is null)
                 return AppResponse.Error("Unauthorized access");
 
@@ -148,7 +201,7 @@ namespace WebApp.Services.UserService
             var roles = await roleRepository.Find(r => roleIds.Contains(r.Id)).ToListAsync();
             if (roles.Count == 0) return new AppResponse { Success = false, Message = "Role not found" };
             user.Roles.Clear();
-            user.Roles.UnionWith(roles);
+            user.Roles = roles.ToHashSet();
             await userRepository.UpdateAsync(user);
             await UpdateUserWithMongo(user);
             return new AppResponse() { Message = "OK" };
@@ -193,6 +246,57 @@ namespace WebApp.Services.UserService
                 Console.WriteLine(e);
                 throw;
             }
+        }
+
+        public async Task<AppResponse> AddOrganizationToUser(Guid userId, ICollection<Guid> orgIds)
+        {
+            var user = await userRepository.Find(x => x.Id == userId, include: nameof(User.Organizations))
+                                           .FirstOrDefaultAsync();
+            if (user is null) return AppResponse.Error404("User not found");
+            var org = await organizationRepository.Find(x => orgIds.Contains(x.Id)).ToListAsync();
+            user.Organizations = org.ToHashSet();
+            await userRepository.UpdateAsync(user);
+            return AppResponse.Ok();
+        }
+
+        public async Task<AuthenticationResponse> ChangeWorkingOrganization(string orgId)
+        {
+            //verify user is logged in.
+            if (UserId is null) throw new Exception("Unauthorized access");
+            
+            var refreshToken = http.HttpContext?.Request.Cookies["refreshToken"];
+            
+            //verify organization exists and user is a member of the organization:
+            var _ = await organizationRepository.Find(filter: x => x.Id.ToString() == orgId
+                                                                   && x.Users.Any(u => u.Id.ToString() == UserId),
+                                                      include: nameof(Organization.Users))
+                                                .AnyAsync();
+            if (!_) throw new Exception("Organization not found");
+            
+            var username = UserManager.CurrentUsername()!;
+            //Update new claims:
+            var newClaims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, UserId),
+                new Claim(JwtRegisteredClaimNames.Name, username),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim("tenantId", string.Empty),
+                new Claim("orgId", orgId)
+            };
+            var issuedAt = DateTime.UtcNow.ToLocalTime();
+            var token = jwtService.GenerateTokenFromClaims(newClaims, issuedAt);
+            
+            return new AuthenticationResponse
+            {
+                Success = true,
+                Message = "Success",
+                Username = UserName,
+                Id = Guid.Parse(UserId),
+                AccessToken = token,
+                IssueAt = issuedAt,
+                RefreshToken = refreshToken,
+                ExpireAt = jwtService.GetExpiration(token)
+            };
         }
 
         public async Task UpdateUserWithMongo(Guid userId)

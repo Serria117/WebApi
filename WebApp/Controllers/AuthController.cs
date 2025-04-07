@@ -19,6 +19,92 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
     {
         var res = await userAppService.Authenticate(login);
 
-        return res.Success ? Ok(res) : Unauthorized(res);
+        if (!res.Success)
+        {
+            return Unauthorized(res);
+        }
+        
+        // Add refresh token to the response cookies:
+        Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Path = "/api/auth",
+            Expires = res.ExpireAt!.Value.AddDays(30)
+        });
+        // Remove refresh token from the response body:
+        res.RefreshToken = null;
+        return Ok(res);
+
+    }
+    /// <summary>
+    /// Refresh access token when expired
+    /// </summary>
+    /// <returns>The renew access token</returns>
+    [HttpPost("refresh")][Authorize]
+    public async Task<IActionResult> RefreshToken()
+    {
+        var refreshToken = Request.Cookies["refreshToken"];
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return Unauthorized("Missing token.");
+        }
+        var res = await userAppService.RefreshTokenAsync(refreshToken);
+        Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Path = "/api/auth",
+            Expires = res.ExpireAt!.Value.AddDays(30)
+        });
+        res.RefreshToken = null;
+        return Ok(res);
+    }
+
+    /// <summary>
+    /// Sign out
+    /// </summary>
+    /// <returns></returns>
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        var refreshToken = Request.Cookies["refreshToken"];
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return Unauthorized("Missing refresh token.");
+        }
+        await userAppService.RevokeRefreshTokenAsync(refreshToken);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Change working organization
+    /// </summary>
+    /// <param name="orgId">The organization ID</param>
+    /// <returns>The new access token and refresh token</returns>
+    [HttpPost("change-org/{orgId}")]
+    [Authorize]
+    public async Task<IActionResult> ChangeWorkingOrganization(string orgId)
+    {
+        var res = await userAppService.ChangeWorkingOrganization(orgId);
+        if (!res.Success)
+        {
+            return BadRequest(res.Message);
+        }
+
+        // Add new refresh token to the response cookies:
+        Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Path = "/api/auth",
+            Expires = res.ExpireAt!.Value.AddDays(30)
+        });
+        // Remove refresh token from the response body:
+        res.RefreshToken = null;
+        return Ok(res);
     }
 }

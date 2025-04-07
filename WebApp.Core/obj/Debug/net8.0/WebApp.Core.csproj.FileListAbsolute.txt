@@ -46,3 +46,4 @@ D:\Personal\WebApi\WebApp.Core\obj\Debug\net8.0\refint\WebApp.Core.dll
 D:\Personal\WebApi\WebApp.Core\obj\Debug\net8.0\WebApp.Core.pdb
 D:\Personal\WebApi\WebApp.Core\obj\Debug\net8.0\WebApp.Core.genruntimeconfig.cache
 D:\Personal\WebApi\WebApp.Core\obj\Debug\net8.0\ref\WebApp.Core.dll
+D:\Personal\WebApi\WebApp.Core\obj\Debug\net8.0\WebApp.Core.sourcelink.json

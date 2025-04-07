@@ -11,6 +11,8 @@ public struct CollectionName
     public const string User = "users";
     public const string Invoice = "invoices";
     public const string SoldInvoice = "soldInvoices";
-    public const string Client = "client";
-    public const string RevokedToken = "tokens";
+    public const string Organization = "orgId";
+    public const string BlacklistedToken = "tokens";
+    public const string RefreshToken = "refreshTokens";
+    
 }

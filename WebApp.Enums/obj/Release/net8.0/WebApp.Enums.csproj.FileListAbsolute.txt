@@ -9,3 +9,15 @@ D:\Repo\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.dll
 D:\Repo\WebApi\WebApp.Enums\obj\Release\net8.0\refint\WebApp.Enums.dll
 D:\Repo\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.pdb
 D:\Repo\WebApi\WebApp.Enums\obj\Release\net8.0\ref\WebApp.Enums.dll
+D:\Personal\WebApi\WebApp.Enums\bin\Release\net8.0\WebApp.Enums.deps.json
+D:\Personal\WebApi\WebApp.Enums\bin\Release\net8.0\WebApp.Enums.dll
+D:\Personal\WebApi\WebApp.Enums\bin\Release\net8.0\WebApp.Enums.pdb
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.GeneratedMSBuildEditorConfig.editorconfig
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.AssemblyInfoInputs.cache
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.AssemblyInfo.cs
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.csproj.CoreCompileInputs.cache
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.sourcelink.json
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.dll
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\refint\WebApp.Enums.dll
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\WebApp.Enums.pdb
+D:\Personal\WebApi\WebApp.Enums\obj\Release\net8.0\ref\WebApp.Enums.dll

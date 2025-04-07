@@ -40,4 +40,7 @@ public class OrgDocument : BaseEntityAuditable<int>
     [Required]
     public DateTime UploadTime { get; set; }
     public long FileSize { get; set; }
+    
+    [StringLength(255)]
+    public string Hash { get; set; } = string.Empty;
 }

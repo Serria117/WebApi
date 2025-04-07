@@ -31,12 +31,14 @@ public class InvoiceMongoRepository(IMongoDatabase db)
     public bool InvoiceExists(string? invoiceId, string? taxId = null)
     {
         if (string.IsNullOrEmpty(invoiceId)) return false;
-        var filter = Builders<InvoiceDetailDoc>.Filter.Eq(i => i.Id, invoiceId);
-        if (taxId is not null)
+
+        if (!string.IsNullOrEmpty(taxId))
         {
-            filter &= Builders<InvoiceDetailDoc>.Filter.Eq(i => i.Nmmst, taxId);
+            return Collection.CountDocuments(x => x.Id == invoiceId && x.Nmmst == taxId,
+                                             new CountOptions { Limit = 1 }) > 0;
         }
-        return Collection.Find(filter).Any();
+        return Collection.CountDocuments(x => x.Id == invoiceId, 
+                                         new CountOptions { Limit = 1 }) > 0;
     }
 
     public async Task<long> UpdateInvoiceStatus(string invId, int status)
@@ -45,7 +47,8 @@ public class InvoiceMongoRepository(IMongoDatabase db)
             Builders<InvoiceDetailDoc>.Filter.Eq(i => i.Id, invId),
             Builders<InvoiceDetailDoc>.Filter.Ne(i => i.Tthai, status));
 
-        var result = await Collection.UpdateOneAsync(filter, Builders<InvoiceDetailDoc>.Update.Set(i => i.Tthai, status));
+        var result =
+            await Collection.UpdateOneAsync(filter, Builders<InvoiceDetailDoc>.Update.Set(i => i.Tthai, status));
         return result.IsModifiedCountAvailable ? result.ModifiedCount : 0;
     }
 
@@ -70,7 +73,6 @@ public class InvoiceMongoRepository(IMongoDatabase db)
     public async Task<PaginatedDocResult<InvoiceDetailDoc>> FindInvoices(FilterDefinition<InvoiceDetailDoc> filter,
                                                                          int page, int size)
     {
-        
         var sortFilter = Builders<InvoiceDetailDoc>.Sort.Ascending("tdlap");
 
         var queryDocument = Collection.Find(filter)

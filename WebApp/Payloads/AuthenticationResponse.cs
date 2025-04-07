@@ -6,6 +6,7 @@ public class AuthenticationResponse
     public Guid Id { get; set; }
     public string? Message { get; set; }
     public string? AccessToken { get; set; }
+    public string? RefreshToken { get; set; }
     public string? Username { get; set; }
     public DateTime? IssueAt { get; set; }
     public DateTime? ExpireAt { get; set; }

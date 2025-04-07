@@ -20,3 +20,4 @@ D:\Personal\WebApi\WebApp.Enums\obj\Debug\net8.0\WebApp.Enums.dll
 D:\Personal\WebApi\WebApp.Enums\obj\Debug\net8.0\refint\WebApp.Enums.dll
 D:\Personal\WebApi\WebApp.Enums\obj\Debug\net8.0\WebApp.Enums.pdb
 D:\Personal\WebApi\WebApp.Enums\obj\Debug\net8.0\ref\WebApp.Enums.dll
+D:\Personal\WebApi\WebApp.Enums\obj\Debug\net8.0\WebApp.Enums.sourcelink.json

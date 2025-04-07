@@ -108,4 +108,21 @@ public class UserController(IUserAppService userAppService) : ControllerBase
         var result = await userAppService.ChangeUserRoles(userId, roleIds);
         return result.Success ? Ok(result) : BadRequest(result);
     }
+
+    /// <summary>
+    /// Updates the organizations that asign to an user.
+    /// </summary>
+    /// <param name="userId">The ID of the user to update.</param>
+    /// <param name="orgIds">A list of organization IDs to add the user to.</param>
+    /// <returns>An IActionResult indicating the result of the update operation.</returns>
+    /// <remarks>
+    /// Requires the <see cref="Permissions.UserUpdate"/> permission.
+    /// </remarks>
+    [HttpPut("org-update/{userId:guid}")] [HasAuthority(Permissions.UserUpdate)]
+    public async Task<IActionResult> UpadteOrganizations(Guid userId, List<Guid> orgIds)
+    {
+        var result = await userAppService.AddOrganizationToUser(userId, orgIds);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+    
 }

@@ -19,4 +19,6 @@ public class User : BaseEntity<Guid>
     public int LogInFailedCount { get; set; } = 0;
     public bool Locked { get; set; } = false;
     public ISet<Role> Roles { get; set; } = new HashSet<Role>();
+    
+    public ISet<Organization> Organizations { get; set; } = new HashSet<Organization>();
 }

@@ -14,16 +14,16 @@ namespace WebApp.Services.Mappers;
 public static class MapExtension
 {
     public static IPagedList<TDto> MapPagedList<TEntity, TDto>(this IPagedList<TEntity> entities,
-                                                               Func<TEntity, TDto> mapFunction)
+                                                               Func<TEntity, TDto> mapFunc)
     {
-        var dtoList = entities.Select(mapFunction);
+        var dtoList = entities.Select(mapFunc);
         return new StaticPagedList<TDto>(subset: dtoList, metaData: entities);
     }
 
     public static IEnumerable<TDto> MapCollection<TEntity, TDto>(this IEnumerable<TEntity> entities,
-                                                                 Func<TEntity, TDto> mapper)
+                                                                 Func<TEntity, TDto> mapFunc)
     {
-        return entities.Select(mapper);
+        return entities.Select(mapFunc);
     }
 
     #region Organization
@@ -93,10 +93,10 @@ public static class MapExtension
         o.FullName = i.FullName.RemoveSpace() ?? o.FullName;
         o.ContactAddress = i.ContactAddress.RemoveSpace() ?? o.ContactAddress;
         o.ShortName = i.ShortName.RemoveSpace() ?? o.ShortName;
-        o.Emails = i.Emails.IsNullOrEmpty() ? o.Emails : i.Emails.Select(x => x.RemoveSpace()!).ToList();
+        o.Emails = i.Emails.IsNullOrEmpty() ? [] : i.Emails.Select(x => x.RemoveSpace()!).ToList();
         o.Address = i.Address.RemoveSpace() ?? o.Address;
         o.UnsignName = o.FullName.UnSign();
-        o.Phones = i.Phones.IsNullOrEmpty() ? o.Phones : i.Phones.Select(x => x.RemoveSpace()!).ToList();
+        o.Phones = i.Phones.IsNullOrEmpty() ? [] : i.Phones.Select(x => x.RemoveSpace()!).ToList();
         o.InvoicePwd = i.InvoicePwd.RemoveSpace() ?? o.InvoicePwd;
         o.TaxIdPwd = i.TaxIdPwd.RemoveSpace() ?? o.TaxIdPwd;
         o.PinCode = i.PinCode.RemoveSpace() ?? o.PinCode;
