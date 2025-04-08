@@ -109,6 +109,7 @@ services.AddSignalR(op =>
     op.KeepAliveInterval = TimeSpan.FromSeconds(15);
 });
 
+
 services.AddEndpointsApiExplorer();
 
 services.AddSwaggerGen(ops =>
@@ -185,7 +186,7 @@ app.UseCors(op =>
     op.AllowAnyHeader();
     op.Build();
 });
-
+app.UseWebSockets();
 app.UseMiddleware<ExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())

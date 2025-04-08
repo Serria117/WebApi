@@ -68,6 +68,14 @@ public class OrgDocumentController(IDocumentAppService documentService,
         return File(fileStream, contentType, fileName);
     }
 
+    [HttpGet("read/01gtgt")]
+    public async Task<IActionResult> Read_01GTGT(int docId)
+    {
+        var res = await documentService.Read_01GTGT_Xml(docId);
+        if (res.Success) return Ok(res);
+        return NotFound(res);
+    }
+
     /// <summary>
     /// Deletes a document by its ID.
     /// </summary>

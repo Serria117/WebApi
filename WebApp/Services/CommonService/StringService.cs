@@ -36,4 +36,9 @@ public static partial class StringService
           .FirstOrDefault(e => e.Name.LocalName == nodeName)?
           .Value;
     }
+    
+    public static long GetXmlNodeValueAsLong(this XDocument doc, string nodeName)
+    {
+        return long.TryParse(doc.GetXmlNodeValue(nodeName), out var value) ? value : 0;
+    }
 }

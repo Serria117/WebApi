@@ -271,7 +271,10 @@ namespace WebApp.Services.UserService
                                                                    && x.Users.Any(u => u.Id.ToString() == UserId),
                                                       include: nameof(Organization.Users))
                                                 .AnyAsync();
-            if (!_) throw new Exception("Organization not found");
+            if (!_) return new AuthenticationResponse()
+            {
+                Message = "Orgianization does not exist or you are not a member of this organization."
+            };
             
             var username = UserManager.CurrentUsername()!;
             //Update new claims:

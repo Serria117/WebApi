@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
 using WebApp.Payloads;
+using WebApp.Payloads.DocumentPayload;
 using WebApp.Repositories;
 using WebApp.Services.CommonService;
 using WebApp.Services.Mappers;
@@ -56,6 +57,16 @@ public interface IDocumentAppService
     /// Returns a 404 error if the document is not found, a 500 error if an exception occurs,
     /// or a success response if the file is deleted successfully.</returns>
     Task<AppResponse> DeleteFileByIdAsync(int documentId);
+
+    /// <summary>
+    /// Reads and processes the 01GTGT XML document by its document ID.
+    /// </summary>
+    /// <param name="docId">The ID of the document to read.</param>
+    /// <returns>
+    /// An <see cref="AppResponse"/> containing the processed data if the document is found and valid,
+    /// or an error response if the document is not found or invalid.
+    /// </returns>
+    Task<AppResponse> Read_01GTGT_Xml(int docId);
 }
 
 public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
@@ -219,6 +230,56 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         }
     }
 
+    public async Task<AppResponse> Read_01GTGT_Xml(int docId)
+    {
+        var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg && f.Id == docId,
+                                           nameof(OrgDocument.Organization))
+                                     .FirstOrDefaultAsync();
+        if (doc is null) return AppResponse.Error404("Document Id doesn't exist");
+        if (!File.Exists(doc.FilePath)) return AppResponse.Error404("The Document may have been deleted or moved");
+        if (doc.DocumentType != DocumentType.TK_01GTGT) return AppResponse.Error400("Please choose 01/GTGT document");
+        await using var stream = new FileStream(doc.FilePath, FileMode.Open);
+        var xDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+        var data = new VatDocumentPayload
+        {
+            OrganizationName = xDocument.GetXmlNodeValue("tenNNT") ?? string.Empty,
+            TaxId = xDocument.GetXmlNodeValue("mst") ?? string.Empty,
+            DocumentName = xDocument.GetXmlNodeValue("tenTKhai"),
+            Address = xDocument.GetXmlNodeValue("dchiNNT"),
+            Ct21 = xDocument.GetXmlNodeValueAsLong("ct21"),
+            Ct22 = xDocument.GetXmlNodeValueAsLong("ct22"),
+            Ct23 = xDocument.GetXmlNodeValueAsLong("ct23"),
+            Ct23a = xDocument.GetXmlNodeValueAsLong("ct23a"),
+            Ct24 = xDocument.GetXmlNodeValueAsLong("ct24"),
+            Ct24a = xDocument.GetXmlNodeValueAsLong("ct24a"),
+            Ct25 = xDocument.GetXmlNodeValueAsLong("ct25"),
+            Ct26 = xDocument.GetXmlNodeValueAsLong("ct26"),
+            Ct27 = xDocument.GetXmlNodeValueAsLong("ct27"),
+            Ct28 = xDocument.GetXmlNodeValueAsLong("ct28"),
+            Ct29 = xDocument.GetXmlNodeValueAsLong("ct29"),
+            Ct30 = xDocument.GetXmlNodeValueAsLong("ct30"),
+            Ct31 = xDocument.GetXmlNodeValueAsLong("ct31"),
+            Ct32 = xDocument.GetXmlNodeValueAsLong("ct32"),
+            Ct32a = xDocument.GetXmlNodeValueAsLong("ct32a"),
+            Ct33 = xDocument.GetXmlNodeValueAsLong("ct33"),
+            Ct34 = xDocument.GetXmlNodeValueAsLong("ct34"),
+            Ct35 = xDocument.GetXmlNodeValueAsLong("ct35"),
+            Ct36 = xDocument.GetXmlNodeValueAsLong("ct36"),
+            Ct37 = xDocument.GetXmlNodeValueAsLong("ct37"),
+            Ct38 = xDocument.GetXmlNodeValueAsLong("ct38"),
+            Ct39a = xDocument.GetXmlNodeValueAsLong("ct39a"),
+            Ct40 = xDocument.GetXmlNodeValueAsLong("ct40"),
+            Ct40a = xDocument.GetXmlNodeValueAsLong("ct40a"),
+            Ct40b = xDocument.GetXmlNodeValueAsLong("ct40b"),
+            Ct41 = xDocument.GetXmlNodeValueAsLong("ct41"),
+            Ct42 = xDocument.GetXmlNodeValueAsLong("ct42"),
+            Ct43 = xDocument.GetXmlNodeValueAsLong("ct43"),
+            Ct44 = xDocument.GetXmlNodeValueAsLong("ct44"),
+        };
+
+        return AppResponse.SuccessResponse(data);
+    }
+
     private DocumentType GetDocumentTypeFromXml(XDocument doc)
     {
         try
@@ -277,4 +338,5 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         var hashBytes = md5.ComputeHash(bytes);
         return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
     }
+    
 }
