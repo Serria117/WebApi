@@ -27,27 +27,24 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// <summary>
     /// Get uploaded files of an organization
     /// </summary>
-    /// <param name="orgId"></param>
     /// <param name="documentType"></param>
     /// <param name="reqParam"></param>
     /// <returns></returns>
-    [HttpGet("get-document/{orgId:guid}")]
-    public async Task<IActionResult> GetFilesByOrgAndType(Guid orgId,
-                                                          [FromQuery] DocumentType documentType,
+    [HttpGet("get-document")]
+    public async Task<IActionResult> GetDocumentsList([FromQuery] DocumentType documentType,
                                                           [FromQuery] RequestParam reqParam)
     {
-        var response = await documentService.GetFilesByOrgAndTypeAsync(documentType, reqParam);
+        var response = await documentService.GetFilesByTypeAsync(documentType, reqParam);
         return Ok(response);
     }
 
     /// <summary>
     /// Download a specific document
     /// </summary>
-    /// <param name="orgId"></param>
     /// <param name="documentId"></param>
     /// <returns></returns>
     [HttpGet("download/{orgId:guid}")]
-    public async Task<IActionResult> DownloadDocument(Guid orgId, [FromQuery] int documentId)
+    public async Task<IActionResult> DownloadDocument([FromQuery] int documentId)
     {
         var fileResponse = await documentService.GetFileByIdAsync(documentId);
         if (!fileResponse.Success || fileResponse.Data is null)

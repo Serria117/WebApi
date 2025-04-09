@@ -18,14 +18,14 @@ public interface IDocumentAppService
 {
     
     /// <summary>
-    /// Asynchronously retrieves files by organization and document type.
+    /// Asynchronously retrieves files by organization and document type. The organization is determined based on the user's working organization.
     /// </summary>
     /// <param name="documentType">The type of the document to filter by.</param>
     /// <param name="requestParam">The request parameters for pagination and filtering.</param>
     /// <returns>
     /// An <see cref="AppResponse"/> containing a paginated list of documents that match the specified criteria.
     /// </returns>
-    Task<AppResponse> GetFilesByOrgAndTypeAsync(DocumentType documentType, RequestParam requestParam);
+    Task<AppResponse> GetFilesByTypeAsync(DocumentType documentType, RequestParam requestParam);
 
     /// <summary>
     /// Asynchronously uploads document files for a specified organization.
@@ -161,7 +161,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
 
     }
 
-    public async Task<AppResponse> GetFilesByOrgAndTypeAsync(DocumentType documentType,
+    public async Task<AppResponse> GetFilesByTypeAsync(DocumentType documentType,
                                                              RequestParam requestParam)
     {
         (bool result, Guid orgId) = GetId(WorkingOrg);

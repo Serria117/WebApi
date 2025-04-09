@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -51,18 +51,22 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Uploads\**" />
     <Compile Remove="WebApp.Enums\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Remove="Uploads\**" />
     <EmbeddedResource Remove="WebApp.Enums\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="Uploads\**" />
     <Content Remove="WebApp.Enums\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Uploads\**" />
     <None Remove="WebApp.Enums\**" />
   </ItemGroup>
 
