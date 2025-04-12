@@ -1,6 +1,6 @@
 ﻿namespace WebApp.Payloads.DocumentPayload;
 
-public class VatDocumentPayload : BaseDocumentPayload
+public class Document01GtgtPayload : BaseDocumentPayload
 {
     public long Ct21 { get; set; }
     public long Ct22 { get; set; }

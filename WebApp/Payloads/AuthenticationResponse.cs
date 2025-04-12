@@ -10,4 +10,9 @@ public class AuthenticationResponse
     public string? Username { get; set; }
     public DateTime? IssueAt { get; set; }
     public DateTime? ExpireAt { get; set; }
+    public string? WorkingTaxId { get; set; }
+    public string? WorkingOrgId { get; set; }
+    public string? WorkingOrgFullName { get; set; }
+    public string? WorkingOrgShortName { get; set; }
+    
 }

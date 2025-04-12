@@ -1,11 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Net;
+using Amazon.Util.Internal.PlatformServices;
 using WebApp.Enums;
 
 namespace WebApp;
 
-public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
+public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IWebHostEnvironment environment)
 {
     public async Task InvokeAsync(HttpContext httpContext)
     {
@@ -22,7 +23,7 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception, string tracedId)
+    private Task HandleExceptionAsync(HttpContext context, Exception exception, string tracedId)
     {
         context.Response.ContentType = ContentType.ApplicationJson;
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
@@ -38,7 +39,7 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
             status = context.Response.StatusCode,
             tracedId = tracedId,
             message = message,
-            //detailed = exception.Message // This can be omitted in production to avoid exposing sensitive information
+            detailed = environment.IsDevelopment() ? $"Error type: {exception.GetType().Name}, error message: {exception.Message}" : null // This can be omitted in production to avoid exposing sensitive information
         };
 
         return context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));

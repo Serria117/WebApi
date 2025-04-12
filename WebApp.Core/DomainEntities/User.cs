@@ -21,4 +21,5 @@ public class User : BaseEntity<Guid>
     public ISet<Role> Roles { get; set; } = new HashSet<Role>();
     
     public ISet<Organization> Organizations { get; set; } = new HashSet<Organization>();
+    public Guid? LastWorkingOrg { get; set; } // store the last working org id
 }

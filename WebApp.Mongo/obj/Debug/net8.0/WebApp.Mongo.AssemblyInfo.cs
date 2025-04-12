@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebApp.Mongo")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e3f5debce977dfd115922a72f498db3a9c711d93")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+56d4d4b78ddcde334adea52348d9424ba5a5fb57")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebApp.Mongo")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebApp.Mongo")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

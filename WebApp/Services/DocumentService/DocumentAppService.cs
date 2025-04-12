@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Xml.Linq;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
@@ -16,7 +15,6 @@ namespace WebApp.Services.DocumentService;
 
 public interface IDocumentAppService
 {
-    
     /// <summary>
     /// Asynchronously retrieves files by organization and document type. The organization is determined based on the user's working organization.
     /// </summary>
@@ -38,7 +36,7 @@ public interface IDocumentAppService
     /// an error response is returned.
     /// </remarks>
     Task<AppResponse> UploadDocFileAsync(List<IFormFile> files);
-    
+
     /// <summary>
     /// Asynchronously retrieves a file path by its document ID for the current working organization.
     /// </summary>
@@ -47,8 +45,8 @@ public interface IDocumentAppService
     /// An <see cref="AppResponse"/> containing the file path if found, 
     /// or a 404 error response if the document is not found.
     /// </returns>
-    Task<AppResponse> GetFileByIdAsync(int documentId);
-    
+    Task<AppResponse> GetDocumentByIdAsync(int documentId);
+
     /// <summary>
     /// Deletes a document file by its ID.
     /// </summary>
@@ -66,7 +64,7 @@ public interface IDocumentAppService
     /// An <see cref="AppResponse"/> containing the processed data if the document is found and valid,
     /// or an error response if the document is not found or invalid.
     /// </returns>
-    Task<AppResponse> Read_01GTGT_Xml(int docId);
+    Task<AppResponse> ReadDocumentFromFileAsync(int docId);
 }
 
 public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
@@ -88,7 +86,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         if (org is null) return AppResponse.Error404("Organization not found");
         var uploadFiles = new List<OrgDocument>();
         var uploadDir = Path.Combine(env.ContentRootPath, "Uploads", org.TaxId);
-
+        var relativeUploadDir = Path.Combine("Uploads", org.TaxId);
         if (!Directory.Exists(uploadDir))
         {
             Directory.CreateDirectory(uploadDir);
@@ -107,24 +105,25 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                 validationError.Add(validated.Error);
                 continue;
             }
+
             memoryStream.Position = 0;
             var uniqueFileName = $"{file.FileName}_{Ulid.NewUlid()}.xml";
-            var filePath = Path.Combine(uploadDir, uniqueFileName);
-            // read document and extract some extra metadata:
-            // await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            //var filePath = Path.Combine(uploadDir, uniqueFileName);
+            var relativeFilePath = Path.Combine(relativeUploadDir, uniqueFileName);
+            var absoluteFilePath = Path.Combine(env.ContentRootPath, relativeFilePath);
             var doc = await XDocument.LoadAsync(memoryStream, LoadOptions.None, CancellationToken.None);
             var hash = CalculateMd5Hash(doc);
             var type = GetDocumentTypeFromXml(doc);
-            
+
             var soLan = doc.GetXmlNodeValue("soLan");
             var docDate = doc.GetXmlNodeValue("ngayLapTKhai");
 
             // save the file to the stream
-            await using (var stream = new FileStream(filePath, FileMode.Create))
+            await using (var stream = new FileStream(absoluteFilePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
-            
+
             // create the document object
             var uploadFile = new OrgDocument
             {
@@ -139,7 +138,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                 Period = doc.GetXmlNodeValue("kyKKhai"),
                 PeriodType = doc.GetXmlNodeValue("kieuKy"),
                 FileName = file.FileName,
-                FilePath = filePath,
+                FilePath = relativeFilePath,
                 UploadTime = DateTime.Now,
                 FileSize = file.Length,
                 Hash = hash
@@ -157,12 +156,10 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             error = validationError.Count,
             validationError
         });
-
-
     }
 
     public async Task<AppResponse> GetFilesByTypeAsync(DocumentType documentType,
-                                                             RequestParam requestParam)
+                                                       RequestParam requestParam)
     {
         (bool result, Guid orgId) = GetId(WorkingOrg);
         if (!result)
@@ -178,35 +175,41 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                                                     ["CreateAt DESC"])
                                        .ToPagedListAsync(pageRequest.Number, pageRequest.Size);
 
-        return AppResponse.SuccessResponse(files.MapPagedList(f => new
+        var data = files.MapPagedList(f => new
         {
             f.Id,
             f.FileName,
             f.FilePath,
             f.UploadTime,
-            DocumentType = f.DocumentType.ToString(),
+            f.DocumentType,
             Name = f.DocumentName,
             f.Period,
             f.NumberOfAdjustment,
             f.PeriodType,
             f.DocumentDate,
-        }));
+            f.AdjustmentType
+        });
+
+        return AppResponse.SuccessResponse(data);
     }
 
-    
-    public async Task<AppResponse> GetFileByIdAsync(int documentId)
+
+    public async Task<AppResponse> GetDocumentByIdAsync(int documentId)
     {
-        var file = await docRepository.Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == documentId,
-                                         include: nameof(OrgDocument.Organization))
-                                   .FirstOrDefaultAsync();
-        return file is not null ? AppResponse.SuccessResponse(file.FilePath) : AppResponse.Error404("Document not found");
+        var file = await docRepository
+                         .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == documentId,
+                               include: nameof(OrgDocument.Organization))
+                         .FirstOrDefaultAsync();
+        return file is not null
+            ? AppResponse.SuccessResponse(file.FilePath)
+            : AppResponse.Error404("Document not found");
     }
 
     public async Task<AppResponse> DeleteFileByIdAsync(int documentId)
     {
         try
         {
-            var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg 
+            var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg
                                                     && f.Id == documentId,
                                                nameof(OrgDocument.Organization))
                                          .FirstOrDefaultAsync();
@@ -215,9 +218,10 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                 return AppResponse.Error404("Document not found");
             }
 
-            if (File.Exists(doc.FilePath))
+            var filePath = Path.Combine(env.ContentRootPath, doc.FilePath);
+            if (File.Exists(filePath))
             {
-                File.Delete(doc.FilePath);
+                File.Delete(filePath);
             }
 
             return (await docRepository.HardDeleteAsync(documentId))
@@ -230,17 +234,46 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         }
     }
 
-    public async Task<AppResponse> Read_01GTGT_Xml(int docId)
+    public async Task<AppResponse> ReadDocumentFromFileAsync(int docId)
     {
-        var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg && f.Id == docId,
-                                           nameof(OrgDocument.Organization))
-                                     .FirstOrDefaultAsync();
-        if (doc is null) return AppResponse.Error404("Document Id doesn't exist");
-        if (!File.Exists(doc.FilePath)) return AppResponse.Error404("The Document may have been deleted or moved");
-        if (doc.DocumentType != DocumentType.TK_01GTGT) return AppResponse.Error400("Please choose 01/GTGT document");
-        await using var stream = new FileStream(doc.FilePath, FileMode.Open);
+        try
+        {
+            var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg && f.Id == docId,
+                                               nameof(OrgDocument.Organization))
+                                         .FirstOrDefaultAsync();
+            if (doc is null) return AppResponse.Error404("Document Id doesn't exist");
+            var filePath = GetFilePath(doc);
+            if (!File.Exists(filePath)) return AppResponse.Error404("The Document may have been deleted or moved");
+
+            var docType = doc.DocumentType;
+
+            object? data = docType switch
+            {
+                DocumentType.TK_01GTGT => await Read_01GTGT_Document(doc),
+                DocumentType.TK_05KK_TNCN => await Read_05KK_TNCN_Document(doc),
+                DocumentType.TK_05QTN_TNCN => await Read_05QTN_TNCN_Document(doc),
+                _ => null
+            };
+
+            return data is not null
+                ? AppResponse.SuccessResponse(data)
+                : AppResponse.Error400("Document type is not supported");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, e.Message);
+            return AppResponse.Error400("Can not find the document");
+        }
+    }
+
+    #region Read Document Details
+
+    private async Task<Document01GtgtPayload> Read_01GTGT_Document(OrgDocument doc)
+    {
+        string filePath = GetFilePath(doc);
+        await using var stream = new FileStream(filePath, FileMode.Open);
         var xDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
-        var data = new VatDocumentPayload
+        var data = new Document01GtgtPayload
         {
             OrganizationName = xDocument.GetXmlNodeValue("tenNNT") ?? string.Empty,
             TaxId = xDocument.GetXmlNodeValue("mst") ?? string.Empty,
@@ -276,8 +309,137 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             Ct43 = xDocument.GetXmlNodeValueAsLong("ct43"),
             Ct44 = xDocument.GetXmlNodeValueAsLong("ct44"),
         };
+        return data;
+    }
 
-        return AppResponse.SuccessResponse(data);
+    private async Task<Document05KkPayload> Read_05KK_TNCN_Document(OrgDocument doc)
+    {
+        string filePath = GetFilePath(doc);
+        await using var stream = new FileStream(filePath, FileMode.Open);
+        var xDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+        return new Document05KkPayload()
+        {
+            Ct15 = xDocument.GetXmlNodeValueAsLong("c15"),
+            Ct16 = xDocument.GetXmlNodeValueAsLong("c16"),
+            Ct17 = xDocument.GetXmlNodeValueAsLong("c17"),
+            Ct18 = xDocument.GetXmlNodeValueAsLong("c18"),
+            Ct19 = xDocument.GetXmlNodeValueAsLong("c19"),
+            Ct20 = xDocument.GetXmlNodeValueAsLong("c20"),
+            Ct21 = xDocument.GetXmlNodeValueAsLong("c21"),
+            Ct22 = xDocument.GetXmlNodeValueAsLong("c22"),
+            Ct23 = xDocument.GetXmlNodeValueAsLong("c23"),
+            Ct24 = xDocument.GetXmlNodeValueAsLong("c24"),
+            Ct25 = xDocument.GetXmlNodeValueAsLong("c25"),
+            Ct26 = xDocument.GetXmlNodeValueAsLong("c26"),
+            Ct27 = xDocument.GetXmlNodeValueAsLong("c27"),
+            Ct28 = xDocument.GetXmlNodeValueAsLong("c28"),
+            Ct29 = xDocument.GetXmlNodeValueAsLong("c29"),
+            Ct30 = xDocument.GetXmlNodeValueAsLong("c30"),
+            Ct31 = xDocument.GetXmlNodeValueAsLong("c31"),
+            Ct32 = xDocument.GetXmlNodeValueAsLong("c32"),
+        };
+    }
+
+    //TODO: Read 05QTN_TNCN document
+    private async Task<Document05QTNPayload> Read_05QTN_TNCN_Document(OrgDocument doc)
+    {
+        string filePath = GetFilePath(doc);
+        await using var stream = new FileStream(filePath, FileMode.Open);
+        var xDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+
+        XNamespace ns = "http://kekhaithue.gdt.gov.vn/TKhaiThue";
+
+        var list = xDocument.Descendants(ns + "PLuc_05_1_BK_QTT")
+                            .Elements(ns + "BKeCTietCNhan")
+                            .Select(x => new Pluc051Ct
+                            {
+                                Id = x.Attribute("id")?.ToString(),
+                                Ct07 = x.Element(ns + "ct07")?.Value,
+                                Ct08 = x.Element(ns + "ct08")?.Value,
+                                Ct10 = x.GetValueFromElementAsLong("ct10", ns),
+                                Ct11 = x.GetValueFromElementAsLong("ct11", ns),
+                                Ct12 = x.GetValueFromElementAsLong("ct12", ns),
+                                Ct13 = x.GetValueFromElementAsLong("ct13", ns),
+                                Ct14 = x.GetValueFromElementAsLong("ct14", ns),
+                                Ct15 = x.GetValueFromElementAsLong("ct15", ns),
+                                Ct16 = x.GetValueFromElementAsLong("ct16", ns),
+                                Ct17 = x.GetValueFromElementAsLong("ct17", ns),
+                                Ct18 = x.GetValueFromElementAsLong("ct18", ns),
+                                Ct19 = x.GetValueFromElementAsLong("ct19", ns),
+                                Ct20 = x.GetValueFromElementAsLong("ct20", ns),
+                                Ct21 = x.GetValueFromElementAsLong("ct21", ns),
+                                Ct22 = x.GetValueFromElementAsLong("ct22", ns),
+                                Ct23 = x.GetValueFromElementAsLong("ct23", ns),
+                                Ct24 = x.GetValueFromElementAsLong("ct24", ns),
+                                Ct25 = x.GetValueFromElementAsLong("ct25", ns),
+                                Ct26 = x.GetValueFromElementAsLong("ct26", ns),
+                                Ct27 = x.GetValueFromElementAsLong("ct27", ns),
+                            }).ToList();
+        var pl051 = xDocument.Descendants(ns + "PLuc_05_1_BK_QTT")
+                             .Select(x => new Pl051Bk()
+                             {
+                                 Pluc051Cts = list,
+                                 Ct28 = x.GetValueFromElementAsLong("ct28", ns),
+                                 Ct29 = x.GetValueFromElementAsLong("ct29", ns),
+                                 Ct30 = x.GetValueFromElementAsLong("ct30", ns),
+                                 Ct31 = x.GetValueFromElementAsLong("ct31", ns),
+                                 Ct32 = x.GetValueFromElementAsLong("ct32", ns),
+                                 Ct33 = x.GetValueFromElementAsLong("ct33", ns),
+                                 Ct34 = x.GetValueFromElementAsLong("ct34", ns),
+                                 Ct35 = x.GetValueFromElementAsLong("ct35", ns),
+                                 Ct36 = x.GetValueFromElementAsLong("ct36", ns),
+                                 Ct37 = x.GetValueFromElementAsLong("ct37", ns),
+                                 Ct38 = x.GetValueFromElementAsLong("ct38", ns),
+                                 Ct39 = x.GetValueFromElementAsLong("ct39", ns),
+                                 Ct40 = x.GetValueFromElementAsLong("ct40", ns),
+                                 Ct41 = x.GetValueFromElementAsLong("ct41", ns),
+                                 Ct42 = x.GetValueFromElementAsLong("ct42", ns),
+                                 Ct43 = x.GetValueFromElementAsLong("ct43", ns),
+                             })
+                             .FirstOrDefault();
+        return new Document05QTNPayload()
+        {
+            Pluc051Bk = pl051,
+            Ct16 = xDocument.GetXmlNodeValueAsLong("ct16"),
+            Ct17 = xDocument.GetXmlNodeValueAsLong("ct17"),
+            Ct18 = xDocument.GetXmlNodeValueAsLong("ct18"),
+            Ct19 = xDocument.GetXmlNodeValueAsLong("ct19"),
+            Ct20 = xDocument.GetXmlNodeValueAsLong("ct20"),
+            Ct21 = xDocument.GetXmlNodeValueAsLong("ct21"),
+            Ct22 = xDocument.GetXmlNodeValueAsLong("ct22"),
+            Ct23 = xDocument.GetXmlNodeValueAsLong("ct23"),
+            Ct24 = xDocument.GetXmlNodeValueAsLong("ct24"),
+            Ct25 = xDocument.GetXmlNodeValueAsLong("ct25"),
+            Ct26 = xDocument.GetXmlNodeValueAsLong("ct26"),
+            Ct27 = xDocument.GetXmlNodeValueAsLong("ct27"),
+            Ct28 = xDocument.GetXmlNodeValueAsLong("ct28"),
+            Ct29 = xDocument.GetXmlNodeValueAsLong("ct29"),
+            Ct30 = xDocument.GetXmlNodeValueAsLong("ct30"),
+            Ct31 = xDocument.GetXmlNodeValueAsLong("ct31"),
+            Ct32 = xDocument.GetXmlNodeValueAsLong("ct32"),
+            Ct33 = xDocument.GetXmlNodeValueAsLong("ct33"),
+            Ct34 = xDocument.GetXmlNodeValueAsLong("ct34"),
+            Ct35 = xDocument.GetXmlNodeValueAsLong("ct35"),
+            Ct36 = xDocument.GetXmlNodeValueAsLong("ct36"),
+            Ct37 = xDocument.GetXmlNodeValueAsLong("ct37"),
+            Ct38 = xDocument.GetXmlNodeValueAsLong("ct38"),
+            Ct39 = xDocument.GetXmlNodeValueAsLong("ct39"),
+            Ct40 = xDocument.GetXmlNodeValueAsLong("ct40"),
+            Ct41 = xDocument.GetXmlNodeValueAsLong("ct41"),
+        };
+    }
+    //TODO: Read BCTC_133 document
+
+    //TODO: Read TK_03TNDN document
+
+    #endregion
+
+    private string GetFilePath(OrgDocument doc)
+    {
+        var filePath = Path.Combine(env.ContentRootPath, doc.FilePath);
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"The File at <{filePath}> has been move or deleted");
+        return filePath;
     }
 
     private DocumentType GetDocumentTypeFromXml(XDocument doc)
@@ -327,16 +489,15 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             return (false, e.Message);
         }
     }
-    
+
     private static string CalculateMd5Hash(XDocument doc)
     {
         // Chuẩn hóa XML (loại bỏ khoảng trắng không cần thiết)
         var normalizedXml = doc.ToString(SaveOptions.DisableFormatting);
-        
+
         var bytes = System.Text.Encoding.UTF8.GetBytes(normalizedXml);
         using var md5 = System.Security.Cryptography.MD5.Create();
         var hashBytes = md5.ComputeHash(bytes);
         return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
     }
-    
 }

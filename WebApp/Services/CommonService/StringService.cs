@@ -41,4 +41,11 @@ public static partial class StringService
     {
         return long.TryParse(doc.GetXmlNodeValue(nodeName), out var value) ? value : 0;
     }
+
+    public static long GetValueFromElementAsLong(this XElement e, string ns, XNamespace nodeName)
+    {
+        return long.TryParse(e.Element(ns + nodeName)?.Value, out var value) ? value : 0;
+    }
+    
+    
 }

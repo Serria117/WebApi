@@ -14,7 +14,6 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// <summary>
     /// Upload documents
     /// </summary>
-    /// <param name="orgId">The organization Id</param>
     /// <param name="file">The list of file to be uploaded</param>
     /// <returns></returns>
     [HttpPost("upload")]
@@ -43,10 +42,10 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    [HttpGet("download/{orgId:guid}")]
+    [HttpGet("download")]
     public async Task<IActionResult> DownloadDocument([FromQuery] int documentId)
     {
-        var fileResponse = await documentService.GetFileByIdAsync(documentId);
+        var fileResponse = await documentService.GetDocumentByIdAsync(documentId);
         if (!fileResponse.Success || fileResponse.Data is null)
         {
             return NotFound("File not found or you don't have permission to access the file");
@@ -65,10 +64,10 @@ public class OrgDocumentController(IDocumentAppService documentService,
         return File(fileStream, contentType, fileName);
     }
 
-    [HttpGet("read/01gtgt")]
-    public async Task<IActionResult> Read_01GTGT(int docId)
+    [HttpGet("read")]
+    public async Task<IActionResult> ReadDocument(int docId)
     {
-        var res = await documentService.Read_01GTGT_Xml(docId);
+        var res = await documentService.ReadDocumentFromFileAsync(docId);
         if (res.Success) return Ok(res);
         return NotFound(res);
     }
@@ -78,8 +77,8 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="documentId">The ID of the document to delete.</param>
     /// <returns>An IActionResult indicating the result of the delete operation.</returns>
-    [HttpDelete("delete")]
-    public async Task<IActionResult> DeleteDocument([FromBody] int documentId)
+    [HttpDelete("delete/{documentId:int}")]
+    public async Task<IActionResult> DeleteDocument([FromRoute] int documentId)
     {
         var response = await documentService.DeleteFileByIdAsync(documentId);
 

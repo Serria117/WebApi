@@ -20,6 +20,21 @@ public static class MapExtension
         return new StaticPagedList<TDto>(subset: dtoList, metaData: entities);
     }
 
+    /// <summary>
+    /// Use for async mapper method
+    /// </summary>
+    /// <param name="entities"></param>
+    /// <param name="mapFunc"></param>
+    /// <typeparam name="TEntity"></typeparam>
+    /// <typeparam name="TDto"></typeparam>
+    /// <returns></returns>
+    public static async Task<IPagedList<TDto>> MapPagedListAsync<TEntity, TDto>(this IPagedList<TEntity> entities,
+                                                                                Func<TEntity, Task<TDto>> mapFunc)
+    {
+        var dtoList = await Task.WhenAll(entities.Select(mapFunc));
+        return new StaticPagedList<TDto>(subset: dtoList, metaData: entities);
+    }
+
     public static IEnumerable<TDto> MapCollection<TEntity, TDto>(this IEnumerable<TEntity> entities,
                                                                  Func<TEntity, TDto> mapFunc)
     {
@@ -222,7 +237,11 @@ public static class MapExtension
             {
                 Id = x.Id,
                 RoleName = x.RoleName
-            }).ToHashSet()
+            }).ToHashSet(),
+            Organizations = u.Organizations.Select(o => new OrganizationInUserDto()
+            {
+                Id = o.Id, FullName = o.FullName, TaxId = o.TaxId
+            }).ToList()
         };
     }
 
@@ -323,8 +342,8 @@ public static class MapExtension
             BalanceSheetId = i.BalanceSheetId,
             Year = i.Year,
             OrganizationId = i.Organization?.Id.ToString(),
-            Details = i.Details.IsNullOrEmpty() 
-                ? [] 
+            Details = i.Details.IsNullOrEmpty()
+                ? []
                 : i.Details.MapCollection(x => x.ToDisplayDto())
                    .OrderBy(x => x.Account)
                    .ToList(),

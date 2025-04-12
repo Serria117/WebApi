@@ -23,7 +23,7 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
         {
             return Unauthorized(res);
         }
-        
+
         // Add refresh token to the response cookies:
         Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
         {
@@ -36,13 +36,13 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
         // Remove refresh token from the response body:
         res.RefreshToken = null;
         return Ok(res);
-
     }
+
     /// <summary>
     /// Refresh access token when expired
     /// </summary>
     /// <returns>The renew access token</returns>
-    [HttpPost("refresh")][Authorize]
+    [HttpPost("refresh")] [Authorize]
     public async Task<IActionResult> RefreshToken()
     {
         var refreshToken = Request.Cookies["refreshToken"];
@@ -50,7 +50,9 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
         {
             return Unauthorized("Missing token.");
         }
+
         var res = await userAppService.RefreshTokenAsync(refreshToken);
+        // Add new refresh token to the response cookies:
         Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
         {
             HttpOnly = true,
@@ -59,7 +61,7 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
             Path = "/",
             Expires = res.ExpireAt!.Value.AddDays(30)
         });
-        res.RefreshToken = null;
+        res.RefreshToken = null; // remove refresh token from the response body
         return Ok(res);
     }
 
@@ -67,15 +69,20 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
     /// Sign out
     /// </summary>
     /// <returns></returns>
-    [HttpPost("logout")]
+    [HttpPost("logout")] [Authorize]
     public async Task<IActionResult> Logout()
     {
+        // Get tokens:
+        var accessToken = HttpContext.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
         var refreshToken = Request.Cookies["refreshToken"];
-        if (string.IsNullOrEmpty(refreshToken))
+        // Check for missing tokens:
+        if (string.IsNullOrEmpty(refreshToken) || string.IsNullOrEmpty(accessToken))
         {
-            return Unauthorized("Missing refresh token.");
+            return Unauthorized("Missing tokens.");
         }
-        await userAppService.RevokeRefreshTokenAsync(refreshToken);
+        
+        // Call service:
+        await userAppService.Logout(accessToken, refreshToken);
         return Ok();
     }
 
@@ -84,15 +91,21 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
     /// </summary>
     /// <param name="request">A request payload that contain the organization ID to change to.</param>
     /// <returns>The new access token and refresh token</returns>
-    [HttpPost("change-org")]
-    [Authorize]
+    [HttpPost("change-org")] [Authorize]
     public async Task<IActionResult> ChangeWorkingOrganization([FromBody] ChangeOrgRequest request)
     {
         if (string.IsNullOrEmpty(request.OrgId))
         {
             return BadRequest("You must provide an org id.");
         }
-        var res = await userAppService.ChangeWorkingOrganization(request.OrgId);
+        // Get current refresh token:
+        var refreshToken = Request.Cookies["refreshToken"];
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return Unauthorized("Missing refresh token.");
+        }
+        // Call service:
+        var res = await userAppService.ChangeWorkingOrganization(request.OrgId, refreshToken);
         if (!res.Success)
         {
             return BadRequest(res);

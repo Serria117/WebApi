@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebApp.Enums")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e928a9a5c3b2ce09f6d9ca3dbf5b37e42ccc2f38")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+56d4d4b78ddcde334adea52348d9424ba5a5fb57")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebApp.Enums")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebApp.Enums")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
