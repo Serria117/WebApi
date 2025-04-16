@@ -92,4 +92,36 @@ public class OrgDocumentController(IDocumentAppService documentService,
             : StatusCode(500, "An unexpected error occurred."); // Default to 500 if parsing fails
     }
 
+    /// <summary>
+    /// Consolidate document of 01/GTGT and download the result as Excel file.
+    /// </summary>
+    /// <param name="ids">Array of IDs for documents to consolidate.</param>
+    /// <returns>The Excel file containing result</returns>
+    [HttpPost("vat-doc")]
+    public async Task<IActionResult> Consolidate_VatDoc(List<int> ids)
+    {
+        try
+        {
+            var fileResult = await documentService.ConsolidateVatDocumentsAsync(ids);
+            Response.Headers.Append("X-Filename", fileResult.FileName);
+            return File(fileResult.File, ContentType.ApplicationOfficeSpreadSheet, fileResult.FileName);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, e.Message);
+        }
+    }
+
+    /// <summary>
+    /// Check if the document is duplicated
+    /// </summary>
+    /// <param name="file">The file to check</param>
+    /// <returns></returns>
+    [HttpPost("check-duplicate")]
+    public async Task<IActionResult> CheckDuplicate(IFormFile file)
+    {
+        var hash = await documentService.ComputeHashFromFile(file);
+        var response = await documentService.CheckHashForDuplicated(hash);
+        return Ok(response);
+    }
 }
