@@ -579,7 +579,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             var data = (Document01GtgtPayload?)readResult.Data;
             if (data is not null)
             {
-                //TODO: write data to excel sheet
+                
                 sh.Range[index, 1].Value2 = $"{doc.PeriodType}{doc.Period}/{doc.Year}";
                 sh.Range[index, 2].Value2 = doc.AdjustmentType switch
                 {
