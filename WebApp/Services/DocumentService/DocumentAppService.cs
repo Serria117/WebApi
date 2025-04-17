@@ -1,15 +1,28 @@
-﻿using System.Globalization;
+﻿using System.ComponentModel.Design;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.JavaScript;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
+using Spire.Xls;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
 using WebApp.Payloads;
 using WebApp.Payloads.DocumentPayload;
 using WebApp.Repositories;
 using WebApp.Services.CommonService;
+using WebApp.Services.DocumentService.Dto;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService;
 using X.Extensions.PagedList.EF;
+using X.PagedList.Extensions;
+
+// ReSharper disable NotAccessedVariable
 
 namespace WebApp.Services.DocumentService;
 
@@ -23,7 +36,7 @@ public interface IDocumentAppService
     /// <returns>
     /// An <see cref="AppResponse"/> containing a paginated list of documents that match the specified criteria.
     /// </returns>
-    Task<AppResponse> GetFilesByTypeAsync(DocumentType documentType, RequestParam requestParam);
+    Task<AppResponse> FindDocumentsAsync(DocumentType documentType, RequestParam requestParam);
 
     /// <summary>
     /// Asynchronously uploads document files for a specified organization.
@@ -65,6 +78,22 @@ public interface IDocumentAppService
     /// or an error response if the document is not found or invalid.
     /// </returns>
     Task<AppResponse> ReadDocumentFromFileAsync(int docId);
+
+    Task<(string FileName, byte[] File)> ConsolidateVatDocumentsAsync(List<int> ids);
+    /// <summary>
+    /// Check a file for duplicated and returns true if it exists
+    /// </summary>
+    /// <param name="hash">The MD5 hash value of the file to check for duplication</param>
+    /// <returns>True if the file already exists, false otherwise</returns>
+    Task<bool> CheckHashForDuplicated(string hash);
+    Task<string> ComputeHashFromFile(IFormFile file);
+    /// <summary>
+    /// Check multiple files for duplicated and returns a list of duplicates
+    /// This is best suited when uploading multiple files at once
+    /// </summary>
+    /// <param name="hashes">Collection of hashes to check for duplicates</param>
+    /// <returns>Collection of duplicate hashes</returns>
+    Task<List<string>> CheckMultiFilesForDuplicated(List<string> hashes);
 }
 
 public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
@@ -73,10 +102,14 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                                 IUserManager userManager,
                                 IHostEnvironment env) : AppServiceBase(userManager), IDocumentAppService
 {
+    /// <summary>
+    /// Collection of valid period types used for filtering documents
+    /// </summary>
     public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {
         if (files.Count == 0) return AppResponse.Error("No file uploaded");
         (bool result, Guid orgId) = GetId(WorkingOrg);
+
         if (!result)
         {
             return AppResponse.Error400("You must select working organization first");
@@ -99,6 +132,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             using var memoryStream = new MemoryStream();
             await file.CopyToAsync(memoryStream);
             memoryStream.Position = 0;
+            var hash = await Md5HashAsync(memoryStream);
             var validated = await ValidateDocument(org, memoryStream, file.FileName);
             if (!(validated.Result))
             {
@@ -112,7 +146,6 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             var relativeFilePath = Path.Combine(relativeUploadDir, uniqueFileName);
             var absoluteFilePath = Path.Combine(env.ContentRootPath, relativeFilePath);
             var doc = await XDocument.LoadAsync(memoryStream, LoadOptions.None, CancellationToken.None);
-            var hash = CalculateMd5Hash(doc);
             var type = GetDocumentTypeFromXml(doc);
 
             var soLan = doc.GetXmlNodeValue("soLan");
@@ -135,7 +168,8 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                     : DateTime.ParseExact(docDate, "yyyy-MM-dd", CultureInfo.InvariantCulture),
                 AdjustmentType = doc.GetXmlNodeValue("loaiTKhai"),
                 NumberOfAdjustment = soLan is null ? 0 : int.Parse(soLan),
-                Period = doc.GetXmlNodeValue("kyKKhai"),
+                Period = int.Parse(doc.GetXmlNodeValue("kyKKhai")!.Split("/")[0]), //TODO: catch error if no period
+                Year = int.Parse(doc.GetXmlNodeValue("kyKKhai")!.Split("/")[1]),
                 PeriodType = doc.GetXmlNodeValue("kieuKy"),
                 FileName = file.FileName,
                 FilePath = relativeFilePath,
@@ -158,8 +192,8 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         });
     }
 
-    public async Task<AppResponse> GetFilesByTypeAsync(DocumentType documentType,
-                                                       RequestParam requestParam)
+    public async Task<AppResponse> FindDocumentsAsync(DocumentType documentType,
+                                                      RequestParam requestParam)
     {
         (bool result, Guid orgId) = GetId(WorkingOrg);
         if (!result)
@@ -167,30 +201,45 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             return AppResponse.Error400("You must select working organization first");
         }
 
+        var param = PageRequest.GetPagingAndSortingParam(requestParam);
+
+        int fromYear;
+        int toYear;
+
         var org = await orgRepository.FindByIdAsync(orgId);
         if (org is null) return AppResponse.Error404("Organization not found");
-        var pageRequest = PageRequest.GetPage(requestParam);
-        var files = await docRepository.FindAndSort(x => x.Organization.Id == orgId && x.DocumentType == documentType,
-                                                    [],
-                                                    ["CreateAt DESC"])
-                                       .ToPagedListAsync(pageRequest.Number, pageRequest.Size);
 
-        var data = files.MapPagedList(f => new
+        var basedQuery = docRepository.FindAndSort(filter: x => x.Organization.Id == orgId
+                                                                && x.DocumentType == documentType,
+                                                   include: [],
+                                                   sortBy: [$"{nameof(OrgDocument.DocumentDate)} {SortOrder.ASC}"]);
+        var filteredQuery = basedQuery;
+
+        if (param is { To: not null, From: not null })
         {
-            f.Id,
-            f.FileName,
-            f.FilePath,
-            f.UploadTime,
-            f.DocumentType,
-            Name = f.DocumentName,
-            f.Period,
-            f.NumberOfAdjustment,
-            f.PeriodType,
-            f.DocumentDate,
-            f.AdjustmentType
-        });
+            fromYear = int.Parse(param.From); //TODO: handle parsing failed
+            toYear = int.Parse(param.To);
+            filteredQuery = basedQuery.Where(x => x.Year >= fromYear && x.Year <= toYear);
+        }
 
-        return AppResponse.SuccessResponse(data);
+        var files = await filteredQuery.ToPagedListAsync(param.Number, param.Size);
+
+        var dtoList = files.MapPagedList(f => new DocumentDisplayDto
+        {
+            Id = f.Id,
+            FileName = f.FileName,
+            FilePath = f.FilePath,
+            UploadTime = f.UploadTime,
+            DocumentType = f.DocumentType,
+            Name = f.DocumentName,
+            Period = f.Period,
+            Year = f.Year,
+            NumberOfAdjustment = f.NumberOfAdjustment ?? 0,
+            PeriodType = f.PeriodType,
+            DocumentDate = f.DocumentDate ?? DateTime.Now,
+            AdjustmentType = f.AdjustmentType
+        });
+        return AppResponse.SuccessResponse(dtoList);
     }
 
 
@@ -266,6 +315,27 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         }
     }
 
+    public async Task<bool> CheckHashForDuplicated(string hash)
+    {
+        var doc = await docRepository.Find(f => f.Hash == hash).FirstOrDefaultAsync();
+        return doc is not null;
+    }
+    
+    public async Task<List<string>> CheckMultiFilesForDuplicated(List<string> hashes)
+    {
+        var docs = await docRepository.Find(f => hashes.Contains(f.Hash)).ToListAsync(); //find all documents with same hashes
+        return docs.Select(x => x.Hash).ToList(); //return duplicate hashes
+    }
+
+    public async Task<string> ComputeHashFromFile(IFormFile file)
+    {
+        using var memoryStream = new MemoryStream();
+        await file.CopyToAsync(memoryStream);
+        memoryStream.Position = 0; // reset position back to start
+        var doc = await XDocument.LoadAsync(memoryStream, LoadOptions.None, CancellationToken.None);
+        return CalculateMd5Hash(doc);
+    }
+
     #region Read Document Details
 
     private async Task<Document01GtgtPayload> Read_01GTGT_Document(OrgDocument doc)
@@ -278,6 +348,10 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             OrganizationName = xDocument.GetXmlNodeValue("tenNNT") ?? string.Empty,
             TaxId = xDocument.GetXmlNodeValue("mst") ?? string.Empty,
             DocumentName = xDocument.GetXmlNodeValue("tenTKhai"),
+            Period = doc.Period,
+            Year = doc.Year,
+            PeriodType = doc.PeriodType,
+            NumberOfAdjustment = doc.NumberOfAdjustment ?? 0,
             Address = xDocument.GetXmlNodeValue("dchiNNT"),
             Ct21 = xDocument.GetXmlNodeValueAsLong("ct21"),
             Ct22 = xDocument.GetXmlNodeValueAsLong("ct22"),
@@ -434,6 +508,125 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
 
     #endregion
 
+    #region Consolidate Documents
+
+    public async Task<(string FileName, byte[] File)> ConsolidateVatDocumentsAsync(List<int> ids)
+    {
+        var docList = await docRepository.FindAndSort(x => ids.Contains(x.Id)
+                                                           && x.Organization.Id.ToString() == WorkingOrg,
+                                                      [nameof(OrgDocument.Organization)],
+                                                      ["DocumentDate ASC"]) //sort by date ascending
+                                         .ToListAsync();
+        if (docList.Count == 0) throw new Exception("Document not found");
+        
+        var wb = new Workbook { Version = ExcelVersion.Version2016 };
+        var sh = wb.Worksheets[0];
+        sh.Name = "Sheet1";
+        sh.Range["A1"].Value = "Tổng hợp tờ khai GTGT";
+        sh.Range["A1"].Style.Font.IsBold = true;
+        sh.Range["A1"].Style.Font.Size = 16;
+        sh.Range["A2"].Value = $"{docList[0].Organization.FullName} - {docList[0].Organization.TaxId}".ToUpper();
+        sh.Range["A2"].Style.Font.IsBold = true;
+        const int headerRow = 4;
+
+        //Insert header rows:
+        string[] headers =
+        [
+            "Kỳ thuế", //1
+            "Loại tờ khai", //2
+            "Lần nộp", //3
+            "Ngày tờ khai", //4
+            "Thuế GTGT khấu trừ kỳ trước - CT22", //5
+            "Giá trị HHDV mua vào trong kỳ - CT23", //6
+            "Thuế GTGT được khấu trừ kỳ này - CT25", //7
+            "Doanh thu HHDV bán ra chịu thuế - CT27", //8
+            "Doanh thu HHDV 5% - CT30", //9
+            "Thuế GTGT HHDV 5% - CT31", //10
+            "Doanh thu HHDV 10% - CT32", //11
+            "Thuế GTGT HHDV 10% - CT33", //12
+            "Thuế GTGT phát sinh - CT36", //13
+            "Điều chỉnh giảm - CT37", //14
+            "Điều chỉnh tăng - CT38", //15
+            "Thuế GTGT phải nộp - CT40", //16
+            "Thuế GTGT chưa khấu trừ hết - CT41", //17
+            "Thuế GTGT còn được khấu trừ - CT43", //18
+            "Giải trình bổ sung" //19
+        ];
+        //TODO: add more columns here
+        for (int i = 1; i <= headers.Length; i++)
+        {
+            sh.Range[headerRow, i].Value = headers[i - 1];
+            sh.Range[headerRow, i].BorderAround(LineStyleType.Thin);
+            sh.Range[headerRow, i].HorizontalAlignment = HorizontalAlignType.Center;
+            sh.Range[headerRow, i].VerticalAlignment = VerticalAlignType.Center;
+            sh.Range[headerRow, i].Style.Font.IsBold = true;
+            sh.Range[headerRow, i].IsWrapText = true;
+            sh.Range[headerRow, i].ColumnWidth = 15;
+        }
+
+        // loop through all documents and consolidate them into one excel file, require reading each document's file
+        var index = headerRow + 1;
+        foreach (OrgDocument doc in docList)
+        {
+            var readResult = await ReadDocumentFromFileAsync(doc.Id);
+            if (!readResult.Success)
+            {
+                logger.LogError("Reading document Id: [{name}] failed. {message}", doc.Id, readResult.Message);
+                continue;
+            }
+
+
+            var data = (Document01GtgtPayload?)readResult.Data;
+            if (data is not null)
+            {
+                //TODO: write data to excel sheet
+                sh.Range[index, 1].Value2 = $"{doc.PeriodType}{doc.Period}/{doc.Year}";
+                sh.Range[index, 2].Value2 = doc.AdjustmentType switch
+                {
+                    "C" => "Chính thức",
+                    "B" => "Bổ sung",
+                    _ => string.Empty
+                };
+                sh.Range[index, 3].Value2 = doc.NumberOfAdjustment;
+                sh.Range[index, 4].Value2 = doc.DocumentDate?.ToLocalTime();
+                sh.Range[index, 4].Style.NumberFormat = "dd/mm/yyyy";
+                sh.Range[index, 5].Value2 = data.Ct22;
+                sh.Range[index, 6].Value2 = data.Ct23;
+                sh.Range[index, 7].Value2 = data.Ct25;
+                sh.Range[index, 8].Value2 = data.Ct27;
+                sh.Range[index, 9].Value2 = data.Ct30;
+                sh.Range[index, 10].Value2 = data.Ct31;
+                sh.Range[index, 11].Value2 = data.Ct32;
+                sh.Range[index, 12].Value2 = data.Ct33;
+                sh.Range[index, 13].Value2 = data.Ct36;
+                sh.Range[index, 14].Value2 = data.Ct37;
+                sh.Range[index, 16].Value2 = data.Ct38;
+                sh.Range[index, 16].Value2 = data.Ct40;
+                sh.Range[index, 17].Value2 = data.Ct41;
+                sh.Range[index, 18].Value2 = data.Ct43;
+                
+                for(var i = 1; i <= headers.Length; i++)
+                {
+                    sh.Range[index,i].BorderAround(LineStyleType.Thin);
+                }
+
+                for (var i = 5; i <= headers.Length; i++)
+                {
+                    sh.Range[index, i].NumberFormat = "#,##0";
+                }
+            }
+
+            index++; //increment row index
+        }
+
+        var fileName = $"{docList[0].Organization.TaxId}-01GTGT-{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+        using var ms = new MemoryStream();
+        wb.SaveToStream(ms, FileFormat.Version2016);
+        return (fileName, ms.ToArray());
+    }
+
+    #endregion
+
     private string GetFilePath(OrgDocument doc)
     {
         var filePath = Path.Combine(env.ContentRootPath, doc.FilePath);
@@ -490,14 +683,26 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         }
     }
 
+    /// <summary>
+    /// Calculate MD5 Hash of an XML document
+    /// </summary>
+    /// <param name="doc">The XML document to calculate the hash for</param>
+    /// <returns>The MD5 hash as a hexadecimal string</returns>
     private static string CalculateMd5Hash(XDocument doc)
     {
         // Chuẩn hóa XML (loại bỏ khoảng trắng không cần thiết)
         var normalizedXml = doc.ToString(SaveOptions.DisableFormatting);
 
         var bytes = System.Text.Encoding.UTF8.GetBytes(normalizedXml);
-        using var md5 = System.Security.Cryptography.MD5.Create();
-        var hashBytes = md5.ComputeHash(bytes);
+        var hashBytes = MD5.HashData(bytes);
+        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+    }
+    
+    private static async Task<string> Md5HashAsync(Stream stream)
+    {
+        using var md5 = MD5.Create();
+        stream.Position = 0; // Reset position back to start
+        var hashBytes = await md5.ComputeHashAsync(stream);
         return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
     }
 }

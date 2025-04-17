@@ -535,9 +535,8 @@ namespace WebApp.Core.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Period")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                    b.Property<int?>("Period")
+                        .HasColumnType("int");
 
                     b.Property<string>("PeriodType")
                         .HasMaxLength(1)
@@ -545,6 +544,9 @@ namespace WebApp.Core.Migrations
 
                     b.Property<DateTime>("UploadTime")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 

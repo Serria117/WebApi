@@ -19,7 +19,7 @@ public static class MapExtension
         var dtoList = entities.Select(mapFunc);
         return new StaticPagedList<TDto>(subset: dtoList, metaData: entities);
     }
-
+    
     /// <summary>
     /// Use for async mapper method
     /// </summary>

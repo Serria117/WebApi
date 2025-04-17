@@ -46,7 +46,7 @@ public class UserController(IUserAppService userAppService) : ControllerBase
     {
         try
         {
-            var paging = PageRequest.GetPage(req);
+            var paging = PageRequest.GetPagingAndSortingParam(req);
             var res = await userAppService.GetAllUsers(paging);
             return Ok(res);
         }

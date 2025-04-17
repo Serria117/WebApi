@@ -1,5 +1,4 @@
-﻿
-using WebApp.Enums;
+﻿using WebApp.Enums;
 using WebApp.Services.CommonService;
 
 namespace WebApp.Payloads;
@@ -12,6 +11,9 @@ public class RequestParam
     public string? OrderBy { get; set; } = SortOrder.DESC;
     public string? Keyword { get; set; }
 
+    public string? From { get; set; }
+    public string? To { get; set; }
+
     public RequestParam Valid()
     {
         if (Size is <= 0 or > 1000 or null)
@@ -23,6 +25,7 @@ public class RequestParam
         {
             Page = 1;
         }
+
         Keyword?.RemoveSpace();
         return this;
     }

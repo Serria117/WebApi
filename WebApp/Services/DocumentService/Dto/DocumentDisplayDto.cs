@@ -10,9 +10,13 @@ public class DocumentDisplayDto
     public string FilePath { get; set; } = string.Empty;
     public DateTime UploadTime { get; set; }
     public DocumentType DocumentType { get; set; }
-    public string? Period { get; set; } = string.Empty;
+    public int? Period { get; set; }
+
+    public int Year { get; set; }
     public int NumberOfAdjustment { get; set; } = 0;
     public string? PeriodType { get; set; } = string.Empty;
     public DateTime DocumentDate { get; set; }
     public string? AdjustmentType { get; set; }
+
+    public string? PeriodString => $"{Period}/{Year}";
 }

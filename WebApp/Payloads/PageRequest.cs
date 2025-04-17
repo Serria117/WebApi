@@ -11,8 +11,15 @@ public class PageRequest
     public string Sort { get; set; } = "Id DESC";
     public string? Keyword { get; set; }
     public int? Total { get; set; }
+    public string? From { get; set; }
+    public string? To { get; set; }
 
-    public static PageRequest GetPage(RequestParam req)
+    /// <summary>
+    /// Get paging and sorting params from request
+    /// </summary>
+    /// <param name="req"></param>
+    /// <returns>The page request object with the parameters extracted and validated from the request.</returns>
+    public static PageRequest GetPagingAndSortingParam(RequestParam req)
     {
         req.Valid();
         return new PageRequest
@@ -22,7 +29,9 @@ public class PageRequest
             SortBy = req.SortBy ?? "Id",
             OrderBy = req.OrderBy ?? SortOrder.ASC,
             Sort = $"{req.SortBy} {req.OrderBy}",
-            Keyword = req.Keyword
+            Keyword = req.Keyword,
+            From = req.From,
+            To = req.To
         };
     }
 }

@@ -8,9 +8,10 @@ namespace WebApp.Controllers;
 
 [ApiController, Route("api/document")]
 [Authorize]
-public class OrgDocumentController(IDocumentAppService documentService, 
+public class OrgDocumentController(IDocumentAppService documentService,
                                    IHostEnvironment env) : ControllerBase
 {
+    private readonly string[] _forbiddenFileExt = [".exe", ".dll", ".bat", ".sh", ".cmd"];
     /// <summary>
     /// Upload documents
     /// </summary>
@@ -19,6 +20,12 @@ public class OrgDocumentController(IDocumentAppService documentService,
     [HttpPost("upload")]
     public async Task<IActionResult> UploadDocument(List<IFormFile> file)
     {
+        // Validate file extensions
+        var forbiddenExt = file.Select(f => Path.GetExtension(f.FileName)).Where(ext => _forbiddenFileExt.Contains(ext)).ToList();
+        if(forbiddenExt.Count != 0)
+        {
+            return BadRequest($"Not allowed to upload file(s) with extension: {string.Join(", ", _forbiddenFileExt)}. Check your file(s) and try again.");
+        }
         var response = await documentService.UploadDocFileAsync(file);
         return Ok(response);
     }
@@ -31,9 +38,9 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// <returns></returns>
     [HttpGet("get-document")]
     public async Task<IActionResult> GetDocumentsList([FromQuery] DocumentType documentType,
-                                                          [FromQuery] RequestParam reqParam)
+                                                      [FromQuery] RequestParam reqParam)
     {
-        var response = await documentService.GetFilesByTypeAsync(documentType, reqParam);
+        var response = await documentService.FindDocumentsAsync(documentType, reqParam);
         return Ok(response);
     }
 
@@ -50,9 +57,9 @@ public class OrgDocumentController(IDocumentAppService documentService,
         {
             return NotFound("File not found or you don't have permission to access the file");
         }
-        
-        string filePath = Path.Combine(env.ContentRootPath, (string) fileResponse.Data);
-        
+
+        string filePath = Path.Combine(env.ContentRootPath, (string)fileResponse.Data);
+
         if (!System.IO.File.Exists(filePath))
         {
             return NotFound("The file may have been moved or deleted");
@@ -64,8 +71,13 @@ public class OrgDocumentController(IDocumentAppService documentService,
         return File(fileStream, contentType, fileName);
     }
 
+    /// <summary>
+    /// Read a specific document from file
+    /// </summary>
+    /// <param name="docId">Document id</param>
+    /// <returns></returns>
     [HttpGet("read")]
-    public async Task<IActionResult> ReadDocument(int docId)
+    public async Task<IActionResult> ReadDocument([FromQuery] int docId)
     {
         var res = await documentService.ReadDocumentFromFileAsync(docId);
         if (res.Success) return Ok(res);
@@ -87,8 +99,8 @@ public class OrgDocumentController(IDocumentAppService documentService,
             return Ok(response);
         }
 
-        return int.TryParse(response.Code, out int statusCode) 
-            ? StatusCode(statusCode, response) 
+        return int.TryParse(response.Code, out int statusCode)
+            ? StatusCode(statusCode, response)
             : StatusCode(500, "An unexpected error occurred."); // Default to 500 if parsing fails
     }
 
@@ -113,15 +125,26 @@ public class OrgDocumentController(IDocumentAppService documentService,
     }
 
     /// <summary>
-    /// Check if the document is duplicated
+    /// Check if the document is duplicated by comparing its hash value with existing hashes in database.
     /// </summary>
-    /// <param name="file">The file to check</param>
-    /// <returns></returns>
-    [HttpPost("check-duplicate")]
-    public async Task<IActionResult> CheckDuplicate(IFormFile file)
+    /// <param name="hash">Md5hash value of the document</param>
+    /// <returns>True if it's duplicate. False otherwise.</returns>
+    [HttpPost("check-duplicate/{hash}")]
+    public async Task<IActionResult> CheckDuplicate([FromRoute] string hash)
     {
-        var hash = await documentService.ComputeHashFromFile(file);
         var response = await documentService.CheckHashForDuplicated(hash);
         return Ok(response);
+    }
+
+    [HttpPost("check-hash")][RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> TestHashing(IFormFile file)
+    {
+        using var md5 = System.Security.Cryptography.MD5.Create();
+        using var stream = new MemoryStream();
+        await file.CopyToAsync(stream);
+        stream.Position = 0; // Reset position back to start
+        var hashBytes = await md5.ComputeHashAsync(stream);
+        var hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        return Ok(hashString);
     }
 }

@@ -17,7 +17,7 @@ public class RiskCompanyController(IRiskCompanyAppService service) : ControllerB
     [HttpGet]
     public async Task<IActionResult> GetRiskCompanies([FromQuery] RequestParam req)
     {
-        var page = PageRequest.GetPage(req);
+        var page = PageRequest.GetPagingAndSortingParam(req);
         var result = await service.GetAsync(page);
         return Ok(result);
     }

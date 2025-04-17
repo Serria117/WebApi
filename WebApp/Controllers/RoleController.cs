@@ -21,7 +21,7 @@ public class RoleController(IRoleAppService roleService, IPermissionAppService p
     [HttpGet("all")]
     public async Task<IActionResult> GetAllRoles([FromQuery] RequestParam req)
     {
-        var paging = PageRequest.GetPage(req);
+        var paging = PageRequest.GetPagingAndSortingParam(req);
         var result = await roleService.GetAllRoles(paging);
         return Ok(result);
     }

@@ -9,7 +9,11 @@ public class BaseDocumentPayload
     public string TaxId { get; set; } = string.Empty;
     public string? Address { get; set; }
     public DocumentType DocumentType { get; set; }
-    public DateTime IssueDate { get; set; }
+    public DateTime DocumentDate { get; set; }
     public string? DocumentName { get; set; }
-    public string? Period { get; set; }
+    public int? Period { get; set; }
+    public int? Year { get; set; }
+    public string? AdjustmentType { get; set; }
+    public string? PeriodType { get; set; }
+    public int NumberOfAdjustment { get; set; } = 0;
 }

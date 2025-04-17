@@ -28,7 +28,7 @@ public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
     IQueryable<T> GetQueryable();
     Task<int> CountAsync();
     Task<bool> SoftDeleteManyAsync(params TK[] ids);
-    IQueryable<T> FindAndSort(Expression<Func<T, bool>> condition, string[] props, string[] sortStrings);
+    IQueryable<T> FindAndSort(Expression<Func<T, bool>> filter, string[] include, string[] sortBy);
     T Attach(TK id);
     Task<bool> HardDeleteAsync(TK id);
 }
@@ -85,17 +85,17 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         return query.OrderBy($"{sortBy} {order}");
     }
 
-    public IQueryable<T> FindAndSort(Expression<Func<T, bool>> condition, string[] props, string[] sortStrings)
+    public IQueryable<T> FindAndSort(Expression<Func<T, bool>> filter, string[] include, string[] sortBy)
     {
-        var query = _dbSet.Where(condition);
-        if (!props.IsNullOrEmpty())
+        var query = _dbSet.Where(filter);
+        if (!include.IsNullOrEmpty())
         {
-            query = props.Aggregate(query, (current, prop) => current.Include(prop));
+            query = include.Aggregate(query, (current, prop) => current.Include(prop));
         }
 
-        if (!sortStrings.IsNullOrEmpty())
+        if (!sortBy.IsNullOrEmpty())
         {
-            query = sortStrings.Aggregate(query, (current, sort) => current.OrderBy(sort));
+            query = sortBy.Aggregate(query, (current, sort) => current.OrderBy(sort));
         }
 
         return query;

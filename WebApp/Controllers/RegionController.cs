@@ -12,7 +12,7 @@ public class RegionController(IRegionAppService regionService) : ControllerBase
     [HttpGet("provinces")]
     public async Task<IActionResult> GetProvince([FromQuery] RequestParam req)
     {
-        var page = PageRequest.GetPage(req.Valid());
+        var page = PageRequest.GetPagingAndSortingParam(req.Valid());
         var result = await regionService.GetAllProvincesAsync(page);
         return Ok(result);
     }

@@ -22,8 +22,9 @@ public class OrgDocument : BaseEntityAuditable<int>
     [StringLength(1)]
     public string? AdjustmentType { get; set; }
     
-    [StringLength(10)]
-    public string? Period { get; set; }
+    public int? Period { get; set; }
+
+    public int Year { get; set; }
     
     [StringLength(1)]
     public string? PeriodType { get; set; }

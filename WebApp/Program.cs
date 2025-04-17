@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -50,12 +51,23 @@ services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 });
 
 // Handle JSON cycles:
-builder.Services.AddControllers()
+services.AddControllers()
        .AddJsonOptions(options =>
        {
            options.JsonSerializerOptions.ReferenceHandler =
                System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
        });
+
+services.Configure<FormOptions>(op =>
+{
+    op.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB limit for multipart form data
+    op.MultipartHeadersLengthLimit = 16 * 1024; // 16 KB limit for headers length
+});
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // Maximum body size is 10MB
+});
 
 // Authentication:
 services.AddAuthentication(options =>
@@ -116,8 +128,9 @@ services.AddSwaggerGen(ops =>
 {
     ops.SwaggerDoc("v1", new OpenApiInfo()
     {
-        Title = "App",
-        Version = "1.0"
+        Title = "Sline-App",
+        Version = "1.0",
+        Description = "API documentation for SLine Service App"
     });
     ops.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
