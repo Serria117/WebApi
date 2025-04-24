@@ -3,6 +3,7 @@ using WebApp.Mongo;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Repositories;
 using WebApp.Services.BalanceSheetService;
+using WebApp.Services.CacheService;
 using WebApp.Services.DocumentService;
 using WebApp.Services.InvoiceService;
 using WebApp.Services.NotificationService;
@@ -57,6 +58,7 @@ public static class DependencyRegister
         s.AddScoped<IRestAppService, RestAppService>();
         s.AddScoped<IUserManager, UserManager>();
         s.AddScoped<IUnitOfWork, UnitOfWork>();
+        s.AddScoped<IRoleCacheService, RoleCacheService>();
         
         //Add business services here:
         s.AddTransient<IUserAppService, UserAppAppService>();

@@ -172,7 +172,7 @@ services.AddSingleton<IRestClient>(new RestClient(new RestClientOptions(restSett
                        typeof(OrgMapper), typeof(PagedMapper), typeof(RegionMapper));*/
 
 services.AddSingleton<CustomMap>();
-
+services.AddMemoryCache();
 services.AddHttpContextAccessor();
 services.AddScoped<JwtService>();
 
