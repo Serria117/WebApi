@@ -26,7 +26,7 @@ namespace WebApp.Services.UserService
         /// <returns>An <see cref="AuthenticationResponse"/> containing the authentication result.</returns>
         Task<AuthenticationResponse> Authenticate(UserLoginDto login);
         Task<bool> ExistUsername(string username);
-        Task<User?> FindUserByUserName(string username);
+        Task<(User? User, List<string> Permisions)> FindUserByUserName(string username);
         Task<List<Role>> FindAllRoles(ICollection<int> roleIds);
         /// <summary>
         /// Finds roles associated with a specific user.
@@ -144,14 +144,14 @@ namespace WebApp.Services.UserService
         public async Task<AuthenticationResponse> Authenticate(UserLoginDto login)
         {
             var stopWatch = Stopwatch.StartNew();
-            var user = await FindUserByUserName(login.Username);
+            var foundUser = await FindUserByUserName(login.Username);
             bool passwordMatch = false;
 
             Console.WriteLine($"found user in db took: {stopWatch.ElapsedMilliseconds} ms");
 
-            if (user is not null)
+            if (foundUser.User is not null)
             {
-                passwordMatch = login.Password.PasswordVerify(user.Password);
+                passwordMatch = login.Password.PasswordVerify(foundUser.User.Password);
             }
             else
             {
@@ -163,25 +163,25 @@ namespace WebApp.Services.UserService
 
             if (!passwordMatch)
             {
-                await LoginFailureHandler(user);
+                await LoginFailureHandler(foundUser.User);
                 return new AuthenticationResponse
                 {
                     Message = "Invalid username or password."
                 };
             }
 
-            if (user.Locked)
+            if (foundUser.User.Locked)
             {
                 return new AuthenticationResponse
                 {
-                    Message = "Your account has been locked."
+                    Message = "Too many failed attempts. Your account has been locked."
                 };
             }
 
-            if (user is { LogInFailedCount: > 0, Locked: false }) await ResetAccount(user);
+            if (foundUser.User is { LogInFailedCount: > 0, Locked: false }) await ResetAccount(foundUser.User);;
 
             var orgId = string.Empty;
-            var orgLists = user.Organizations.Select(o => o.Id).ToList();
+            var orgLists = foundUser.User.Organizations.Select(o => o.Id).ToList();
 
             //Check if OrgId was passed from client. If so, use it as working org.
             if (!string.IsNullOrEmpty(login.OrgId) && Guid.TryParse(login.OrgId, out Guid id))
@@ -192,28 +192,29 @@ namespace WebApp.Services.UserService
                 }
             }
             //If no working org was specified, determine which org should be used based on last working org.
-            if (user.LastWorkingOrg is not null && string.IsNullOrEmpty(orgId))
+            if (foundUser.User.LastWorkingOrg is not null && string.IsNullOrEmpty(orgId))
             {
-                if (orgLists.Contains(user.LastWorkingOrg.Value))
+                if (orgLists.Contains(foundUser.User.LastWorkingOrg.Value))
                 {
-                    orgId = user.LastWorkingOrg.Value.ToString();
+                    orgId = foundUser.User.LastWorkingOrg.Value.ToString();
                 }
             }
             //If no working org could be determined, default to first org in list. If none available, set to empty string.
-            if (string.IsNullOrEmpty(orgId)) orgId = user.Organizations.FirstOrDefault()?.Id.ToString() ?? string.Empty;
+            if (string.IsNullOrEmpty(orgId)) orgId = foundUser.User.Organizations.FirstOrDefault()?.Id.ToString() ?? string.Empty;
             
             var issuedAt = DateTime.UtcNow.ToLocalTime();
-            var token = await jwtService.GenerateTokenAsync(user, issuedAt, orgId);
+            //TODO: add user's permissions to token.
+            var token = await jwtService.GenerateTokenAsync(foundUser.User, foundUser.Permisions, issuedAt, orgId);
             var org = string.IsNullOrEmpty(orgId)
                 ? null
-                : user.Organizations.FirstOrDefault(o => o.Id.ToString() == orgId);
+                : foundUser.User.Organizations.FirstOrDefault(o => o.Id.ToString() == orgId);
             Console.WriteLine($"Generate jwt took: {stopWatch.ElapsedMilliseconds} ms");
             return new AuthenticationResponse
             {
                 Success = true,
                 Message = "Success",
-                Username = user.Username,
-                Id = user.Id,
+                Username = foundUser.User.Username,
+                Id = foundUser.User.Id,
                 AccessToken = token.AccessToken,
                 RefreshToken = token.RefreshToken,
                 IssueAt = issuedAt,
@@ -229,8 +230,15 @@ namespace WebApp.Services.UserService
         {
             try
             {
+                var user = await userRepository.Find(u => u.Id.ToString() == UserId).FirstOrDefaultAsync();
+                if (user is null)
+                {
+                    return new AuthenticationResponse { Success = false, Message = "User not found" };
+                }
+                
+                var reloadedPermissions = await GetUserPermissions(user.Id);
                 //generate new tokens
-                (string newAccessToken, string newRefreshToken) = await jwtService.RefreshTokenAsync(currentRefreshToken);
+                (string newAccessToken, string newRefreshToken) = await jwtService.RefreshTokenAsync(currentRefreshToken, reloadedPermissions);
                 
                 return new AuthenticationResponse
                 {
@@ -317,11 +325,26 @@ namespace WebApp.Services.UserService
             return await userRepository.ExistAsync(user => user.Username == username);
         }
 
-        public async Task<User?> FindUserByUserName(string username)
+        public async Task<(User? User, List<string> Permisions)> FindUserByUserName(string username)
         {
-            return await userRepository.Find(u => u.Username == username && !u.Deleted,
-                                             include: nameof(User.Organizations))
+            var user = await userRepository.Find(u => u.Username == username && !u.Deleted,
+                                             include: [nameof(User.Organizations)])
                                        .FirstOrDefaultAsync();
+            List<string> userPermissions = [];
+            //Get user permissions if user exists
+            if (user is not null)
+            {
+                userPermissions.AddRange(await GetUserPermissions(user.Id));
+            }
+            return (user, userPermissions);
+        }
+
+        public async Task<List<Role>> GetUserRoles(User user)
+        {
+            var roles = await roleRepository.Find(filter: r => r.Users.Contains(user) && !r.Deleted, 
+                                                  include: [nameof(Role.Permissions), nameof(Role.Users)])
+                                            .ToListAsync();
+            return roles;
         }
 
         public async Task<List<Role>> FindAllRoles(ICollection<int> roleIds)
@@ -375,6 +398,7 @@ namespace WebApp.Services.UserService
                 };
 
             var username = UserManager.CurrentUsername()!;
+            var permissions = await GetUserPermissions(Guid.Parse(UserId));
             //Update new claims:
             var newClaims = new[]
             {
@@ -382,7 +406,8 @@ namespace WebApp.Services.UserService
                 new Claim(JwtRegisteredClaimNames.Name, username),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("tenantId", string.Empty),
-                new Claim("orgId", orgId)
+                new Claim("orgId", orgId),
+                new Claim("permissions", string.Join(",", permissions))
             };
             var issuedAt = DateTime.UtcNow.ToLocalTime();
             var token = jwtService.GenerateTokenFromClaims(newClaims, issuedAt);
@@ -420,20 +445,20 @@ namespace WebApp.Services.UserService
             await userMongoRepository.UpdateUser(userDoc);
         }
 
-        private async Task<User?> FindUserByUsername(string name)
-        {
-            return await userRepository
-                         .Find(x => x.Username == name && !x.Deleted)
-                         .Include(u => u.Roles).ThenInclude(r => r.Permissions)
-                         .FirstOrDefaultAsync();
-        }
 
+        /// <summary>
+        /// Retrieves the list of permissions for a user by their ID.
+        /// </summary>
+        /// <param name="id">The ID of the user.</param>
+        /// <returns>A list of permission names associated with the user.</returns>
         private async Task<List<string>> GetUserPermissions(Guid id)
         {
             return await userRepository.Find(u => u.Id == id && !u.Deleted)
-                                       .Include(u => u.Roles).ThenInclude(r => r.Permissions)
-                                       .SelectMany(u => u.Roles)
-                                       .SelectMany(r => r.Permissions).Select(p => p.PermissionName)
+                                       .Include(u => u.Roles)
+                                       .ThenInclude(r => r.Permissions)
+                                       .SelectMany(u => u.Roles).Where(r => !r.Deleted)
+                                       .SelectMany(r => r.Permissions).Where(p => !p.Deleted)
+                                       .Select(p => p.PermissionName)
                                        .Distinct()
                                        .ToListAsync();
         }

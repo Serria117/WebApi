@@ -13,12 +13,14 @@ namespace WebApp.Controllers;
 public class RoleController(IRoleAppService roleService, IPermissionAppService permissionService) : ControllerBase
 {
     [HttpPost("create")]
+    [HasAuthority(permission: Permissions.RoleCreate)]
     public async Task<IActionResult> CreateRole(RoleInputDto dto)
     {
         return Ok(await roleService.CreateRole(dto));
     }
 
     [HttpGet("all")]
+    [HasAuthority(permission: Permissions.RoleView)]
     public async Task<IActionResult> GetAllRoles([FromQuery] RequestParam req)
     {
         var paging = PageRequest.GetPagingAndSortingParam(req);
@@ -34,13 +36,14 @@ public class RoleController(IRoleAppService roleService, IPermissionAppService p
     }
 
     [HttpGet("permissions-in-role/{roleId:int}")]
+    [HasAuthority(permission: Permissions.RoleView)]
     public async Task<IActionResult> GetPermissionsInRole(int roleId)
     {
         var result = await roleService.GetAllPermissionsInRole(roleId);
         return result.Success ? Ok(result) : BadRequest(result);
     }
 
-    [HttpGet("all-permissions")]
+    [HttpGet("all-permissions")][HasAuthority(permission: Permissions.RoleView)]
     public async Task<IActionResult> GetAllPermissionsInSystem()
     {
         var result = await permissionService.GetAllPermissionsInSystem();

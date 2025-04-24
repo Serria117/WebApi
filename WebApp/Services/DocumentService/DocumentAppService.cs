@@ -102,9 +102,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                                 IUserManager userManager,
                                 IHostEnvironment env) : AppServiceBase(userManager), IDocumentAppService
 {
-    /// <summary>
-    /// Collection of valid period types used for filtering documents
-    /// </summary>
+    
     public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {
         if (files.Count == 0) return AppResponse.Error("No file uploaded");
@@ -141,7 +139,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             }
 
             memoryStream.Position = 0;
-            var uniqueFileName = $"{file.FileName}_{Ulid.NewUlid()}.xml";
+            var uniqueFileName = $"{file.FileName}_{hash.ToUpper()}.xml";
             //var filePath = Path.Combine(uploadDir, uniqueFileName);
             var relativeFilePath = Path.Combine(relativeUploadDir, uniqueFileName);
             var absoluteFilePath = Path.Combine(env.ContentRootPath, relativeFilePath);
@@ -191,7 +189,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             validationError
         });
     }
-
+    
     public async Task<AppResponse> FindDocumentsAsync(DocumentType documentType,
                                                       RequestParam requestParam)
     {
@@ -332,8 +330,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         using var memoryStream = new MemoryStream();
         await file.CopyToAsync(memoryStream);
         memoryStream.Position = 0; // reset position back to start
-        var doc = await XDocument.LoadAsync(memoryStream, LoadOptions.None, CancellationToken.None);
-        return CalculateMd5Hash(doc);
+        return await Md5HashAsync(memoryStream);
     }
 
     #region Read Document Details
@@ -512,10 +509,10 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
 
     public async Task<(string FileName, byte[] File)> ConsolidateVatDocumentsAsync(List<int> ids)
     {
-        var docList = await docRepository.FindAndSort(x => ids.Contains(x.Id)
+        var docList = await docRepository.FindAndSort(filter: x => ids.Contains(x.Id)
                                                            && x.Organization.Id.ToString() == WorkingOrg,
-                                                      [nameof(OrgDocument.Organization)],
-                                                      ["DocumentDate ASC"]) //sort by date ascending
+                                                      include:[nameof(OrgDocument.Organization)],
+                                                      sortBy:["DocumentDate ASC"]) //sort by date ascending
                                          .ToListAsync();
         if (docList.Count == 0) throw new Exception("Document not found");
         
@@ -667,7 +664,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
     {
         try
         {
-            //await using var stream = file.OpenReadStream();
+            stream.Position = 0; // Reset the stream's position back to start
             var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
             var taxId = document.GetXmlNodeValue("mst");
             var result = taxId is null || taxId == org.TaxId;
@@ -678,26 +675,11 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         }
         catch (Exception e)
         {
-            logger.LogError("Error while validating document. Caused by: {}", e.Message);
+            logger.LogError("Error while validating document. Caused by: {message}", e.Message);
             return (false, e.Message);
         }
     }
 
-    /// <summary>
-    /// Calculate MD5 Hash of an XML document
-    /// </summary>
-    /// <param name="doc">The XML document to calculate the hash for</param>
-    /// <returns>The MD5 hash as a hexadecimal string</returns>
-    private static string CalculateMd5Hash(XDocument doc)
-    {
-        // Chuẩn hóa XML (loại bỏ khoảng trắng không cần thiết)
-        var normalizedXml = doc.ToString(SaveOptions.DisableFormatting);
-
-        var bytes = System.Text.Encoding.UTF8.GetBytes(normalizedXml);
-        var hashBytes = MD5.HashData(bytes);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-    }
-    
     private static async Task<string> Md5HashAsync(Stream stream)
     {
         using var md5 = MD5.Create();

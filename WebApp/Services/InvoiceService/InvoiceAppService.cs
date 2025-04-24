@@ -415,16 +415,12 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         var orgName = string.Empty;
         var orgTaxId = string.Empty;
 
-        if (purchaseList.Count == 0)
+        if (purchaseList.Count > 0)
         {
             orgName += purchaseList[0].BuyerName.ToUpper();
             orgTaxId += purchaseList[0].BuyerTaxCode.ToUpper();
         }
-        else
-        {
-            orgName += soldList[0].SellerName.ToUpper();
-            orgTaxId += soldList[0].SellerTaxCode.ToUpper();
-        }
+        
         
         var shPurchaseSummary = workbook.Worksheets[1];
         shPurchaseSummary.Name = "Purchase_Summary";
@@ -621,29 +617,42 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
 
         #region sold invoice
 
-        var soldSummaryRow = 5;
-        foreach (var inv in soldList)
+        if (soldList.Count > 0)
         {
-            shSoldSummary.Range[soldSummaryRow, 1].Value2 = inv.InvoiceNumber;
-            shSoldSummary.Range[soldSummaryRow, 2].Value2 = inv.InvoiceNotation;
-            shSoldSummary.Range[soldSummaryRow, 3].Value2 = inv.BuyerTaxCode;
-            shSoldSummary.Range[soldSummaryRow, 4].Value2 = inv.BuyerName;
-            shSoldSummary.Range[soldSummaryRow, 5].Value2 = inv.CreationDate?.ToLocalTime();
-            shSoldSummary.Range[soldSummaryRow, 5].Style.NumberFormat = "dd/mm/yyyy";
-            shSoldSummary.Range[soldSummaryRow, 6].Value2 = inv.SigningDate?.ToLocalTime();
-            shSoldSummary.Range[soldSummaryRow, 6].Style.NumberFormat = "dd/mm/yyyy";
-            shSoldSummary.Range[soldSummaryRow, 7].Value2 = inv.IssueDate?.ToLocalTime();
-            shSoldSummary.Range[soldSummaryRow, 7].Style.NumberFormat = "dd/mm/yyyy";
-            shSoldSummary.Range[soldSummaryRow, 8].Value2 = inv.TotalPrice;
-            shSoldSummary.Range[soldSummaryRow, 8].NumberFormat = "#,##0";
-            shSoldSummary.Range[soldSummaryRow, 9].Value2 = inv.Vat;
-            shSoldSummary.Range[soldSummaryRow, 9].NumberFormat = "#,##0";
-            shSoldSummary.Range[soldSummaryRow, 10].Value2 = inv.TotalPriceVat;
-            shSoldSummary.Range[soldSummaryRow, 10].NumberFormat = "#,##0";
-            shSoldSummary.Range[soldSummaryRow, 11].Value2 = inv.Status;
+            var soldSummaryRow = 5;
+            foreach (var inv in soldList)
+            {
+                shSoldSummary.Range[soldSummaryRow, 1].Value2 = inv.InvoiceNumber;
+                shSoldSummary.Range[soldSummaryRow, 2].Value2 = inv.InvoiceNotation;
+                shSoldSummary.Range[soldSummaryRow, 3].Value2 = inv.BuyerTaxCode;
+                shSoldSummary.Range[soldSummaryRow, 4].Value2 = inv.BuyerName;
+                shSoldSummary.Range[soldSummaryRow, 5].Value2 = inv.CreationDate?.ToLocalTime();
+                shSoldSummary.Range[soldSummaryRow, 5].Style.NumberFormat = "dd/mm/yyyy";
+                shSoldSummary.Range[soldSummaryRow, 6].Value2 = inv.SigningDate?.ToLocalTime();
+                shSoldSummary.Range[soldSummaryRow, 6].Style.NumberFormat = "dd/mm/yyyy";
+                shSoldSummary.Range[soldSummaryRow, 7].Value2 = inv.IssueDate?.ToLocalTime();
+                shSoldSummary.Range[soldSummaryRow, 7].Style.NumberFormat = "dd/mm/yyyy";
+                shSoldSummary.Range[soldSummaryRow, 8].Value2 = inv.TotalPrice;
+                shSoldSummary.Range[soldSummaryRow, 8].NumberFormat = "#,##0";
+                shSoldSummary.Range[soldSummaryRow, 9].Value2 = inv.Vat;
+                shSoldSummary.Range[soldSummaryRow, 9].NumberFormat = "#,##0";
+                shSoldSummary.Range[soldSummaryRow, 10].Value2 = inv.TotalPriceVat;
+                shSoldSummary.Range[soldSummaryRow, 10].NumberFormat = "#,##0";
+                shSoldSummary.Range[soldSummaryRow, 11].Value2 = inv.Status;
 
-            soldSummaryRow++;
+                soldSummaryRow++;
+            }
+            
+            shSoldSummary.Range[4, 1, soldSummaryRow - 1, 3].AutoFitColumns();
+            shSoldSummary.Range[4, 5, soldSummaryRow - 1, 11].AutoFitColumns();
+            shSoldSummary.AutoFilters.Range = shSoldSummary.Range[$"A{titleRow}:X{soldSummaryRow - 1}"];
+            shSoldSummary.Range[3, 1].FormulaR1C1 = $"\"Tổng số hóa đơn: \"&COUNT(A{titleRow + 1}:A{soldSummaryRow - 1})";
+            foreach (var cell in shSoldSummary.Range[4, 1, soldSummaryRow - 1, 11])
+            {
+                cell.BorderAround(LineStyleType.Thin);
+            }
         }
+        
 
         #endregion
         
@@ -653,20 +662,17 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         shPurchaseSummary.Range[4, 1, purchaseSummaryRow - 1, 3].AutoFitColumns();
         shPurchaseSummary.Range[4, 5, purchaseSummaryRow - 1, 13].AutoFitColumns();
 
-        shSoldSummary.Range[4, 1, soldSummaryRow - 1, 3].AutoFitColumns();
-        shSoldSummary.Range[4, 5, soldSummaryRow - 1, 11].AutoFitColumns();
+        
 
         #region Formula and filter
 
         shPurchaseSummary.AutoFilters.Range = shPurchaseSummary.Range[$"A{titleRow}:X{detailRow - 1}"];
         shPurchaseDetail.AutoFilters.Range = shPurchaseDetail.Range[$"A{titleRow}:X{purchaseSummaryRow - 1}"];
-        shSoldSummary.AutoFilters.Range = shSoldSummary.Range[$"A{titleRow}:X{soldSummaryRow - 1}"];
 
         shPurchaseSummary.Range[3, 1].FormulaR1C1 =
             $"\"Tổng số hóa đơn: \"&COUNT(A{titleRow + 1}:A{purchaseSummaryRow - 1})";
         shPurchaseDetail.Range[3, 1].FormulaR1C1 =
             $"\"Tổng số hóa đơn: \"&COUNT(UNIQUE(A{titleRow + 1}:A{detailRow - 1}))";
-        shSoldSummary.Range[3, 1].FormulaR1C1 = $"\"Tổng số hóa đơn: \"&COUNT(A{titleRow + 1}:A{soldSummaryRow - 1})";
 
         for (var i = 8; i <= 12; i++)
         {
@@ -701,10 +707,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             cell.BorderAround(LineStyleType.Thin);
         }
 
-        foreach (var cell in shSoldSummary.Range[4, 1, soldSummaryRow - 1, 11])
-        {
-            cell.BorderAround(LineStyleType.Thin);
-        }
+        
 
         using var stream = new MemoryStream();
         workbook.SaveToStream(stream, FileFormat.Version2016);

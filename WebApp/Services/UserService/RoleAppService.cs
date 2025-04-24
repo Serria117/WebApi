@@ -19,9 +19,24 @@ namespace WebApp.Services.UserService
     public interface IRoleAppService
     {
         Task<RoleDisplayDto> CreateRole(RoleInputDto dto);
+        
         Task<AppResponse> GetAllRoles(PageRequest page);
+        
+        /// <summary>
+        /// Updates an existing role with the specified details.
+        /// <param name="roleId">The ID of the role to update.</param>
+        /// <param name="dto">The new details of the role.</param>
+        /// </summary>
         Task UpdateRole(int roleId, RoleInputDto dto);
+        
+        /// <summary>
+        /// Retrieves all permissions associated with a specific role.
+        /// </summary>
+        /// <param name="roleId">The ID of the role whose permissions are to be retrieved.</param>
+        /// <returns>An <see cref="AppResponse"/> containing the permissions of the specified role.</returns>
         Task<AppResponse> GetAllPermissionsInRole(int roleId);
+
+        Task DeleteRole(int roleId);
     }
 
     public class RoleAppService(IAppRepository<User, Guid> userRepository,
@@ -62,7 +77,17 @@ namespace WebApp.Services.UserService
                 ? new AppResponse { Success = false, Message = "Role not found" }
                 : AppResponse.SuccessResponse(role.ToDisplayDto());
         }
-
+        
+        //TODO: implementation for add and remove user from role
+        public async Task DeleteRole(int roleId)
+        {
+            if(await roleRepository.SoftDeleteAsync(roleId))
+            {
+                //TODO: remove users from role
+            }
+            
+        }
+        
         public async Task<RoleDisplayDto> CreateRole(RoleInputDto dto)
         {
             var role = dto.ToEntity();
@@ -77,12 +102,12 @@ namespace WebApp.Services.UserService
             return saved.ToDisplayDto();
         }
 
+        
         public async Task UpdateRole(int roleId, RoleInputDto dto)
         {
             var role = await roleRepository.Find(r => r.Id == roleId)
                                            .Include(r => r.Permissions)
                                            .Include(r => r.Users)
-                                           .AsSplitQuery()
                                            .FirstOrDefaultAsync();
             if (role is null) throw new Exception("Role id not found");
             dto.UpdateEntity(role);
@@ -108,7 +133,7 @@ namespace WebApp.Services.UserService
         private async Task<List<User>> GetUsersHaveRole(int roleId)
         {
             List<User> users = [];
-            var role = await roleRepository.FindByIdAsync(roleId);
+            var role = await roleRepository.Find(r => r.Id == roleId && !r.Deleted).FirstOrDefaultAsync();
             if (role is not null)
                 users.AddRange(await userRepository.Find(u => u.Roles.Contains(role) && !u.Deleted)
                                                    .Include(u => u.Roles).ThenInclude(r => r.Permissions)
@@ -116,6 +141,7 @@ namespace WebApp.Services.UserService
                                                    .ToListAsync());
             return users;
         }
+
 
         private async Task UpdatePermissionForAllUsers(int roleId)
         {

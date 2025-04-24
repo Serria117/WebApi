@@ -52,11 +52,11 @@ services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 
 // Handle JSON cycles:
 services.AddControllers()
-       .AddJsonOptions(options =>
-       {
-           options.JsonSerializerOptions.ReferenceHandler =
-               System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-       });
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.ReferenceHandler =
+                System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        });
 
 services.Configure<FormOptions>(op =>
 {
@@ -218,15 +218,14 @@ app.MapHub<AppHub>("/progressHub");
 app.Run();
 return;
 
-void SeedPermissions(AppDbContext context)
+async Task SeedPermissions(AppDbContext context)
 {
     var existingPermissions = context.Permissions.Select(p => p.PermissionName).ToHashSet();
     var defaultPermissions = PermissionSeeder.GetDefaultPermissions();
+    var permissionsToAdd = defaultPermissions.Where(permission => !existingPermissions.Contains(permission))
+                                             .Select(permission => new Permission { PermissionName = permission })
+                                             .ToList();
 
-    foreach (var permission in defaultPermissions.Where(permission => !existingPermissions.Contains(permission)))
-    {
-        context.Permissions.Add(new Permission { PermissionName = permission });
-    }
-
+    await context.AddRangeAsync(permissionsToAdd);
     context.SaveChanges();
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebApp.Authentication;
 using WebApp.Enums;
 using WebApp.Payloads;
 using WebApp.Services.DocumentService;
@@ -9,23 +10,33 @@ namespace WebApp.Controllers;
 [ApiController, Route("api/document")]
 [Authorize]
 public class OrgDocumentController(IDocumentAppService documentService,
-                                   IHostEnvironment env) : ControllerBase
+                                   IHostEnvironment env,
+                                   IConfiguration config) : ControllerBase
 {
-    private readonly string[] _forbiddenFileExt = [".exe", ".dll", ".bat", ".sh", ".cmd"];
+
+    private readonly string[] _allowedFileExt = config.GetSection("AllowedFileExt").Get<string[]>()
+                                                ??
+                                                [
+                                                    ".xml", ".pdf", ".xlsx", ".docx", ".jpg", ".jpeg", ".png", ".gif",
+                                                    ".txt", ".csv", ".zip", ".rar", ".7z"
+                                                ];
+
     /// <summary>
     /// Upload documents
     /// </summary>
     /// <param name="file">The list of file to be uploaded</param>
     /// <returns></returns>
-    [HttpPost("upload")]
+    [HttpPost("upload")][HasAuthority(Permissions.DocumentUpload)]
     public async Task<IActionResult> UploadDocument(List<IFormFile> file)
     {
-        // Validate file extensions
-        var forbiddenExt = file.Select(f => Path.GetExtension(f.FileName)).Where(ext => _forbiddenFileExt.Contains(ext)).ToList();
-        if(forbiddenExt.Count != 0)
+        var allowedExt = file.Select(f => Path.GetExtension(f.FileName).ToLowerInvariant())
+                             .All(ext => _allowedFileExt.Contains(ext, StringComparer.OrdinalIgnoreCase));
+        if (!allowedExt)
         {
-            return BadRequest($"Not allowed to upload file(s) with extension: {string.Join(", ", _forbiddenFileExt)}. Check your file(s) and try again.");
+            return BadRequest(
+                $"Only files with following extensions are allowed: {string.Join(", ", _allowedFileExt)}. Check your file(s) and try again.");
         }
+
         var response = await documentService.UploadDocFileAsync(file);
         return Ok(response);
     }
@@ -36,7 +47,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// <param name="documentType"></param>
     /// <param name="reqParam"></param>
     /// <returns></returns>
-    [HttpGet("get-document")]
+    [HttpGet("get-document")][HasAuthority(Permissions.DocumentView)]
     public async Task<IActionResult> GetDocumentsList([FromQuery] DocumentType documentType,
                                                       [FromQuery] RequestParam reqParam)
     {
@@ -49,7 +60,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    [HttpGet("download")]
+    [HttpGet("download")][HasAuthority(Permissions.DocumentView)]
     public async Task<IActionResult> DownloadDocument([FromQuery] int documentId)
     {
         var fileResponse = await documentService.GetDocumentByIdAsync(documentId);
@@ -136,7 +147,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
         return Ok(response);
     }
 
-    [HttpPost("check-hash")][RequestSizeLimit(10_000_000)]
+    [HttpPost("check-hash")] [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<IActionResult> TestHashing(IFormFile file)
     {
         using var md5 = System.Security.Cryptography.MD5.Create();

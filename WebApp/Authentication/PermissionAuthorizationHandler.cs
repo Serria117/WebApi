@@ -16,13 +16,29 @@ public class PermissionAuthorizationHandler(IServiceScopeFactory serviceScopeFac
                                   .FirstOrDefault(u => u.Type == ClaimTypes.NameIdentifier)?.Value;
         if (Guid.TryParse(stringUserId, out var id))
         {
+            // Extract permissions from token
+            var tokenPermissions = context.User.Claims
+                .FirstOrDefault(c => c.Type == "permissions")?.Value
+                ?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .ToList() ?? new List<string>();
+
+            // Check if token permissions contain the required permission
+            if (tokenPermissions.Contains(requirement.Permission))
+            {
+                log.LogInformation("Found permisions claim on token. Checking if it has the required permission...");
+                context.Succeed(requirement);
+                return;
+            }
+
             using IServiceScope scope = serviceScopeFactory.CreateScope();
             IPermissionAppService permissionService = scope.ServiceProvider.GetRequiredService<IPermissionAppService>();
 
-            //Try to get permission from noSQL storage for faster performance
+            // TODO: Implement caching mechanism
+
+            // Try to get permission from noSQL storage for faster performance
             var permissions = await permissionService.GetPermissionsFromMongo(id);
 
-            //In case user does not exist in noSQL storage, retrieve from db
+            // In case user does not exist in noSQL storage, retrieve from db
             if (permissions.IsNullOrEmpty())
             {
                 log.LogWarning("User not found in mongoDb storage. Retrieving user from database...");

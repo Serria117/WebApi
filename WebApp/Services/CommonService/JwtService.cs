@@ -13,8 +13,8 @@ using JwtRegisteredClaimNames = System.IdentityModel.Tokens.Jwt.JwtRegisteredCla
 
 namespace WebApp.Services.CommonService;
 
-public class JwtService(IConfiguration config, 
-                        IRefreshTokenMongoRepository refreshTokenRepository, 
+public class JwtService(IConfiguration config,
+                        IRefreshTokenMongoRepository refreshTokenRepository,
                         IHttpContextAccessor httpContextAccessor)
 {
     private readonly string _secretKey = config["JwtSettings:SecretKey"]!;
@@ -23,7 +23,8 @@ public class JwtService(IConfiguration config,
     private readonly int _expiryMinutes = int.Parse(config["JwtSettings:ExpiryMinutes"]!);
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
 
-    public async Task<(string AccessToken, string RefreshToken)> GenerateTokenAsync(User user, DateTime issuedAt, string? orgId = null)
+    public async Task<(string AccessToken, string RefreshToken)> GenerateTokenAsync(
+        User user, List<string> permissions, DateTime issuedAt, string? orgId = null)
     {
         var claims = new[]
         {
@@ -31,6 +32,7 @@ public class JwtService(IConfiguration config,
             new Claim(JwtRegisteredClaimNames.Name, user.Username),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim("tenantId", string.Empty),
+            new Claim("permissions", string.Join(",", permissions)),
             new Claim("orgId", orgId ?? string.Empty)
         };
         var refreshToken = GenerateRefreshToken();
@@ -46,31 +48,36 @@ public class JwtService(IConfiguration config,
         return (GenerateTokenFromClaims(claims, issuedAt), refreshToken);
     }
 
-    public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken)
+    public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken, List<string> userPermissions)
     {
         var tokenEntity = await refreshTokenRepository.FindTokenAsync(refreshToken);
         if (tokenEntity == null || tokenEntity.IsRevoked || tokenEntity.ExpiresAt < DateTime.UtcNow)
         {
             throw new SecurityTokenException("Invalid or expired refresh token.");
         }
-        var oldAccessToken = httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault()?.Split(" ")[1];
+
+        var oldAccessToken =
+            httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault()?.Split(" ")[1];
         if (string.IsNullOrEmpty(oldAccessToken))
         {
             throw new SecurityTokenException("No access token found in the request header.");
         }
+
         var claims = GetClaimsFromToken(oldAccessToken).ToList();
         var userIdClaim = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId) || tokenEntity.UserId != userId.ToString())
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId) ||
+            tokenEntity.UserId != userId.ToString())
         {
             throw new SecurityTokenException("Token mismatched.");
         }
 
         var issuedAt = DateTime.UtcNow;
         claims.RemoveAll(c => c.Type == JwtRegisteredClaimNames.Jti);
+        claims.RemoveAll(c => c.Type == "permissions");
         claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
-        
+        claims.Add(new Claim("permissions", string.Join(",", userPermissions))); // Add permissions claim
         var newAccessToken = GenerateTokenFromClaims(claims, issuedAt);
-        
+
         await refreshTokenRepository.RevokeTokenAsync(refreshToken, GetClientIp());
         var newRefreshToken = GenerateRefreshToken();
         var newRefreshTokenEntity = new RefreshTokenDoc()
@@ -92,7 +99,7 @@ public class JwtService(IConfiguration config,
         if (refreshTokenDoc is null) throw new SecurityException("Refresh token not found");
         await refreshTokenRepository.RevokeTokenAsync(refreshToken, GetClientIp());
     }
-    
+
     public async Task RevokeRefreshTokenAsync(string refreshToken)
     {
         var tokenEntity = await refreshTokenRepository.FindTokenAsync(refreshToken);
@@ -100,9 +107,10 @@ public class JwtService(IConfiguration config,
         {
             throw new SecurityTokenException("Refresh token not found.");
         }
+
         await refreshTokenRepository.RevokeTokenAsync(refreshToken, GetClientIp());
     }
-    
+
     public string GenerateTokenFromClaims(IEnumerable<Claim> claims, DateTime issuedAt)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
@@ -122,7 +130,7 @@ public class JwtService(IConfiguration config,
         var jwt = new JsonWebToken(token);
         return jwt.ValidTo.ToLocalTime();
     }
-    
+
     public DateTime GetIssuedAt(string token)
     {
         var jwt = new JsonWebToken(token);
@@ -150,7 +158,7 @@ public class JwtService(IConfiguration config,
     private static string GenerateRefreshToken()
     {
         var randomNumber = new byte[32];
-        using var rng = RandomNumberGenerator.Create() ;
+        using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomNumber);
         return Convert.ToBase64String(randomNumber);
     }
