@@ -11,6 +11,11 @@ public interface IRefreshTokenMongoRepository
     Task CreateTokenAsync(RefreshTokenDoc token);
     Task RevokeTokenAsync(string token, string revokeBy);
     Task CreateManyAsync(IEnumerable<RefreshTokenDoc> documents, Expression<Func<RefreshTokenDoc, bool>> filter);
+    /// <summary>
+    /// Remove old and revoked tokens.
+    /// </summary>
+    /// <returns></returns>
+    Task<long> DeleteOldToken();
 }
 
 public class RefreshTokenMongoRepository(IMongoDatabase db) 
@@ -34,5 +39,12 @@ public class RefreshTokenMongoRepository(IMongoDatabase db)
                                               .Set(x => x.RevokedByIp, revokeBy)
                                               .Set(x => x.RevokedAt, DateTime.UtcNow);
         await Collection.UpdateOneAsync(x => x.Token == token, update);
+    }
+
+    public async Task<long> DeleteOldToken()
+    {
+        var filter = Builders<RefreshTokenDoc>.Filter.Where(x => x.ExpiresAt < DateTime.UtcNow || x.IsRevoked);
+        var result = await Collection.DeleteManyAsync(filter, CancellationToken.None);
+        return result.DeletedCount;
     }
 }

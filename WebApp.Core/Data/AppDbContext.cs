@@ -58,6 +58,10 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
                     .Navigation(d => d.Province)
                     .AutoInclude();
         
+        modelBuilder.Entity<Role>()
+                    .Navigation(r => r.Permissions)
+                    .AutoInclude();
+        
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
     }

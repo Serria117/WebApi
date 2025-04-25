@@ -1,6 +1,8 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using WebApp.Services;
+using WebApp.Services.CachingServices;
 using WebApp.Services.UserService;
 
 namespace WebApp.Authentication;
@@ -17,42 +19,50 @@ public class PermissionAuthorizationHandler(IServiceScopeFactory serviceScopeFac
         if (Guid.TryParse(stringUserId, out var id))
         {
             // Extract permissions from token
-            var tokenPermissions = context.User.Claims
+            /*var tokenPermissions = context.User.Claims
                 .FirstOrDefault(c => c.Type == "permissions")?.Value
                 ?.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .ToList() ?? new List<string>();
+                .ToList() ?? new List<string>();*/
 
             // Check if token permissions contain the required permission
-            if (tokenPermissions.Contains(requirement.Permission))
+            /*if (tokenPermissions.Contains(requirement.Permission))
             {
                 log.LogInformation("Found permisions claim on token. Checking if it has the required permission...");
                 context.Succeed(requirement);
                 return;
-            }
-
+            }*/
+            
             using IServiceScope scope = serviceScopeFactory.CreateScope();
-            IPermissionAppService permissionService = scope.ServiceProvider.GetRequiredService<IPermissionAppService>();
-
-            // TODO: Implement caching mechanism
-
-            // Try to get permission from noSQL storage for faster performance
-            var permissions = await permissionService.GetPermissionsFromMongo(id);
-
-            // In case user does not exist in noSQL storage, retrieve from db
-            if (permissions.IsNullOrEmpty())
+            
+            // Add this before checking for claim name:
+            /*foreach (var claim in context.User.Claims)
             {
-                log.LogWarning("User not found in mongoDb storage. Retrieving user from database...");
-                permissions = await permissionService.GetPermissions(id);
+                log.LogInformation("Claim Type: {ClaimType}, Claim Value: {ClaimValue}", 
+                                   claim.Type, claim.Value);
             }
-            else
+            */
+        
+            
+            //TODO: extract role from token and check if role is allowed to perform action
+            var tokenRoles = context.User.Claims
+                                    .FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            var cacheService = scope.ServiceProvider.GetRequiredService<ICachingRoleService>();
+            
+            if (tokenRoles is not null)
             {
-                log.LogInformation("User {stringUserId} found in mongoDb storage.", stringUserId);
-            }
-
-            //Check if user's permissions contains the required permission to access endpoint
-            if (permissions.Contains(requirement.Permission))
-            {
-                context.Succeed(requirement);
+                var roles = tokenRoles.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                foreach(var role in roles)
+                {
+                    var permissionsInRole = await cacheService.GetPermissionsInRole(role);
+                    
+                    if (permissionsInRole.Contains(requirement.Permission))
+                    {
+                        log.LogInformation("User's role [{role}] contains the required permission [{pemission}]. " +
+                                           "Succeeded authorization!", role, requirement.Permission);
+                        context.Succeed(requirement);
+                        return;
+                    }
+                }
             }
         }
     }

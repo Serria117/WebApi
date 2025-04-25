@@ -24,7 +24,7 @@ public class JwtService(IConfiguration config,
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
 
     public async Task<(string AccessToken, string RefreshToken)> GenerateTokenAsync(
-        User user, List<string> permissions, DateTime issuedAt, string? orgId = null)
+        User user, ISet<string> permissions, DateTime issuedAt, string? orgId = null)
     {
         var claims = new[]
         {
@@ -32,7 +32,8 @@ public class JwtService(IConfiguration config,
             new Claim(JwtRegisteredClaimNames.Name, user.Username),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim("tenantId", string.Empty),
-            new Claim("permissions", string.Join(",", permissions)),
+            //new Claim("permissions", string.Join(",", permissions)),
+            new Claim(ClaimTypes.Role, string.Join(",", user.Roles.Select(r => r.RoleName))),
             new Claim("orgId", orgId ?? string.Empty)
         };
         var refreshToken = GenerateRefreshToken();
@@ -48,7 +49,7 @@ public class JwtService(IConfiguration config,
         return (GenerateTokenFromClaims(claims, issuedAt), refreshToken);
     }
 
-    public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken, List<string> userPermissions)
+    public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken, List<string> userRole)
     {
         var tokenEntity = await refreshTokenRepository.FindTokenAsync(refreshToken);
         if (tokenEntity == null || tokenEntity.IsRevoked || tokenEntity.ExpiresAt < DateTime.UtcNow)
@@ -75,7 +76,8 @@ public class JwtService(IConfiguration config,
         claims.RemoveAll(c => c.Type == JwtRegisteredClaimNames.Jti);
         claims.RemoveAll(c => c.Type == "permissions");
         claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
-        claims.Add(new Claim("permissions", string.Join(",", userPermissions))); // Add permissions claim
+        claims.Add(new Claim(ClaimTypes.Role, string.Join(",", userRole))); // Add roles claim
+        
         var newAccessToken = GenerateTokenFromClaims(claims, issuedAt);
 
         await refreshTokenRepository.RevokeTokenAsync(refreshToken, GetClientIp());

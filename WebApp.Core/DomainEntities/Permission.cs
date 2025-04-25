@@ -16,5 +16,5 @@ public class Permission : BaseEntity<int>
     [MaxLength(255)]
     public string? FrontEndAccess { get; set; }
 
-    public virtual ISet<Role> Roles { get; set; } = new HashSet<Role>();
+    public ISet<Role> Roles { get; set; } = new HashSet<Role>();
 }
