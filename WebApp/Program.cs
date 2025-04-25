@@ -18,6 +18,9 @@ using WebApp.Services.Mappers;
 using WebApp.Services.RestService;
 using WebApp.SignalrConfig;
 using Serilog;
+using WebApp.ScheduleTask;
+using WebApp.Services;
+using WebApp.Services.CachingServices;
 
 // Declare variables.
 var builder = WebApplication.CreateBuilder(args);
@@ -121,6 +124,7 @@ services.AddSignalR(op =>
     op.KeepAliveInterval = TimeSpan.FromSeconds(15);
 });
 
+services.AddQuartzJobs();
 
 services.AddEndpointsApiExplorer();
 
@@ -155,7 +159,7 @@ services.AddSwaggerGen(ops =>
                 Name = "Bearer",
                 In = ParameterLocation.Header,*/
             },
-            Array.Empty<string>()
+            []
         }
     });
     // Set the comments path for the Swagger JSON and UI.
@@ -175,6 +179,7 @@ services.AddSingleton<CustomMap>();
 
 services.AddHttpContextAccessor();
 services.AddScoped<JwtService>();
+services.AddMemoryCache();
 
 /* Add application services */
 services.AddAppServices();
@@ -182,11 +187,14 @@ services.AddMongoServices(mongoSettings);
 builder.Host.UseSerilog();
 var app = builder.Build();
 
+// Initialize database and seed default permissions
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var cacheService = scope.ServiceProvider.GetRequiredService<ICachingRoleService>();
     context.Database.EnsureCreated();
-    SeedPermissions(context);
+    await LoadRoleInCache(cacheService, context);
+    await SeedPermissions(context);
 }
 
 // Configure the HTTP request pipeline.
@@ -218,6 +226,7 @@ app.MapHub<AppHub>("/progressHub");
 app.Run();
 return;
 
+//Seed default permissions
 async Task SeedPermissions(AppDbContext context)
 {
     var existingPermissions = context.Permissions.Select(p => p.PermissionName).ToHashSet();
@@ -228,4 +237,14 @@ async Task SeedPermissions(AppDbContext context)
 
     await context.AddRangeAsync(permissionsToAdd);
     context.SaveChanges();
+}
+
+//Pre-load all roles into memory cache
+async Task LoadRoleInCache(ICachingRoleService caching, AppDbContext context)
+{
+    var roles = await context.Roles.Select(r => r.RoleName).ToListAsync();
+    foreach (var role in roles)
+    {
+        await caching.GetPermissionsInRole(role);
+    }
 }
