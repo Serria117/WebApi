@@ -2,7 +2,9 @@
 using WebApp.Mongo;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Repositories;
+using WebApp.Services;
 using WebApp.Services.BalanceSheetService;
+using WebApp.Services.CachingServices;
 using WebApp.Services.DocumentService;
 using WebApp.Services.InvoiceService;
 using WebApp.Services.NotificationService;
@@ -49,8 +51,10 @@ public static class DependencyRegister
     /// </remarks>
     public static void AddAppServices(this IServiceCollection s)
     {
-        //Add notification service here:
+        //Add Singleton Services (like notification, caching, logging etc...) here:
         s.AddSingleton<INotificationAppService, NotificationAppService>();
+        s.AddSingleton<ICachingRoleService, CachingRoleService>();
+
         
         //Add repositories services here:
         s.AddScoped(typeof(IAppRepository<,>), typeof(AppRepository<,>));
