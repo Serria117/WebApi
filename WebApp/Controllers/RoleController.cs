@@ -28,8 +28,14 @@ public class RoleController(IRoleAppService roleService, IPermissionAppService p
         return Ok(result);
     }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateRole(int id, RoleInputDto dto)
+    /// <summary>
+    /// Update a role with permissions and users
+    /// </summary>
+    /// <param name="id">The role's ID</param>
+    /// <param name="dto">The new data of the role</param>
+    /// <returns></returns>
+    [HttpPut("edit/{id:int}")]
+    public async Task<IActionResult> UpdateRole(int id, RoleUpdatetDto dto)
     {
         await roleService.UpdateRole(id, dto);
         return Ok();
@@ -48,5 +54,17 @@ public class RoleController(IRoleAppService roleService, IPermissionAppService p
     {
         var result = await permissionService.GetAllPermissionsInSystem();
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Find a role by its ID
+    /// </summary>
+    /// <param name="id">Role's ID</param>
+    /// <returns>The role if found, else 404 not found</returns>
+    [HttpGet("find/{id:int}")]
+    public async Task<IActionResult> FindRoleById(int id)
+    {
+        var result = await roleService.FindRoleById(id);
+        return result.Success ? Ok(result) : NotFound(result);
     }
 }

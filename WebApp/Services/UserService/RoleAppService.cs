@@ -27,7 +27,7 @@ namespace WebApp.Services.UserService
         /// <param name="roleId">The ID of the role to update.</param>
         /// <param name="dto">The new details of the role.</param>
         /// </summary>
-        Task UpdateRole(int roleId, RoleInputDto dto);
+        Task UpdateRole(int roleId, RoleUpdatetDto dto);
         
         /// <summary>
         /// Retrieves all permissions associated with a specific role.
@@ -37,6 +37,7 @@ namespace WebApp.Services.UserService
         Task<AppResponse> GetAllPermissionsInRole(int roleId);
 
         Task DeleteRole(int roleId);
+        Task<AppResponse> FindRoleById(int id);
     }
 
     public class RoleAppService(IAppRepository<User, Guid> userRepository,
@@ -48,13 +49,10 @@ namespace WebApp.Services.UserService
         public async Task<AppResponse> GetAllRoles(PageRequest page)
         {
             var stopWatch = Stopwatch.StartNew();
-            var pagedResult = await roleRepository.Find(
-                                                      filter: r =>
-                                                          !r.Deleted && (string.IsNullOrEmpty(page.Keyword) ||
-                                                                         r.RoleName.Contains(page.Keyword)),
-                                                      sortBy: page.SortBy,
-                                                      order: page.OrderBy,
-                                                      include: [nameof(Role.Permissions)])
+            var pagedResult = await roleRepository.Find(filter: r => !r.Deleted && (string.IsNullOrEmpty(page.Keyword) || r.RoleName.Contains(page.Keyword)),
+                                                        sortBy: page.SortBy,
+                                                        order: page.OrderBy,
+                                                        include: [nameof(Role.Permissions)])
                                                   .AsSplitQuery()
                                                   .ToPagedListAsync(page.Number, page.Size);
             var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
@@ -102,8 +100,17 @@ namespace WebApp.Services.UserService
             return saved.ToDisplayDto();
         }
 
-        
-        public async Task UpdateRole(int roleId, RoleInputDto dto)
+        public async Task<AppResponse> FindRoleById(int id)
+        {
+            var role = await roleRepository.Find(r => r.Id == id && !r.Deleted, include: nameof(Role.Users))
+                                           .FirstOrDefaultAsync();
+            return role is null
+                ? new AppResponse {Success = false, Message = "Role not found"}
+                : AppResponse.SuccessResponse(role.ToDisplayDto());
+        }
+
+        //TODO: re-test this method for potential bugs
+        public async Task UpdateRole(int roleId, RoleUpdatetDto dto)
         {
             var role = await roleRepository.Find(r => r.Id == roleId)
                                            .Include(r => r.Permissions)
