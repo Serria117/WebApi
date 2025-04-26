@@ -16,7 +16,6 @@ public class CachingRoleService(IMemoryCache cache,
                                 ILogger<CachingRoleService> logger) : ICachingRoleService
 {
     public async Task<ISet<string>> GetPermissionsInRole(string roleName) {
-        // TODO: Implement this method.
         var cacheKey = $"{roleName}_pemissions";
         
         // Check if the data exists in the cache.
