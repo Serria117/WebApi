@@ -29,9 +29,9 @@ public interface IRestAppService
     /// Attempt to get an invoice's detail of goods sold
     /// </summary>
     /// <param name="token">Bearer token to use in the request to hoadondientu service</param>
-    /// <param name="invoice">The invoice object to get detail</param>
+    /// <param name="invoiceModel"></param>
     /// <returns>A response object containing the result of the request</returns>
-    Task<AppResponse> GetPurchaseInvoiceDetail(string token, InvoiceDisplayDto invoice);
+    Task<AppResponse> GetPurchaseInvoiceDetail(string token, InvoiceModel invoiceModel);
 
     Task<AppResponse> GetSoldInvoiceInRangeAsync(string token, string from, string to);
 
@@ -342,8 +342,8 @@ public class RestAppService(IRestClient restClient,
     
             logger.LogInformation("Finished getting Invoice List at: {time}", DateTime.Now.ToLocalTime());
             //Use the mapper here instead of converting to DTO then convert back to model
-            //return AppResponse.SuccessResponse(invoicesList);
-            return AppResponse.SuccessResponse(invoicesList.Select(x => x.ToDisplayModel()).ToList());
+            return AppResponse.SuccessResponse(invoicesList);
+            //return AppResponse.SuccessResponse(invoicesList.Select(x => x.ToDisplayModel()).ToList());
         }
         catch (Exception e)
         {
@@ -385,8 +385,9 @@ public class RestAppService(IRestClient restClient,
         return response.IsSuccessful ? response.Data : null;
     }
 
-    public async Task<AppResponse> GetPurchaseInvoiceDetail(string token, InvoiceDisplayDto invoice)
+    public async Task<AppResponse> GetPurchaseInvoiceDetail(string token, InvoiceModel invoiceModel)
     {
+        var invoice = invoiceModel.ToDisplayModel();
         var endpoint = invoice.InvoiceTypeNumber switch
         {
             8 => "/sco-query/invoices/detail",
