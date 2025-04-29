@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Linq.Dynamic.Core;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using WebApp.Core.DomainEntities;

@@ -8,10 +8,13 @@ namespace WebApp.Mongo.FilterBuilder;
 
 public sealed class InvoiceFilterBuilder
 {
+    private string? _id;
     private string? _sellerTaxCode;
     private string? _buyerTaxCode;
     private string? _nameKeyword;
     private int? _invoiceNumber;
+    private string? _khhdon;
+    private int? _khmshdon;
     private string? _from;
     private string? _to;
 
@@ -39,9 +42,15 @@ public sealed class InvoiceFilterBuilder
                 Builders<T>.Filter.Regex("nmten", BsonRegularExpression.Create(
                                              new Regex(Regex.Escape(_nameKeyword), RegexOptions.IgnoreCase)))
             );
-        if (_invoiceNumber is not null)
-            filter &= Builders<T>.Filter.Eq("shdon", _invoiceNumber.Value);
-
+        
+        if (_invoiceNumber is not null) filter &= Builders<T>.Filter.Eq("shdon", _invoiceNumber.Value);
+        
+        if (_id is not null) filter &= Builders<T>.Filter.Eq("id", _id);
+        
+        if(_khhdon is not null) filter &= Builders<T>.Filter.Eq("khhdon", _khhdon);
+        
+        if(_khmshdon is not null) filter &= Builders<T>.Filter.Eq("khmshdon", _khmshdon);
+        
         if (_from is not null && _to is not null)
         {
             filter &= Builders<T>.Filter.And(
@@ -88,6 +97,12 @@ public sealed class InvoiceFilterBuilder
         return filter;
     }
 
+    public InvoiceFilterBuilder WitdId(string? id)
+    {
+        _id = id;
+        return this;
+    }
+    
     public InvoiceFilterBuilder HasNameKeyword(string? keyword)
     {
         _nameKeyword = keyword;
@@ -97,6 +112,18 @@ public sealed class InvoiceFilterBuilder
     public InvoiceFilterBuilder WithInvoiceNumber(int? number)
     {
         _invoiceNumber = number;
+        return this;
+    }
+
+    public InvoiceFilterBuilder WithKhhdon(string? khhdon)
+    {
+        _khhdon = khhdon;
+        return this;
+    }
+    
+    public InvoiceFilterBuilder WithKhMshDon(int? khmshdon)
+    {
+        _khmshdon = khmshdon;
         return this;
     }
 

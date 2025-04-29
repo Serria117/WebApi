@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebApp.Authentication;
 using WebApp.Enums;
 using WebApp.Payloads;
 using WebApp.Services.InvoiceService;
@@ -10,9 +11,12 @@ using WebApp.Services.RestService.Dto;
 
 namespace WebApp.Controllers;
 
-[ApiController, Route("/api/invoice")] [Authorize]
+[ApiController, Route("/api/invoice")]
+[Authorize]
 public class InvoiceController(IRestAppService restService,
-                               IInvoiceAppService invService) : ControllerBase
+                               IInvoiceAppService invService, 
+                               ISoldInvoiceAppService soldInvoiceService,
+                               ILogger<InvoiceController> logger) : ControllerBase
 {
     /// <summary>
     /// Get capcha data from hoadondientu.gdt.gov.vn for login
@@ -39,28 +43,48 @@ public class InvoiceController(IRestAppService restService,
     }
 
     /// <summary>
-    /// Find and get invoices list in database
+    /// Find the purchase invoices in database based on query parameters
     /// </summary>
-    /// <param name="taxId"></param>
-    /// <param name="parameters"></param>
+    /// <param name="taxId">The taxId of the buyer</param>
+    /// <param name="parameters">The query params object</param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
     [HttpGet("find/{taxId}")]
-    public async Task<IActionResult> FindInvoice(string taxId, [FromQuery] InvoiceRequestParam parameters)
+    public async Task<IActionResult> FindPurchaseInvoices(string taxId, 
+                                                          [FromQuery] InvoiceRequestParam parameters,
+                                                          CancellationToken cancellationToken = default)
     {
-        var result = await invService.FindPurchaseInvoices(taxId, parameters.Valid());
-        return Ok(result);
+        try
+        {
+            var result = await invService.FindPurchaseInvoices(taxId, parameters.Valid());
+            return Ok(result);
+        }
+        catch (OperationCanceledException e)
+        {
+            logger.LogWarning("Request was canceled. {message}", e.Message);
+            return StatusCode(499, "Request canceled by the client or server.");
+        }
     }
 
     /// <summary>
     /// Sync invoices with detail from hoadondientu.gdt.gov.vn
     /// </summary>
     /// <param name="request"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
     [HttpPost("sync")]
-    public async Task<IActionResult> SyncInvoice(SyncInvoiceRequest request)
+    public async Task<IActionResult> SyncInvoice(SyncInvoiceRequest request, CancellationToken cancellationToken)
     {
-        var res = await invService.ExtractPurchaseInvoices(request.Token, request.From, request.To);
-        return Ok(res);
+        try
+        {
+            var res = await invService.ExtractPurchaseInvoices(request.Token, request.From, request.To);
+            return Ok(res);
+        }
+        catch (OperationCanceledException e)
+        {
+            logger.LogWarning("Request was canceled. {message}", e.Message);
+            return StatusCode(499, "Request canceled by the client or server.");
+        }
     }
 
     /// <summary>
@@ -69,22 +93,33 @@ public class InvoiceController(IRestAppService restService,
     /// <param name="taxId"></param>
     /// <param name="from"></param>
     /// <param name="to"></param>
+    /// <param name="cancellationToken">The cancellation token used to propagate notification that operation should be canceled</param>
     /// <returns>The Excel file contains invoices in search range</returns>
     [HttpGet("download/{taxId}")]
-    public async Task<IActionResult> DownloadInvoiceSummaryExcelFile(string taxId, string from, string to)
+    public async Task<IActionResult> DownloadInvoiceSummaryExcelFile(string taxId, string from, string to, 
+                                                                     CancellationToken cancellationToken)
     {
-        var fileByte = await invService.ExportExcel(taxId, from, to);
-        if (fileByte is null)
+        try
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, new
+            var fileByte = await invService.ExportExcel(taxId, from, to);
+            if (fileByte is null)
             {
-                code = StatusCodes.Status500InternalServerError.ToString(),
-                message = "Failed to export excel file. Check log for more information."
-            });
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    code = StatusCodes.Status500InternalServerError.ToString(),
+                    message = "Failed to export excel file. Check log for more information."
+                });
+            }
+
+            var fileName = $"{taxId}_{from}_{to}_{Ulid.NewUlid()}.xlsx";
+            Response.Headers["X-Filename"] = fileName;
+            return File(fileByte, ContentType.ApplicationOfficeSpreadSheet, fileName);
         }
-        var fileName = $"{taxId}_{from}_{to}_{Ulid.NewUlid()}.xlsx";
-        Response.Headers["X-Filename"] = fileName;
-        return File(fileByte, ContentType.ApplicationOfficeSpreadSheet, fileName);
+        catch (OperationCanceledException e) // Operation was cancelled.
+        {
+            logger.LogWarning("Request was canceled. {message}", e.Message);
+            return StatusCode(499, "Request canceled by the client or server.");
+        }
     }
 
     /// <summary>
@@ -118,12 +153,23 @@ public class InvoiceController(IRestAppService restService,
     /// Retrieve sold invoices from hoadondientu service
     /// </summary>
     /// <param name="request">Request parameters</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Number of successfully added invoice (duplicate value will be ignored)</returns>
     [HttpPost("sold-invoice/sync")]
-    public async Task<IActionResult> RetrieveSoldInvoice(SyncInvoiceRequest request)
+    public async Task<IActionResult> RetrieveSoldInvoice(SyncInvoiceRequest request, 
+                                                         CancellationToken cancellationToken)
     {
-        var result = await invService.ExtractSoldInvoice(request);
-        return Ok(result);
+        try
+        {
+            //var result = await invService.ExtractSoldInvoice(request);
+            var result = await soldInvoiceService.GetInvoiceFromService(request.Token, request.From, request.To);
+            return Ok(result);
+        }
+        catch (OperationCanceledException e)
+        {
+            logger.LogWarning("Request was canceled. {message}", e.Message);
+            return StatusCode(499, "Request canceled by the client or server.");
+        }
     }
 
     /// <summary>
@@ -132,11 +178,18 @@ public class InvoiceController(IRestAppService restService,
     /// <param name="taxId">Organization taxid</param>
     /// <param name="parameters">Query parameters</param>
     /// <returns>List of sold invoice</returns>
-    [HttpGet("sold/get-all/{taxId}")]
-    public async Task<IActionResult> FindSoldInvoices(string taxId, 
-                                                      [FromQuery] InvoiceRequestParam parameters)
+    [HttpGet("sold/find/{taxId}")][HasAuthority(Permissions.InvoiceQuery)]
+    public async Task<IActionResult> FindSoldInvoices(string taxId, [FromQuery] InvoiceRequestParam parameters)
     {
-        var result = await invService.FindSoldInvoices(taxId, parameters);
-        return Ok(result);
+        try
+        {
+            var result = await invService.FindSoldInvoices(taxId, parameters);
+            return Ok(result);
+        }
+        catch (OperationCanceledException e)
+        {
+            logger.LogWarning("Request was canceled. {message}", e.Message);
+            return StatusCode(499, "Request canceled by the client or server.");
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using WebApp.Mongo.DeserializedModel;
 using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Services.InvoiceService.dto;
 using WebApp.Services.RestService.Dto;
 
@@ -65,11 +66,12 @@ public static class InvoiceExtension
                     : Math.Round(g.Thtien.Value * g.Tsuat.Value, 0),
                 TaxType = g.Ltsuat
             }).ToList(),
-            SellerSignature = doc.Nbcks
+            SellerSignature = doc.Nbcks,
+            
         };
     }
 
-    public static InvoiceDisplayDto ToDisplayModel(this InvoiceDetailModel doc)
+    public static InvoiceDisplayDto ToDisplayModel(this SoldInvoiceDetail doc)
     {
         return new InvoiceDisplayDto
         {
@@ -81,11 +83,11 @@ public static class InvoiceExtension
             SellerTaxCode = doc.Nbmst ?? string.Empty,
             InvoiceNotation = doc.Khhdon ?? string.Empty,
             InvoiceGroupNotation = doc.Khmshdon,
-            InvoiceNumber = doc.Shdon?.ToString(),
+            InvoiceNumber = doc.Shdon.ToString(),
             TotalPrice = doc.Tgtcthue,
             Vat = doc.Tgtthue,
             TotalPriceVat = doc.Tgtttbso,
-            CreationDate = doc.Tdlap?.ToLocalTime(),
+            CreationDate = doc.Tdlap.ToLocalTime(),
             SigningDate = doc.Nky?.ToLocalTime(),
             IssueDate = doc.Ncma?.ToLocalTime(),
             Status = doc.Tthai switch
@@ -115,8 +117,14 @@ public static class InvoiceExtension
                 PreTaxPrice = h.Thtien,
                 Rate = h.Tsuat,
                 Discount = h.Stckhau,
-                Tax = Math.Round(h.Thtien * h.Tsuat, 0)
+                Tax = Math.Round(h.Thtien * h.Tsuat, 0),
+                TaxType = h.Ltsuat
             }).ToList(),
+            SellerSignature = doc.Nbcks,
+            VerifyCode = doc.Mhdon,
+            TotalInWord = doc.Tgtttbchu,
+            BuyerAddress = doc.Nmdchi,
+            SellerAddress = doc.Nbdchi
         };
     }
 

@@ -3,6 +3,7 @@ using MongoDB.Driver.Linq;
 using WebApp.Enums;
 using WebApp.Mongo.DeserializedModel;
 using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Mongo.FilterBuilder;
 
 namespace WebApp.Mongo.MongoRepositories;
@@ -12,7 +13,7 @@ public interface ISoldInvoiceMongoRepository
     Task<int> InsertInvoicesAsync(List<SoldInvoiceDoc> input);
 
     Task<PaginatedDocResult<SoldInvoiceDoc>> FindInvoices(FilterDefinition<SoldInvoiceDoc> filter,
-                                                               int page, int size);
+                                                          int page, int size);
 }
 
 public class SoldInvoiceMongoRepository(IMongoDatabase database)
@@ -24,15 +25,15 @@ public class SoldInvoiceMongoRepository(IMongoDatabase database)
         var insertList = input.Where(x => !InvoiceExists(x.Id, x.Nbmst)).ToList();
         if (insertList.Count == 0) return 0;
 
-        Console.WriteLine($"Inserting {insertList.Count}/{input.Count} invoices...");
+        //Console.WriteLine($"Inserting {insertList.Count}/{input.Count} invoices...");
         await Collection.InsertManyAsync(insertList);
 
-        Console.WriteLine($"Finished inserting {insertList.Count} invoices.");
+        //Console.WriteLine($"Finished inserting {insertList.Count} invoices.");
         return insertList.Count;
     }
 
     public async Task<PaginatedDocResult<SoldInvoiceDoc>> FindInvoices(FilterDefinition<SoldInvoiceDoc> filter,
-                                                                            int page, int size)
+                                                                       int page, int size)
     {
         var sortFilter = Builders<SoldInvoiceDoc>.Sort.Ascending("tdlap");
         var queryDocument = Collection.Find(filter)

@@ -209,14 +209,18 @@ app.UseCors(op =>
 });
 app.UseWebSockets();
 app.UseMiddleware<ExceptionMiddleware>();
-
+app.UseStaticFiles();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.InjectJavascript("/swagger-custom.js");
+    });
 }
 
-app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

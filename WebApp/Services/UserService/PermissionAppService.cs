@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;

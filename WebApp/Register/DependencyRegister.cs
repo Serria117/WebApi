@@ -39,6 +39,7 @@ public static class DependencyRegister
         s.AddScoped<IOrgMongoRepository, OrgMongoRepository>();
         s.AddScoped<IBlacklistedTokenMongoRepository, BlacklistedTokenMongoRepository>();
         s.AddScoped<IRefreshTokenMongoRepository, RefreshTokenMongoRepository>();
+        s.AddScoped<ISoldInvoiceDetailRepository, SoldInvoiceDetailRepository>();
     }
 
     /// <summary>
@@ -72,5 +73,6 @@ public static class DependencyRegister
         s.AddTransient<IRiskCompanyAppService, RiskCompanyAppService>();
         s.AddTransient<IBalanceSheetAppService, BalanceSheetAppService>();
         s.AddTransient<IDocumentAppService, DocumentAppService>();
+        s.AddTransient<ISoldInvoiceAppService, SoldInvoiceAppService>();
     }
 }

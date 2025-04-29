@@ -5,7 +5,7 @@ public class InvoiceDisplayDto
     public string Id { get; set; } = string.Empty;
     public string SellerTaxCode { get; set; } = string.Empty;
     public string? SellerAddress { get; set; }
-    public string SellerName { get; set;} = string.Empty;
+    public string SellerName { get; set; } = string.Empty;
     public string BuyerTaxCode { get; set; } = string.Empty;
     public string? BuyerAddress { get; set; }
     public string BuyerName { get; set; } = string.Empty;
@@ -13,11 +13,12 @@ public class InvoiceDisplayDto
     public string InvoiceNotation { get; set; } = string.Empty; //Ký hiệu hóa đơn
     public int? InvoiceGroupNotation { get; set; } //Ký hiệu mẫu số
     public string? VerifyCode { get; set; }
+    
     public List<Goods> GoodsDetail { get; set; } = []; //Hàng hóa
     public double? TotalPrice { get; set; }
     public double? Vat { get; set; }
     public double? TotalPriceVat { get; set; }
-    
+
     public double? ChietKhau { get; set; }
     public double? Phi { get; set; }
     public string? TotalInWord { get; set; }
@@ -29,10 +30,9 @@ public class InvoiceDisplayDto
     public string? InvoiceType { get; set; } //Loại hóa đơn
     public int? InvoiceTypeNumber { get; set; } //Mã loại hóa đơn
 
-    public bool? Risk { get; set; } =  false;
-    
+    public bool? Risk { get; set; } = false;
+
     public string? SellerSignature { get; set; }
-    
 }
 
 public class Goods

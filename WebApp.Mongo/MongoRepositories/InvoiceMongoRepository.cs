@@ -12,7 +12,6 @@ namespace WebApp.Mongo.MongoRepositories;
 
 public interface IInvoiceMongoRepository
 {
-    bool InvoiceExists(string? invoiceId, string? taxId = null);
     Task<HashSet<string>> GetExistingInvoiceIdsAsync(List<string> ids, string? taxCode = null);
 
     Task<PaginatedDocResult<InvoiceDetailDoc>> FindInvoices(FilterDefinition<InvoiceDetailDoc> filter,
@@ -23,24 +22,12 @@ public interface IInvoiceMongoRepository
     Task CreateOneAsync(InvoiceDetailDoc document, Expression<Func<InvoiceDetailDoc, bool>> filter);
     Task CreateManyAsync(IEnumerable<InvoiceDetailDoc> documents, Expression<Func<InvoiceDetailDoc, bool>> filter);
     Task<long> UpdateInvoiceStatus(string invId, int status);
+    Task<bool> InvoiceExist(FilterDefinition<InvoiceDetailDoc> filter);
 }
 
 public class InvoiceMongoRepository(IMongoDatabase db)
     : GenericMongoRepository<InvoiceDetailDoc, string>(CollectionName.Invoice, db), IInvoiceMongoRepository
 {
-    public bool InvoiceExists(string? invoiceId, string? taxId = null)
-    {
-        if (string.IsNullOrEmpty(invoiceId)) return false;
-
-        if (!string.IsNullOrEmpty(taxId))
-        {
-            return Collection.CountDocuments(x => x.Id == invoiceId && x.Nmmst == taxId,
-                                             new CountOptions { Limit = 1 }) > 0;
-        }
-        return Collection.CountDocuments(x => x.Id == invoiceId, 
-                                         new CountOptions { Limit = 1 }) > 0;
-    }
-
     public async Task<long> UpdateInvoiceStatus(string invId, int status)
     {
         var filter = Builders<InvoiceDetailDoc>.Filter.And(
@@ -105,4 +92,22 @@ public class InvoiceMongoRepository(IMongoDatabase db)
         Console.WriteLine($"Finished inserting {input.Count} invoices.");
         return true;
     }
+
+    public async Task<bool> InvoiceExist(FilterDefinition<InvoiceDetailDoc> filter)
+    {
+        return await Collection.CountDocumentsAsync(filter, new CountOptions { Limit = 1 }) > 0;
+    }
+
+    /*public bool InvoiceExist(string? invoiceId, string? taxId = null)
+    {
+        if (string.IsNullOrEmpty(invoiceId)) return false;
+
+        if (!string.IsNullOrEmpty(taxId))
+        {
+            return Collection.CountDocuments(x => x.Id == invoiceId && x.Nmmst == taxId,
+                                             new CountOptions { Limit = 1 }) > 0;
+        }
+        return Collection.CountDocuments(x => x.Id == invoiceId,
+                                         new CountOptions { Limit = 1 }) > 0;
+    }*/
 }

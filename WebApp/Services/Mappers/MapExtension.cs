@@ -13,28 +13,44 @@ namespace WebApp.Services.Mappers;
 
 public static class MapExtension
 {
+    /// <summary>
+    /// Maps a paged list of entities to a paged list of another type using the provided mapping function.
+    /// </summary>
+    /// <param name="entities">The original paged list of entities to be mapped.</param>
+    /// <param name="mapFunc">The mapping function to convert each entity into the desired type.</param>
+    /// <typeparam name="TEntity">The type of the entities in the input paged list.</typeparam>
+    /// <typeparam name="TDto">The target type of the mapped entities.</typeparam>
+    /// <returns>A new paged list containing the mapped entities of the target type.</returns>
     public static IPagedList<TDto> MapPagedList<TEntity, TDto>(this IPagedList<TEntity> entities,
                                                                Func<TEntity, TDto> mapFunc)
     {
         var dtoList = entities.Select(mapFunc);
         return new StaticPagedList<TDto>(subset: dtoList, metaData: entities);
     }
-    
+
     /// <summary>
-    /// Use for async mapper method
+    /// Asynchronously maps a paged list of entities to a paged list of another type using the provided asynchronous mapping function.
     /// </summary>
-    /// <param name="entities"></param>
-    /// <param name="mapFunc"></param>
-    /// <typeparam name="TEntity"></typeparam>
-    /// <typeparam name="TDto"></typeparam>
-    /// <returns></returns>
+    /// <param name="entities">The original paged list of entities to be mapped.</param>
+    /// <param name="mapFunc">The asynchronous mapping function to convert each entity into the desired type.</param>
+    /// <typeparam name="TEntity">The type of the entities in the input paged list.</typeparam>
+    /// <typeparam name="TDto">The target type of the mapped entities.</typeparam>
+    /// <returns>A task representing the asynchronous operation. The task result contains a new paged list of the mapped entities of the target type.</returns>
     public static async Task<IPagedList<TDto>> MapPagedListAsync<TEntity, TDto>(this IPagedList<TEntity> entities,
-                                                                                Func<TEntity, Task<TDto>> mapFunc)
+        Func<TEntity, Task<TDto>> mapFunc)
     {
         var dtoList = await Task.WhenAll(entities.Select(mapFunc));
         return new StaticPagedList<TDto>(subset: dtoList, metaData: entities);
     }
 
+    /// <summary>
+    /// Maps a collection of entities to a collection of another type using the provided mapping function.
+    /// </summary>
+    /// <param name="entities">The original collection of entities to be mapped.</param>
+    /// <param name="mapFunc">The mapping function to convert each entity into the desired type.</param>
+    /// <typeparam name="TEntity">The type of the entities in the input collection.</typeparam>
+    /// <typeparam name="TDto">The target type of the mapped entities.</typeparam>
+    /// <returns>A new collection containing the mapped entities of the target type.</returns>
     public static IEnumerable<TDto> MapCollection<TEntity, TDto>(this IEnumerable<TEntity> entities,
                                                                  Func<TEntity, TDto> mapFunc)
     {
@@ -267,7 +283,11 @@ public static class MapExtension
             RoleName = role.RoleName,
             Description = role.Description,
             Permissions = role.Permissions.MapCollection(x => x.ToDisplayDto()).ToHashSet(),
-            Users = role.Users.Count == 0 ? [] : role.Users.Select(u => u.Username).ToHashSet(),
+            Users = role.Users.Count == 0 ? [] : role.Users.Select(u => new UserInfoDto()
+            {
+                Username = u.Username,
+                Id = u.Id,
+            }).ToHashSet(),
         };
     }
 
