@@ -48,27 +48,34 @@ public class SoldInvoiceAppService(IUserManager userManager,
             return AppResponse.Error($"Invoice not found. {response.Message}");
         }
 
-        var invoiceList = (List<SoldInvoiceModel>) response.Data;
+        var invoiceList = new List<SoldInvoiceModel>();
+        var downloadCount = 0;
+        var insertedCount = 0;
+        var duplicatedCount = 0;
+        
+        foreach (var soldInvoice in (List<SoldInvoiceModel>) response.Data)
+        {
+            if(await IsDuplicate(soldInvoice)) //Check duplicate before add to list
+            {
+                await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
+                                                    $"Đã tồn tại hóa đơn số {soldInvoice.Shdon} trong hệ thống");
+                continue; //Skip this invoice if it's already exist in database
+            }
+            invoiceList.Add(soldInvoice); //Add invoice to list if it's not duplicate
+            duplicatedCount++; //Increment count of duplicated invoices
+        }
+        
         var total = invoiceList.Count;
         if (total == 0)
         {
             return AppResponse.SuccessResponse("No new invoices found");
         }
         var deserializedList = new List<SoldInvoiceDetail>();
-        var downloadCount = 0;
-        var insertedCount = 0;
-        var duplicatedCount = 0;
+        
         List<string> errors = [];
         // loop through each invoice model, call restService to extract detail information
         foreach (var invoice in invoiceList)
         {
-            if (await IsDuplicate(invoice))
-            {
-                duplicatedCount++;
-                await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
-                                                    $"Đã tồn tại hóa đơn số {invoice.Shdon} trong hệ thống");
-                continue;
-            } // Check duplicate before insert into database
             var invoiceDetailResponse = await restService.GetSoldInvoiceDetail(token, invoice); // Call RestService to get detail info
             //TODO: Handle response status not successsful
             if (invoiceDetailResponse is { Success: true, Data: SoldInvoiceDetail })
@@ -87,7 +94,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
                     }
                     else
                     {
-                        logger.LogWarning("Failed to deserialize invoice detail - result was null");
+                        logger.LogWarning("Failed to deserialize invoice {number} - result was null", invoice.Shdon);
                         await notificationService.SendAsync(UserId, HubName.InvoiceMessage, 
                                                             $"Không thể xử lý dữ liệu hóa đơn số {invoice.Shdon}");
                     }
@@ -132,7 +139,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
                     }
                     else
                     {
-                        logger.LogWarning("Failed to deserialize invoice detail - result was null");
+                        logger.LogWarning("Failed to deserialize invoice {number} - result was null", invoice.Shdon);
                         await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
                                                             $"Không thể xử lý dữ liệu hóa đơn số {invoice.Shdon}");
                         errors.Add($"Hóa đơn số {invoice.Shdon} ");

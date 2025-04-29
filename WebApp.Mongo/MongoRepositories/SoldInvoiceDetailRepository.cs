@@ -14,8 +14,15 @@ public interface ISoldInvoiceDetailRepository
     /// <returns>A task that represents the asynchronous operation. The task result contains an integer representing the number of inserted invoices.</returns>
     Task<int> InsertManyInvoiceAsync(List<SoldInvoiceDetail> invoiceList);
 
-    Task<PaginatedDocResult<SoldInvoiceDetail>> FindInvoiceAsync(
-        FilterDefinition<SoldInvoiceDetail> filter, int page, int size);
+    /// <summary>
+    /// Finds and retrieves a paginated list of sold invoice details based on the provided filter and pagination parameters.
+    /// </summary>
+    /// <param name="filter">The filter definition used to query the sold invoice details.</param>
+    /// <param name="page">The page number to retrieve.</param>
+    /// <param name="size">The number of results to retrieve per page.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a paginated list of sold invoice details.</returns>
+    Task<PaginatedDocResult<SoldInvoiceDetail>> FindInvoiceAsync(FilterDefinition<SoldInvoiceDetail> filter,
+                                                                 int page, int size);
 
     /// <summary>
     /// Checks if an invoice exists in the database based on the provided filter criteria.

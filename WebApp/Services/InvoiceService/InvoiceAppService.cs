@@ -175,14 +175,14 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         var resultFromService = await restService.GetPurchaseInvoiceListInRange(token, from, to);
         var total = 0L;
         List<InvoiceDisplayDto> updateList = [];
-        if (resultFromService is { Success: true, Data: List<InvoiceDisplayDto> invoiceList })
+        if (resultFromService is { Success: true, Data: List<InvoiceModel> invoiceList })
         {
             foreach (var inv in invoiceList)
             {
-                var result = await mongoPurchaseInvoice.UpdateInvoiceStatus(inv.Id, inv.StatusNumber!.Value);
+                var result = await mongoPurchaseInvoice.UpdateInvoiceStatus(inv.Id!, inv.Tthai!.Value);
                 if (result <= 0) continue;
                 total += result;
-                updateList.Add(inv);
+                updateList.Add(inv.ToDisplayModel());
             }
         }
 
@@ -208,7 +208,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             return AppResponse.Error("Invoice not found");
         }
 
-        var invoiceList = (List<InvoiceDisplayDto>)result.Data;
+        var invoiceList = (List<InvoiceModel>)result.Data;
         var totalFound = invoiceList.Count;
         if (totalFound == 0)
         {
@@ -217,38 +217,31 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             return AppResponse.SuccessResponse("No new invoices found");
         }
 
-        var buyerTaxId = invoiceList.First().BuyerTaxCode;
-        List<InvoiceDetailModel> invoicesToSave = [];
+        var buyerTaxId = invoiceList.First().Nmmst;
+        List<InvoiceDetailModel> deSerializedInvoices = [];
         List<string> unDeserializedInvoices = [];
         var countAdd = 1;
 
-        var newInvoices = invoiceList.ToList();
+        var newInvoices = new List<InvoiceModel>();
 
-        if (newInvoices.Count == 0)
+        //Keep only those which are not duplicated
+        foreach (InvoiceModel inv in invoiceList)
         {
-            return new AppResponse
-            {
-                Success = true,
-                Message = "Không có hóa đơn mới!"
-            };
+            if (await IsPurchaseInvoiceDuplicate(inv)) continue;
+            newInvoices.Add(inv);
         }
 
+        await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Starting sync...");
+        
         foreach (var invoice in newInvoices)
         {
-            if (await IsPurchaseInvoiceDuplicate(invoice))
-            {
-                logger.LogWarning("Invoice number {shdon} has already existed in the database and will be ignored",
-                                  invoice.InvoiceNumber);
-                continue;
-            }
-
             var invDetail = await restService.GetPurchaseInvoiceDetail(token, invoice);
 
             //If code 419 is hit, write anything that has already been retrieved and stop
             if (invDetail.Code == "429")
             {
                 logger.LogWarning("Server has reach rate limit. Writing {retrieved}/{total} invoices to database",
-                                  unDeserializedInvoices.Count + invoicesToSave.Count,
+                                  unDeserializedInvoices.Count + deSerializedInvoices.Count,
                                   invoiceList.Count);
                 await notificationService
                     .SendAsync(UserId,
@@ -256,18 +249,18 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                                "Some invoices could not be synced right now " +
                                "because the external server has hit rate limit.");
 
-                return await WriteInvoices(invoicesToSave, unDeserializedInvoices, newInvoices.Count);
+                return await WriteInvoices(deSerializedInvoices, unDeserializedInvoices, newInvoices.Count);
             }
 
             if (invDetail is not { Success: true })
             {
                 logger.LogWarning("Error: {message}", invDetail.Message);
-                logger.LogInformation("Skipping...\n {data}", invoice.InvoiceNumber);
+                logger.LogInformation("Skipping...\n {data}", invoice.Shdon);
                 await notificationService
                     .SendAsync(UserId,
                                HubName.InvoiceMessage,
-                               $"Failed to save invoice {invoice.InvoiceNumber} of {invoice.SellerTaxCode}, " +
-                               $"created at: {invoice.CreationDate:dd/MM/yyyy}");
+                               $"Failed to save invoice {invoice.Shdon} of {invoice.Nbmst}, " +
+                               $"created at: {invoice.Tdlap:dd/MM/yyyy}");
                 continue;
             }
 
@@ -275,7 +268,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             if (invDetail is { Success: true, Data: InvoiceDetailModel invoiceToAdd })
             {
                 invoiceToAdd.Risk = riskService.IsInvoiceRisk(invoiceToAdd.Nbmst);
-                invoicesToSave.Add(invoiceToAdd);
+                deSerializedInvoices.Add(invoiceToAdd);
                 logger.LogInformation(
                     "{count}/{new} - Invoice {invNum} added to collection.",
                     countAdd, newInvoices.Count, invoiceToAdd.Shdon
@@ -299,10 +292,9 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
 
             logger.LogInformation("Undeserializable count: {Count}", unDeserializedInvoices.Count);
             countAdd++;
-            
         }
 
-        return await WriteInvoices(invoicesToSave, unDeserializedInvoices, newInvoices.Count);
+        return await WriteInvoices(deSerializedInvoices, unDeserializedInvoices, newInvoices.Count);
     }
 
     #endregion
@@ -859,7 +851,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
 
     #endregion
 
-    private async Task<bool> IsPurchaseInvoiceDuplicate(InvoiceDisplayDto invoice)
+    private async Task<bool> IsPurchaseInvoiceDuplicate(InvoiceModel invoice)
     {
         var filter = InvoiceFilterBuilder.StartBuilder()
                                          .WitdId(invoice.Id)

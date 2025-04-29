@@ -108,19 +108,19 @@ public class SoldInvoiceDetail
     public DateTime Tdlap { get; set; }
 
     [BsonElement("tgia")]
-    public double Tgia { get; set; }
+    public double? Tgia { get; set; }
 
     [BsonElement("tgtcthue")]
-    public double Tgtcthue { get; set; }
+    public double? Tgtcthue { get; set; }
 
     [BsonElement("tgtthue")]
-    public double Tgtthue { get; set; }
+    public double? Tgtthue { get; set; }
 
     [BsonElement("tgtttbchu")]
     public string Tgtttbchu { get; set; }
 
     [BsonElement("tgtttbso")]
-    public double Tgtttbso { get; set; }
+    public double? Tgtttbso { get; set; }
 
     [BsonElement("thdon")]
     public string Thdon { get; set; }
@@ -135,7 +135,7 @@ public class SoldInvoiceDetail
     public string Tlhdon { get; set; }
 
     [BsonElement("ttcktmai")]
-    public double Ttcktmai { get; set; }
+    public double? Ttcktmai { get; set; }
 
     [BsonElement("tthai")]
     public int Tthai { get; set; }
@@ -186,7 +186,7 @@ public class ChiTietHangHoa
     public string Id { get; set; } = string.Empty;
 
     [BsonElement("dgia")]
-    public double Dgia { get; set; }
+    public double? Dgia { get; set; }
 
     [BsonElement("dvtinh")]
     public string? Dvtinh { get; set; }
@@ -195,7 +195,7 @@ public class ChiTietHangHoa
     public string? Ltsuat { get; set; }
 
     [BsonElement("sluong")]
-    public double Sluong { get; set; }
+    public double? Sluong { get; set; }
 
     [BsonElement("ten")]
     public string Ten { get; set; } = string.Empty;
@@ -231,10 +231,10 @@ public class ChitietThueSuat
     public string? Tsuat { get; set; }
 
     [BsonElement("thtien")]
-    public double Thtien { get; set; }
+    public double? Thtien { get; set; }
 
     [BsonElement("tthue")]
-    public double Tthue { get; set; }
+    public double? Tthue { get; set; }
 
     [BsonElement("gttsuat")]
     public string? Gttsuat { get; set; }

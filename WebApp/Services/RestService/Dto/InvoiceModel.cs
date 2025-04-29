@@ -393,6 +393,7 @@ public class InvoiceModel
 
         [JsonProperty("isHDTrung", NullValueHandling = NullValueHandling.Include)]
         public object? IsHDTrung { get; set; }
+        
 
         public override string? ToString()
         {
