@@ -339,9 +339,10 @@ public class RestAppService(IRestClient restClient,
                     }
                 }
             }
-
+    
             logger.LogInformation("Finished getting Invoice List at: {time}", DateTime.Now.ToLocalTime());
             //Use the mapper here instead of converting to DTO then convert back to model
+            //return AppResponse.SuccessResponse(invoicesList);
             return AppResponse.SuccessResponse(invoicesList.Select(x => x.ToDisplayModel()).ToList());
         }
         catch (Exception e)
