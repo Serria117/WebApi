@@ -17,4 +17,7 @@ public class OrganizationInfo : BaseEntityAuditable<int>
     public Guid Organization { get; set; }
     
     public bool IsCurrent { get; set; } = true;
+
+    [MaxLength(3)]
+    public string? TypeOfVatPeriod { get; set; } = "Q";
 }

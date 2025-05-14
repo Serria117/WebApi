@@ -1,12 +1,13 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Net;
-using Amazon.Util.Internal.PlatformServices;
 using WebApp.Enums;
 
-namespace WebApp;
+namespace WebApp.GlobalExceptionHandler;
 
-public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IWebHostEnvironment environment)
+public class ExceptionMiddleware(RequestDelegate next, 
+                                 ILogger<ExceptionMiddleware> logger, 
+                                 IWebHostEnvironment environment)
 {
     public async Task InvokeAsync(HttpContext httpContext)
     {
@@ -18,6 +19,7 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         {
             var tracedId = Ulid.NewUlid().ToString();
             logger.LogWarning("Something went wrong: {message} - TracedId: {tracedId} - At time: {time}", ex.Message, tracedId, DateTime.Now.ToString(CultureInfo.CurrentCulture));
+            logger.LogInformation("Exception thrown: {exName}", ex.GetType().Name);
             logger.LogError("Stack trace: {st}", ex.StackTrace);
             await HandleExceptionAsync(httpContext, ex, tracedId);
         }

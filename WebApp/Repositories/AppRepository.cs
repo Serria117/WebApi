@@ -14,7 +14,7 @@ namespace WebApp.Repositories;
 public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
 {
     Task<T> CreateAsync(T entity);
-    Task CreateManyAsync(IEnumerable<T> entities);
+    Task CreateManyAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default);
     IQueryable<T> Find(Expression<Func<T, bool>> filter, params string[] include);
 
     IQueryable<T> Find(Expression<Func<T, bool>> filter, string? sortBy = "Id", string? order = SortOrder.ASC,
@@ -23,7 +23,7 @@ public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
     Task<T?> FindByIdAsync(TK id);
     Task<T> UpdateAsync(T entity);
     Task<bool> ExistAsync(Expression<Func<T, bool>> predicate);
-    Task<int> CountAsync(IQueryable<T> query);
+    Task<int> CountAsync(Expression<Func<T, bool>> predicate);
     Task<bool> SoftDeleteAsync(TK id);
     IQueryable<T> GetQueryable();
     Task<int> CountAsync();
@@ -31,6 +31,7 @@ public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
     IQueryable<T> FindAndSort(Expression<Func<T, bool>> filter, string[] include, string[] sortBy);
     T Attach(TK id);
     Task<bool> HardDeleteAsync(TK id);
+    Task HardDeleteManyAsync(IEnumerable<TK> ids);
 }
 
 public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<TK>, new()
@@ -101,10 +102,10 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         return query;
     }
 
-    public async Task CreateManyAsync(IEnumerable<T> entities)
+    public async Task CreateManyAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)
     {
-        await _dbSet.AddRangeAsync(entities);
-        await _db.SaveChangesAsync();
+        await _dbSet.AddRangeAsync(entities, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<T?> FindByIdAsync(TK id)
@@ -124,14 +125,14 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         return await _dbSet.Where(predicate).AsNoTracking().AnyAsync();
     }
 
-    public async Task<int> CountAsync(IQueryable<T> query)
+    public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
     {
-        return await query.CountAsync();
+        return await _dbSet.Where(predicate).AsNoTracking().CountAsync();
     }
 
     public async Task<int> CountAsync()
     {
-        return await _dbSet.CountAsync();
+        return await _dbSet.AsNoTracking().CountAsync();
     }
 
     public async Task<bool> SoftDeleteAsync(TK id)
@@ -155,5 +156,13 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         _dbSet.Remove(entity);
         await _db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task HardDeleteManyAsync(IEnumerable<TK> ids)
+    {
+        var entities = await _dbSet.Where(x => ids.Contains(x.Id)).ToListAsync();
+        if (entities == null) return;
+        _dbSet.RemoveRange(entities);
+        await _db.SaveChangesAsync();
     }
 }

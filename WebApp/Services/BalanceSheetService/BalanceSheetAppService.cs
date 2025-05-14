@@ -236,12 +236,12 @@ public class BalanceSheetAppService(AppDbContext db,
             var detail = new ImportedBalanceSheetDetail
             {
                 Account = worksheet.Range[i, 1].Value,
-                OpenCredit = worksheet.Range[i, 3].Value.ParseDecimal(),
-                OpenDebit = worksheet.Range[i, 4].Value.ParseDecimal(),
-                AriseCredit = worksheet.Range[i, 5].Value.ParseDecimal(),
-                AriseDebit = worksheet.Range[i, 6].Value.ParseDecimal(),
-                CloseCredit = worksheet.Range[i, 7].Value.ParseDecimal(),
-                CloseDebit = worksheet.Range[i, 8].Value.ParseDecimal(),
+                OpenCredit = worksheet.Range[i, 3].Value.ToDecimal(),
+                OpenDebit = worksheet.Range[i, 4].Value.ToDecimal(),
+                AriseCredit = worksheet.Range[i, 5].Value.ToDecimal(),
+                AriseDebit = worksheet.Range[i, 6].Value.ToDecimal(),
+                CloseCredit = worksheet.Range[i, 7].Value.ToDecimal(),
+                CloseDebit = worksheet.Range[i, 8].Value.ToDecimal(),
             };
             logger.LogInformation("{detail}", detail.ToString());
             balanceSheetDetails.Add(detail);

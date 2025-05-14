@@ -28,13 +28,13 @@ public class Organization : BaseEntityAuditable<Guid>
     
     public List<string> Phones { get; set; } = [];
         
-    [MaxLength(50)] [MinLength(3)] 
+    [MaxLength(50)]
     public string? TaxIdPwd { get; set; }
         
-    [MaxLength(50)] [MinLength(3)] 
+    [MaxLength(50)]
     public string? InvoicePwd { get; set; }
         
-    [MaxLength(50)] [MinLength(3)]
+    [MaxLength(50)]
     public string? PinCode { get; set; }
 
     public TaxOffice? TaxOffice { get; set; }
@@ -45,4 +45,9 @@ public class Organization : BaseEntityAuditable<Guid>
     public string? FiscalYearFistDate { get; set; } = "01/01";
     
     public virtual ISet<User> Users { get; set; } = new HashSet<User>();
+
+    [MaxLength(3)]
+    public string? TypeOfVatPeriod { get; set; } = "Q";
+
+    public HashSet<OrganizationLoginInfo> OrganizationLoginInfos { get; set; } = [];
 }

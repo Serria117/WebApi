@@ -17,7 +17,7 @@ public sealed class InvoiceFilterBuilder
     private int? _khmshdon;
     private string? _from;
     private string? _to;
-
+    
     private InvoiceType? _invoiceType;
 
     private InvoiceStatus? _status;
@@ -92,7 +92,6 @@ public sealed class InvoiceFilterBuilder
                 filter &= Builders<T>.Filter.Eq("risk", _risk.Value);
             }
         }
-
 
         return filter;
     }

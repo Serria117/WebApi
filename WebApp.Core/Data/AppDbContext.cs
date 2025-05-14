@@ -23,6 +23,9 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<RiskCompany> RiskCompanies { get; set; }
     public DbSet<SyncInvoiceHistory> SyncInvoiceHistories { get; set; }
     public DbSet<OrgDocument> Documents { get; set; }
+    public DbSet<OrganizationLoginInfo> OrganizationLoginInfos { get; set; }
+    
+    public DbSet<UserLog> UserLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,7 +64,14 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
         modelBuilder.Entity<Role>()
                     .Navigation(r => r.Permissions)
                     .AutoInclude();
-        
+
+        modelBuilder.Entity<Organization>()
+                    .HasMany<OrganizationLoginInfo>(o => o.OrganizationLoginInfos)
+                    .WithOne(i => i.Organization)
+                    .HasForeignKey(i => i.OrganizationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+       
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
     }

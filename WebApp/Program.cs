@@ -18,6 +18,7 @@ using WebApp.Services.Mappers;
 using WebApp.Services.RestService;
 using WebApp.SignalrConfig;
 using Serilog;
+using WebApp.GlobalExceptionHandler;
 using WebApp.ScheduleTask;
 using WebApp.Services;
 using WebApp.Services.CachingServices;
@@ -38,8 +39,7 @@ Log.Logger = new LoggerConfiguration()
              .WriteTo.File(
                  path: "logs/log-.txt", // Log file path with rolling logs
                  rollingInterval: RollingInterval.Day, // Roll log files daily
-                 outputTemplate:
-                 "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                  restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information // Minimum level to log
              )
              .CreateLogger();
@@ -94,6 +94,7 @@ services.AddAuthentication(options =>
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!)),
                 NameClaimType = "name"
             };
+            // JWT token validation events
             options.Events = new JwtBearerEvents()
             {
                 OnMessageReceived = context =>
@@ -193,7 +194,7 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var cacheService = scope.ServiceProvider.GetRequiredService<ICachingRoleService>();
     context.Database.EnsureCreated();
-    await LoadRoleInCache(cacheService, context);
+    await PreLoadCachingRoles(cacheService, context);
     await SeedPermissions(context);
 }
 
@@ -243,8 +244,8 @@ async Task SeedPermissions(AppDbContext context)
     context.SaveChanges();
 }
 
-//Pre-load all roles into memory cache
-async Task LoadRoleInCache(ICachingRoleService caching, AppDbContext context)
+//Preload all permission of each role into memory cache for fast authorization check
+async Task PreLoadCachingRoles(ICachingRoleService caching, AppDbContext context)
 {
     var roles = await context.Roles.Select(r => r.RoleName).ToListAsync();
     foreach (var role in roles)

@@ -97,7 +97,19 @@ public static class MapExtension
             CreateAt = o.CreateAt,
             CreateBy = o.CreateBy,
             LastUpdateAt = o.LastUpdateAt,
-            FiscalYearFirstDate = o.FiscalYearFistDate
+            FiscalYearFirstDate = o.FiscalYearFistDate,
+            TypeOfVatPeriod = o.TypeOfVatPeriod,
+            OrganizationLoginInfos = o.OrganizationLoginInfos
+                                      .Select(x => new OrganizationLoginInfoDto
+                                      {
+                                          Id = x.Id,
+                                          AccountName = x.AccountName,
+                                          Provider = x.Provider,
+                                          Password = x.Password,
+                                          Url = x.Url,
+                                          Username = x.Username,
+                                      })
+                                      .ToHashSet()
         };
     }
 
@@ -111,27 +123,49 @@ public static class MapExtension
             ContactAddress = i.ContactAddress.RemoveSpace(),
             Emails = i.Emails.Select(x => x.RemoveSpace()!).ToList(),
             Phones = i.Phones.Select(x => x.RemoveSpace()!).ToList(),
-            InvoicePwd = i.InvoicePwd,
-            PinCode = i.PinCode,
+            InvoicePwd = string.IsNullOrEmpty(i.InvoicePwd) ? null : i.InvoicePwd,
+            PinCode = string.IsNullOrEmpty(i.PinCode) ? null : i.PinCode,
             TaxId = i.TaxId.RemoveSpace()!,
             UnsignName = i.FullName.RemoveSpace()!.UnSign(),
-            TaxIdPwd = i.TaxIdPwd,
+            TaxIdPwd = string.IsNullOrEmpty(i.TaxIdPwd) ? null : i.TaxIdPwd,
+            TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace() ?? "Q",
+            OrganizationLoginInfos = i.OrganizationLoginInfos
+                                      .Select(x => new OrganizationLoginInfo
+                                      {
+                                          AccountName = x.AccountName,
+                                          Password = x.Password,
+                                          Provider = x.Provider,
+                                          Url = x.Url,
+                                          Username = x.Username
+                                      })
+                                      .ToHashSet()
         };
     }
 
     public static void UpdateEntity(this OrganizationInputDto i, Organization o)
     {
         o.FullName = i.FullName.RemoveSpace() ?? o.FullName;
-        o.ContactAddress = i.ContactAddress.RemoveSpace() ?? o.ContactAddress;
+        o.ContactAddress = i.ContactAddress.RemoveSpace();
         o.ShortName = i.ShortName.RemoveSpace() ?? o.ShortName;
         o.Emails = i.Emails.IsNullOrEmpty() ? [] : i.Emails.Select(x => x.RemoveSpace()!).ToList();
-        o.Address = i.Address.RemoveSpace() ?? o.Address;
+        o.Address = i.Address.RemoveSpace();
         o.UnsignName = o.FullName.UnSign();
         o.Phones = i.Phones.IsNullOrEmpty() ? [] : i.Phones.Select(x => x.RemoveSpace()!).ToList();
-        o.InvoicePwd = i.InvoicePwd.RemoveSpace() ?? o.InvoicePwd;
-        o.TaxIdPwd = i.TaxIdPwd.RemoveSpace() ?? o.TaxIdPwd;
-        o.PinCode = i.PinCode.RemoveSpace() ?? o.PinCode;
-        o.TaxId = i.TaxId.RemoveSpace() ?? o.TaxId;
+        o.InvoicePwd = i.InvoicePwd.RemoveSpace();
+        o.TaxIdPwd = i.TaxIdPwd.RemoveSpace();
+        o.PinCode = i.PinCode.RemoveSpace();
+        //o.TaxId = i.TaxId.RemoveSpace();
+        o.TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace();
+        /*o.OrganizationLoginInfos = i.OrganizationLoginInfos
+                                    .Select(x => new OrganizationLoginInfo
+                                    {
+                                        AccountName = x.AccountName,
+                                        Password = x.Password,
+                                        Provider = x.Provider,
+                                        Url = x.Url,
+                                        Username = x.Username
+                                    })
+                                    .ToHashSet();*/
     }
 
     #endregion
@@ -215,11 +249,25 @@ public static class MapExtension
             FullName = o.FullName,
             ShortName = o.ShortName,
             ParentId = o.ParentId,
+            Parent = o.Parent == null ? null : new TaxOfficeDisplayDto
+            {
+                Id = o.Parent.Id, FullName = o.Parent.FullName
+                
+            },
+            Children = o.Children?.MapCollection(x => new TaxOfficeDisplayDto
+            {
+                FullName = x.FullName,
+                ShortName = x.ShortName,
+                Code = x.Code,
+                ParentId = x.ParentId,
+                Id = x.Id
+            }).ToList(),
             Province = o.Province?.Name,
         };
     }
 
-    public static TaxOffice ToEntity(this TaxOfficeCreateDto d, IAppRepository<Province, int> provinceRepo)
+    public static TaxOffice ToEntity(this TaxOfficeCreateDto d, 
+                                     IAppRepository<Province, int> provinceRepo)
     {
         return new TaxOffice
         {
@@ -227,7 +275,7 @@ public static class MapExtension
             ShortName = d.ShortName.RemoveSpace()!,
             Code = d.Code.RemoveSpace()!,
             ParentId = d.ParentId,
-            Province = provinceRepo.Attach(id: d.ProvinceId)
+            Province = d.ProvinceId != null ? provinceRepo.Attach(id: d.ProvinceId.Value) : null //TODO: check if parent exists or not
         };
     }
 
@@ -283,11 +331,13 @@ public static class MapExtension
             RoleName = role.RoleName,
             Description = role.Description,
             Permissions = role.Permissions.MapCollection(x => x.ToDisplayDto()).ToHashSet(),
-            Users = role.Users.Count == 0 ? [] : role.Users.Select(u => new UserInfoDto()
-            {
-                Username = u.Username,
-                Id = u.Id,
-            }).ToHashSet(),
+            Users = role.Users.Count == 0
+                ? []
+                : role.Users.Select(u => new UserInfoDto()
+                {
+                    Username = u.Username,
+                    Id = u.Id,
+                }).ToHashSet(),
         };
     }
 

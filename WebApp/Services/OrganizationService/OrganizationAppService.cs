@@ -31,6 +31,7 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                     IAppRepository<District, int> districtRepo,
                                     IAppRepository<TaxOffice, int> taxOfficeRepo,
                                     IAppRepository<User, Guid> userRepo,
+                                    IAppRepository<OrganizationLoginInfo, int> loginInfoRepo,
                                     IOrgMongoRepository orgMongoRepository,
                                     IUserManager userManager) : AppServiceBase(userManager), IOrganizationAppService
 {
@@ -167,9 +168,18 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
         var invalidMessage = await ValidInputDto(updateDto);
         if (!invalidMessage.IsNullOrEmpty()) return AppResponse.Error("Invalid input", invalidMessage);
 
-        var foundOrg = await orgRepo.Find(o => o.Id == orgId && !o.Deleted).FirstOrDefaultAsync();
+        var foundOrg = await orgRepo.Find(o => o.Id == orgId && !o.Deleted,
+                                        include: [
+                                            nameof(Organization.OrganizationLoginInfos)
+                                        ])
+                                    .FirstOrDefaultAsync();
+        
         if (foundOrg is null)
+        {
             return new AppResponse { Success = false, Message = "Organization Id not found" };
+
+        }
+        
         if (await TaxIdExist(updateDto.TaxId) && updateDto.TaxId != foundOrg.TaxId)
         {
             return new AppResponse { Success = false, Message = "The TaxId you enter has already existed" };
@@ -179,6 +189,51 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
 
         foundOrg.District = districtRepo.Attach(updateDto.DistrictId!.Value);
         foundOrg.TaxOffice = taxOfficeRepo.Attach(updateDto.TaxOfficeId!.Value);
+        
+        //update login info:
+        List<OrganizationLoginInfo> updateList = [];
+        //get all existing login infos by organization id:
+        Dictionary<int, OrganizationLoginInfo> existList = foundOrg.OrganizationLoginInfos.ToDictionary(x => x.Id);
+        foreach (var loginInfo in updateDto.OrganizationLoginInfos)
+        {
+            //check if it's a new item
+            if (loginInfo.Id == null)
+            {
+                var newLoginInfo = new OrganizationLoginInfo
+                {
+                    Username = loginInfo.Username,
+                    Provider = loginInfo.Provider,
+                    Password = loginInfo.Password,
+                    Url = loginInfo.Url,
+                    AccountName = loginInfo.AccountName,
+                    OrganizationId = foundOrg.Id
+                };
+                updateList.Add(newLoginInfo);
+                continue;
+            }
+            //check if this item exists
+            if (!existList.TryGetValue(loginInfo.Id.Value, out var found))
+            {
+                continue; //skip this item because it doesn't exist
+            }
+            //update existing item
+            found.AccountName = loginInfo.AccountName;
+            found.Provider = loginInfo.Provider;
+            found.Url = loginInfo.Url;
+            found.Username = loginInfo.Username;
+            found.Password = loginInfo.Password;
+            updateList.Add(found);
+            existList.Remove(loginInfo.Id.Value); //remove from exist list
+        }
+        
+        //The rest of items in existList will be deleted:
+        foreach (var toDelete in existList.Values)
+        {
+            foundOrg.OrganizationLoginInfos.Remove(toDelete);
+        }
+        
+        //add new items into existList:
+        foundOrg.OrganizationLoginInfos = updateList.ToHashSet();
         var saved = await orgRepo.UpdateAsync(foundOrg);
         return new AppResponse { Success = true, Data = saved.Id, Message = "Update successfully" };
     }
@@ -189,7 +244,8 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                      include:
                                      [
                                          nameof(Organization.TaxOffice),
-                                         nameof(Organization.District)
+                                         nameof(Organization.District),
+                                         nameof(Organization.OrganizationLoginInfos)
                                      ])
                                .FirstOrDefaultAsync();
         return org == null

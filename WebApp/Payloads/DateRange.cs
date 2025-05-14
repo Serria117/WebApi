@@ -5,12 +5,12 @@ public class DateRange
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
 
-    public string GetFromDateString()
+    public string GetFromDate()
     {
         return FromDate.ToString("dd/MM/yyyy");
     }
 
-    public string GetToDateString()
+    public string GetToDate()
     {
         return ToDate.ToString("dd/MM/yyyy");
     }

@@ -1,12 +1,15 @@
 ﻿using MongoDB.Driver;
 using WebApp.Mongo;
 using WebApp.Mongo.MongoRepositories;
+using WebApp.Queues;
 using WebApp.Repositories;
 using WebApp.Services;
+using WebApp.Services.BackgroundServices;
 using WebApp.Services.BalanceSheetService;
 using WebApp.Services.CachingServices;
 using WebApp.Services.DocumentService;
 using WebApp.Services.InvoiceService;
+using WebApp.Services.LoggingService;
 using WebApp.Services.NotificationService;
 using WebApp.Services.OrganizationService;
 using WebApp.Services.RegionService;
@@ -16,15 +19,23 @@ using WebApp.Services.UserService;
 
 namespace WebApp.Register;
 
-public static class DependencyRegister
+/// <summary>
+/// Provides methods to configure dependency injection for both MongoDB s
+/// and general application s.
+/// </summary>
+/// <remarks>
+/// This static class is responsible for registering the required s
+/// into the application's dependency injection container.
+/// </remarks>
+public static class DependencyInjector
 {
     /// <summary>
-    /// Configures MongoDB related services for dependency injection.
+    /// Configures MongoDB related s for dependency injection.
     /// </summary>
-    /// <param name="s">The service collection to which the services are added.</param>
+    /// <param name="s">The service collection to which the s are added.</param>
     /// <param name="settings">The MongoDB settings containing connection details.</param>
     /// <remarks>
-    /// Registers MongoDB settings and client as singletons, and database and repositories as scoped services.
+    /// Registers MongoDB settings and client as singletons, and database and repositories as scoped s.
     /// </remarks>
     public static void AddMongoServices(this IServiceCollection s, MongoDbSettings settings)
     {
@@ -40,39 +51,46 @@ public static class DependencyRegister
         s.AddScoped<IBlacklistedTokenMongoRepository, BlacklistedTokenMongoRepository>();
         s.AddScoped<IRefreshTokenMongoRepository, RefreshTokenMongoRepository>();
         s.AddScoped<ISoldInvoiceDetailRepository, SoldInvoiceDetailRepository>();
+        s.AddScoped<IErrorInvoiceRepository, ErrorInvoiceRepository>();
     }
 
     /// <summary>
-    /// Configures application services for dependency injection.
+    /// Configures application s for dependency injection.
     /// </summary>
-    /// <param name="s">The service collection to which the services are added.</param>
+    /// <param name="s">The service collection to which the s are added.</param>
     /// <remarks>
-    /// Registers various application services, including notification, repository, and business services,
+    /// Registers various application s, including notification, repository, and business s,
     /// with appropriate lifetimes such as singleton, scoped, and transient.
     /// </remarks>
     public static void AddAppServices(this IServiceCollection s)
     {
-        //Add Singleton Services (like notification, caching, logging etc...) here:
+        //Add Singleton services (like notification, caching, logging etc...) here:
         s.AddSingleton<INotificationAppService, NotificationAppService>();
         s.AddSingleton<ICachingRoleService, CachingRoleService>();
+        s.AddSingleton<IUserLogQueue, UserLogQueue>();
 
-        
+        //Add background services here:
+        s.AddHostedService<UserLogBackgroundService>();
+
         //Add repositories services here:
         s.AddScoped(typeof(IAppRepository<,>), typeof(AppRepository<,>));
         s.AddScoped<IRestAppService, RestAppService>();
-        s.AddScoped<IUserManager, UserManager>();
         s.AddScoped<IUnitOfWork, UnitOfWork>();
-        
+
         //Add business services here:
-        s.AddTransient<IUserAppService, UserAppAppService>();
-        s.AddTransient<IRoleAppService, RoleAppService>();
-        s.AddTransient<IPermissionAppService, PermissionAppService>();
-        s.AddTransient<IOrganizationAppService, OrganizationAppService>();
-        s.AddTransient<IInvoiceAppService, InvoiceAppService>();
-        s.AddTransient<IRegionAppService, RegionAppService>();
-        s.AddTransient<IRiskCompanyAppService, RiskCompanyAppService>();
-        s.AddTransient<IBalanceSheetAppService, BalanceSheetAppService>();
-        s.AddTransient<IDocumentAppService, DocumentAppService>();
-        s.AddTransient<ISoldInvoiceAppService, SoldInvoiceAppService>();
+        s.AddScoped<IUserManager, UserManager>();
+        s.AddScoped<IUserAppService, UserAppAppService>();
+        s.AddScoped<IRoleAppService, RoleAppService>();
+        s.AddScoped<IPermissionAppService, PermissionAppService>();
+        s.AddScoped<IOrganizationAppService, OrganizationAppService>();
+        s.AddScoped<IInvoiceAppService, InvoiceAppService>();
+        s.AddScoped<IRegionAppService, RegionAppService>();
+        s.AddScoped<IRiskCompanyAppService, RiskCompanyAppService>();
+        s.AddScoped<IBalanceSheetAppService, BalanceSheetAppService>();
+        s.AddScoped<IDocumentAppService, DocumentAppService>();
+        s.AddScoped<ISoldInvoiceAppService, SoldInvoiceAppService>();
+        s.AddScoped<IErrorInvoiceAppService, ErrorInvoiceAppService>();
+        s.AddScoped<IUserLogAppService, UserLogAppService>();
+
     }
 }

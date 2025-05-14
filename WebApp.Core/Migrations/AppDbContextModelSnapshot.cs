@@ -625,6 +625,10 @@ namespace WebApp.Core.Migrations
                     b.Property<int?>("TaxOfficeId")
                         .HasColumnType("int");
 
+                    b.Property<string>("TypeOfVatPeriod")
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
                     b.Property<string>("UnsignName")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -685,9 +689,54 @@ namespace WebApp.Core.Migrations
                     b.Property<int>("TaxOfficeId")
                         .HasColumnType("int");
 
+                    b.Property<string>("TypeOfVatPeriod")
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
                     b.HasKey("Id");
 
                     b.ToTable("OrganizationInfos");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.OrganizationLoginInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Password")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("OrganizationLoginInfos");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Permission", b =>
@@ -851,6 +900,8 @@ namespace WebApp.Core.Migrations
 
                     b.HasIndex("Code");
 
+                    b.HasIndex("ParentId");
+
                     b.HasIndex("ProvinceId");
 
                     b.ToTable("TaxOffices");
@@ -889,6 +940,49 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("Username");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.UserLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Action")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ActionTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Ip")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Objective")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserLogs");
                 });
 
             modelBuilder.Entity("OrganizationUser", b =>
@@ -1034,11 +1128,28 @@ namespace WebApp.Core.Migrations
                     b.Navigation("TaxOffice");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.OrganizationLoginInfo", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany("OrganizationLoginInfos")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
                 {
+                    b.HasOne("WebApp.Core.DomainEntities.TaxOffice", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId");
+
                     b.HasOne("WebApp.Core.DomainEntities.Province", "Province")
                         .WithMany("TaxOffices")
                         .HasForeignKey("ProvinceId");
+
+                    b.Navigation("Parent");
 
                     b.Navigation("Province");
                 });
@@ -1057,11 +1168,21 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Details");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Organization", b =>
+                {
+                    b.Navigation("OrganizationLoginInfos");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Province", b =>
                 {
                     b.Navigation("Districts");
 
                     b.Navigation("TaxOffices");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
+                {
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

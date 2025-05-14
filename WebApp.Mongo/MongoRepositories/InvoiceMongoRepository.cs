@@ -60,7 +60,7 @@ public class InvoiceMongoRepository(IMongoDatabase db)
     public async Task<PaginatedDocResult<InvoiceDetailDoc>> FindInvoices(FilterDefinition<InvoiceDetailDoc> filter,
                                                                          int page, int size)
     {
-        var sortFilter = Builders<InvoiceDetailDoc>.Sort.Ascending("tdlap");
+        var sortFilter = Builders<InvoiceDetailDoc>.Sort.Ascending("tdlap").Ascending("nbmst");
 
         var queryDocument = Collection.Find(filter)
                                       .Sort(sortFilter)
@@ -87,10 +87,16 @@ public class InvoiceMongoRepository(IMongoDatabase db)
     {
         if (input.Count <= 0) return false;
 
-        Console.WriteLine($"Inserting {input.Count} invoices...");
-        await Collection.InsertManyAsync(input);
-        Console.WriteLine($"Finished inserting {input.Count} invoices.");
-        return true;
+        try
+        {
+            await Collection.InsertManyAsync(input);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            return false;
+        }
     }
 
     public async Task<bool> InvoiceExist(FilterDefinition<InvoiceDetailDoc> filter)

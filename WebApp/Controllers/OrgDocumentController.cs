@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using WebApp.Authentication;
 using WebApp.Enums;
+using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
 using WebApp.Services.DocumentService;
 
@@ -13,20 +14,20 @@ public class OrgDocumentController(IDocumentAppService documentService,
                                    IHostEnvironment env,
                                    IConfiguration config) : ControllerBase
 {
-
-    private readonly string[] _allowedFileExt = config.GetSection("AllowedFileExt").Get<string[]>()
-                                                ??
-                                                [
-                                                    ".xml", ".pdf", ".xlsx", ".docx", ".jpg", ".jpeg", ".png", ".gif",
-                                                    ".txt", ".csv", ".zip", ".rar", ".7z"
-                                                ];
+    private readonly string[] _allowedFileExt =
+        config.GetSection("AllowedFileExt").Get<string[]>()
+        ??
+        [
+            ".xml", ".pdf", ".xlsx", ".docx", ".jpg", ".jpeg", ".png", ".gif",
+            ".txt", ".csv", ".zip", ".rar", ".7z"
+        ];
 
     /// <summary>
     /// Upload documents
     /// </summary>
     /// <param name="file">The list of file to be uploaded</param>
     /// <returns></returns>
-    [HttpPost("upload")][HasAuthority(Permissions.DocumentUpload)]
+    [HttpPost("upload")] [HasAuthority(Permissions.DocumentUpload)]
     public async Task<IActionResult> UploadDocument(List<IFormFile> file)
     {
         var allowedExt = file.Select(f => Path.GetExtension(f.FileName).ToLowerInvariant())
@@ -47,7 +48,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// <param name="documentType"></param>
     /// <param name="reqParam"></param>
     /// <returns></returns>
-    [HttpGet("get-document")][HasAuthority(Permissions.DocumentView)]
+    [HttpGet("get-document")] [HasAuthority(Permissions.DocumentView)]
     public async Task<IActionResult> GetDocumentsList([FromQuery] DocumentType documentType,
                                                       [FromQuery] RequestParam reqParam)
     {
@@ -60,7 +61,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    [HttpGet("download")][HasAuthority(Permissions.DocumentView)]
+    [HttpGet("download")] [HasAuthority(Permissions.DocumentView)]
     public async Task<IActionResult> DownloadDocument([FromQuery] int documentId)
     {
         var fileResponse = await documentService.GetDocumentByIdAsync(documentId);
@@ -129,6 +130,10 @@ public class OrgDocumentController(IDocumentAppService documentService,
             Response.Headers.Append("X-Filename", fileResult.FileName);
             return File(fileResult.File, ContentType.ApplicationOfficeSpreadSheet, fileResult.FileName);
         }
+        catch (EmptyResultException e)
+        {
+            return Ok(e.Message);
+        }
         catch (Exception e)
         {
             return StatusCode(500, e.Message);
@@ -157,5 +162,23 @@ public class OrgDocumentController(IDocumentAppService documentService,
         var hashBytes = await md5.ComputeHashAsync(stream);
         var hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         return Ok(hashString);
+    }
+
+    [HttpGet("read-xml-content")]
+    public async Task<IActionResult> ReadXmlString([FromQuery] int documentId)
+    {
+        try
+        {
+            var res = await documentService.ReadXmlToStringAsync(documentId);
+            return Ok(res);
+        }
+        catch (NotFoundException e)
+        {
+            return StatusCode(404, e.Message);
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, "Internal server error.");
+        }
     }
 }

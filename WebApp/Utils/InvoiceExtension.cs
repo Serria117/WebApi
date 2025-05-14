@@ -117,7 +117,7 @@ public static class InvoiceExtension
                 PreTaxPrice = h.Thtien,
                 Rate = h.Tsuat,
                 Discount = h.Stckhau,
-                Tax = Math.Round(h.Thtien * h.Tsuat, 0),
+                Tax = h is { Thtien: not null, Tsuat: not null } ? Math.Round(h.Thtien.Value * h.Tsuat.Value, 0) : 0,
                 TaxType = h.Ltsuat
             }).ToList(),
             SellerSignature = doc.Nbcks,

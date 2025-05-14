@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace WebApp.Mongo;
 
+/// <summary>
+/// Represents the configuration settings required for connecting to a MongoDB instance.
+/// This class encapsulates the connection string and the database name.
+/// </summary>
 public class MongoDbSettings
 {
     public string ConnectionString { get; set; } = string.Empty;

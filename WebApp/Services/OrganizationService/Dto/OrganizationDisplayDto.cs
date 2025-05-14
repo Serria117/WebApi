@@ -1,4 +1,5 @@
-﻿using WebApp.Services.RegionService.Dto;
+﻿using WebApp.Core.DomainEntities;
+using WebApp.Services.RegionService.Dto;
 
 namespace WebApp.Services.OrganizationService.Dto;
 
@@ -21,4 +22,17 @@ public class OrganizationDisplayDto
     public TaxOfficeDisplayDto? TaxOffice { get; set; }
     public DistrictDisplayDto? District { get; set; }
     public string? FiscalYearFirstDate { get; set; }
+    public string? TypeOfVatPeriod { get; set; }
+    
+    public HashSet<OrganizationLoginInfoDto> OrganizationLoginInfos { get; set; } = [];
+}
+
+public class OrganizationLoginInfoDto 
+{
+    public int? Id { get; set; }
+    public string? AccountName { get; set; }
+    public string? Url { get; set; }
+    public string? Provider { get; set; }
+    public string? Username { get; set; }
+    public string? Password { get; set; }
 }

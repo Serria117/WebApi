@@ -1,4 +1,6 @@
-﻿namespace WebApp.Services.RegionService.Dto;
+﻿using WebApp.Core.DomainEntities;
+
+namespace WebApp.Services.RegionService.Dto;
 
 public class TaxOfficeDisplayDto
 {
@@ -8,4 +10,7 @@ public class TaxOfficeDisplayDto
     public string Code { get; set; } = string.Empty;
     public string? Province { get; set; }
     public int? ParentId { get; set; }
+    
+    public List<TaxOfficeDisplayDto>? Children { get; set; }
+    public TaxOfficeDisplayDto? Parent { get; set; }
 }

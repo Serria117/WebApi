@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
+using WebApp.Core.DomainEntities;
 
 namespace WebApp.Services.OrganizationService.Dto;
 
@@ -18,7 +20,7 @@ public class OrganizationInputDto
     public string? TaxIdPwd { get; set; }
     public string? InvoicePwd { get; set; }
 
-    [MaxLength(50)] [MinLength(3)]
+    [MaxLength(50)]
     public string? PinCode { get; set; }
 
     [MaxLength(1000)]
@@ -36,4 +38,8 @@ public class OrganizationInputDto
     [RegularExpression(@"^\d{2}/\d{2}$", ErrorMessage = "Please enter valid date format: dd/mm for FiscalYearFirstDate")]
     public string? FiscalYearFirstDate { get; set; } = "01/01";
     //public DateTime LastUpdateAt { get; set; } = DateTime.UtcNow.ToLocalTime();
+    [RegularExpression("(?i)^[QM]$")]
+    public string? TypeOfVatPeriod { get; set; }
+    
+    public HashSet<OrganizationLoginInfoDto> OrganizationLoginInfos { get; set; } = [];
 }

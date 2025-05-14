@@ -1,17 +1,13 @@
-﻿using System.ComponentModel.Design;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Linq.Expressions;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.JavaScript;
+﻿using System.Globalization;
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson.Serialization.Conventions;
+using MongoDB.Driver;
 using Spire.Xls;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
+using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
 using WebApp.Payloads.DocumentPayload;
 using WebApp.Repositories;
@@ -20,7 +16,6 @@ using WebApp.Services.DocumentService.Dto;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService;
 using X.Extensions.PagedList.EF;
-using X.PagedList.Extensions;
 
 // ReSharper disable NotAccessedVariable
 
@@ -80,13 +75,16 @@ public interface IDocumentAppService
     Task<AppResponse> ReadDocumentFromFileAsync(int docId);
 
     Task<(string FileName, byte[] File)> ConsolidateVatDocumentsAsync(List<int> ids);
+
     /// <summary>
     /// Check a file for duplicated and returns true if it exists
     /// </summary>
     /// <param name="hash">The MD5 hash value of the file to check for duplication</param>
     /// <returns>True if the file already exists, false otherwise</returns>
     Task<bool> CheckHashForDuplicated(string hash);
+
     Task<string> ComputeHashFromFile(IFormFile file);
+
     /// <summary>
     /// Check multiple files for duplicated and returns a list of duplicates
     /// This is best suited when uploading multiple files at once
@@ -94,6 +92,7 @@ public interface IDocumentAppService
     /// <param name="hashes">Collection of hashes to check for duplicates</param>
     /// <returns>Collection of duplicate hashes</returns>
     Task<List<string>> CheckMultiFilesForDuplicated(List<string> hashes);
+    Task<AppResponse> ReadXmlToStringAsync(int id);
 }
 
 public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
@@ -102,7 +101,6 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                                 IUserManager userManager,
                                 IHostEnvironment env) : AppServiceBase(userManager), IDocumentAppService
 {
-    
     public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {
         if (files.Count == 0) return AppResponse.Error("No file uploaded");
@@ -161,13 +159,11 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                 Organization = org,
                 DocumentType = type,
                 DocumentName = doc.GetXmlNodeValue("tenTKhai"),
-                DocumentDate = docDate == null
-                    ? null
-                    : DateTime.ParseExact(docDate, "yyyy-MM-dd", CultureInfo.InvariantCulture),
+                DocumentDate = docDate?.ToDateTime(),
                 AdjustmentType = doc.GetXmlNodeValue("loaiTKhai"),
                 NumberOfAdjustment = soLan is null ? 0 : int.Parse(soLan),
-                Period = int.Parse(doc.GetXmlNodeValue("kyKKhai")!.Split("/")[0]), //TODO: catch error if no period
-                Year = int.Parse(doc.GetXmlNodeValue("kyKKhai")!.Split("/")[1]),
+                Period = doc.GetXmlNodeValue("kyKKhai").GetPeriod().Period,
+                Year = doc.GetXmlNodeValue("kyKKhai").GetPeriod().Year,
                 PeriodType = doc.GetXmlNodeValue("kieuKy"),
                 FileName = file.FileName,
                 FilePath = relativeFilePath,
@@ -189,7 +185,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             validationError
         });
     }
-    
+
     public async Task<AppResponse> FindDocumentsAsync(DocumentType documentType,
                                                       RequestParam requestParam)
     {
@@ -240,7 +236,6 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         return AppResponse.SuccessResponse(dtoList);
     }
 
-
     public async Task<AppResponse> GetDocumentByIdAsync(int documentId)
     {
         var file = await docRepository
@@ -250,6 +245,18 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         return file is not null
             ? AppResponse.SuccessResponse(file.FilePath)
             : AppResponse.Error404("Document not found");
+    }
+
+    public async Task<AppResponse> ReadXmlToStringAsync(int id)
+    {
+        var file = await docRepository
+                         .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == id,
+                               include: nameof(OrgDocument.Organization))
+                         .FirstOrDefaultAsync() ?? throw new NotFoundException($"Document [{id}] not found on the server.");
+        var filePath = GetFilePath(file);
+        using var stream = new FileStream(filePath, FileMode.Open);
+        var xmlDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+        return AppResponse.SuccessResponse(xmlDocument.ToString());
     }
 
     public async Task<AppResponse> DeleteFileByIdAsync(int documentId)
@@ -318,10 +325,11 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         var doc = await docRepository.Find(f => f.Hash == hash).FirstOrDefaultAsync();
         return doc is not null;
     }
-    
+
     public async Task<List<string>> CheckMultiFilesForDuplicated(List<string> hashes)
     {
-        var docs = await docRepository.Find(f => hashes.Contains(f.Hash)).ToListAsync(); //find all documents with same hashes
+        var docs = await docRepository.Find(f => hashes.Contains(f.Hash))
+                                      .ToListAsync(); //find all documents with same hashes
         return docs.Select(x => x.Hash).ToList(); //return duplicate hashes
     }
 
@@ -335,52 +343,61 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
 
     #region Read Document Details
 
-    private async Task<Document01GtgtPayload> Read_01GTGT_Document(OrgDocument doc)
+    private async Task<Document01GtgtPayload?> Read_01GTGT_Document(OrgDocument doc)
     {
-        string filePath = GetFilePath(doc);
-        await using var stream = new FileStream(filePath, FileMode.Open);
-        var xDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
-        var data = new Document01GtgtPayload
+        try
         {
-            OrganizationName = xDocument.GetXmlNodeValue("tenNNT") ?? string.Empty,
-            TaxId = xDocument.GetXmlNodeValue("mst") ?? string.Empty,
-            DocumentName = xDocument.GetXmlNodeValue("tenTKhai"),
-            Period = doc.Period,
-            Year = doc.Year,
-            PeriodType = doc.PeriodType,
-            NumberOfAdjustment = doc.NumberOfAdjustment ?? 0,
-            Address = xDocument.GetXmlNodeValue("dchiNNT"),
-            Ct21 = xDocument.GetXmlNodeValueAsLong("ct21"),
-            Ct22 = xDocument.GetXmlNodeValueAsLong("ct22"),
-            Ct23 = xDocument.GetXmlNodeValueAsLong("ct23"),
-            Ct23a = xDocument.GetXmlNodeValueAsLong("ct23a"),
-            Ct24 = xDocument.GetXmlNodeValueAsLong("ct24"),
-            Ct24a = xDocument.GetXmlNodeValueAsLong("ct24a"),
-            Ct25 = xDocument.GetXmlNodeValueAsLong("ct25"),
-            Ct26 = xDocument.GetXmlNodeValueAsLong("ct26"),
-            Ct27 = xDocument.GetXmlNodeValueAsLong("ct27"),
-            Ct28 = xDocument.GetXmlNodeValueAsLong("ct28"),
-            Ct29 = xDocument.GetXmlNodeValueAsLong("ct29"),
-            Ct30 = xDocument.GetXmlNodeValueAsLong("ct30"),
-            Ct31 = xDocument.GetXmlNodeValueAsLong("ct31"),
-            Ct32 = xDocument.GetXmlNodeValueAsLong("ct32"),
-            Ct32a = xDocument.GetXmlNodeValueAsLong("ct32a"),
-            Ct33 = xDocument.GetXmlNodeValueAsLong("ct33"),
-            Ct34 = xDocument.GetXmlNodeValueAsLong("ct34"),
-            Ct35 = xDocument.GetXmlNodeValueAsLong("ct35"),
-            Ct36 = xDocument.GetXmlNodeValueAsLong("ct36"),
-            Ct37 = xDocument.GetXmlNodeValueAsLong("ct37"),
-            Ct38 = xDocument.GetXmlNodeValueAsLong("ct38"),
-            Ct39a = xDocument.GetXmlNodeValueAsLong("ct39a"),
-            Ct40 = xDocument.GetXmlNodeValueAsLong("ct40"),
-            Ct40a = xDocument.GetXmlNodeValueAsLong("ct40a"),
-            Ct40b = xDocument.GetXmlNodeValueAsLong("ct40b"),
-            Ct41 = xDocument.GetXmlNodeValueAsLong("ct41"),
-            Ct42 = xDocument.GetXmlNodeValueAsLong("ct42"),
-            Ct43 = xDocument.GetXmlNodeValueAsLong("ct43"),
-            Ct44 = xDocument.GetXmlNodeValueAsLong("ct44"),
-        };
-        return data;
+            string filePath = GetFilePath(doc);
+            await using var stream = new FileStream(filePath, FileMode.Open);
+            var xDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+            var data = new Document01GtgtPayload
+            {
+                OrganizationName = xDocument.GetXmlNodeValue("tenNNT") ?? string.Empty,
+                TaxId = xDocument.GetXmlNodeValue("mst") ?? string.Empty,
+                DocumentName = xDocument.GetXmlNodeValue("tenTKhai"),
+                Period = doc.Period,
+                Year = doc.Year,
+                PeriodType = doc.PeriodType,
+                NumberOfAdjustment = doc.NumberOfAdjustment ?? 0,
+                Address = xDocument.GetXmlNodeValue("dchiNNT"),
+                Ct21 = xDocument.GetXmlNodeValueAsLong("ct21"),
+                Ct22 = xDocument.GetXmlNodeValueAsLong("ct22"),
+                Ct23 = xDocument.GetXmlNodeValueAsLong("ct23"),
+                Ct23a = xDocument.GetXmlNodeValueAsLong("ct23a"),
+                Ct24 = xDocument.GetXmlNodeValueAsLong("ct24"),
+                Ct24a = xDocument.GetXmlNodeValueAsLong("ct24a"),
+                Ct25 = xDocument.GetXmlNodeValueAsLong("ct25"),
+                Ct26 = xDocument.GetXmlNodeValueAsLong("ct26"),
+                Ct27 = xDocument.GetXmlNodeValueAsLong("ct27"),
+                Ct28 = xDocument.GetXmlNodeValueAsLong("ct28"),
+                Ct29 = xDocument.GetXmlNodeValueAsLong("ct29"),
+                Ct30 = xDocument.GetXmlNodeValueAsLong("ct30"),
+                Ct31 = xDocument.GetXmlNodeValueAsLong("ct31"),
+                Ct32 = xDocument.GetXmlNodeValueAsLong("ct32"),
+                Ct32a = xDocument.GetXmlNodeValueAsLong("ct32a"),
+                Ct33 = xDocument.GetXmlNodeValueAsLong("ct33"),
+                Ct34 = xDocument.GetXmlNodeValueAsLong("ct34"),
+                Ct35 = xDocument.GetXmlNodeValueAsLong("ct35"),
+                Ct36 = xDocument.GetXmlNodeValueAsLong("ct36"),
+                Ct37 = xDocument.GetXmlNodeValueAsLong("ct37"),
+                Ct38 = xDocument.GetXmlNodeValueAsLong("ct38"),
+                Ct39a = xDocument.GetXmlNodeValueAsLong("ct39a"),
+                Ct40 = xDocument.GetXmlNodeValueAsLong("ct40"),
+                Ct40a = xDocument.GetXmlNodeValueAsLong("ct40a"),
+                Ct40b = xDocument.GetXmlNodeValueAsLong("ct40b"),
+                Ct41 = xDocument.GetXmlNodeValueAsLong("ct41"),
+                Ct42 = xDocument.GetXmlNodeValueAsLong("ct42"),
+                Ct43 = xDocument.GetXmlNodeValueAsLong("ct43"),
+                Ct44 = xDocument.GetXmlNodeValueAsLong("ct44"),
+            };
+            return data;
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation("Exception was caused: {exception}", e.GetType().Name);
+            logger.LogError("Error while reading document Id: [{id}]. {message}", doc.Id, e.Message);
+            return null;
+        }
     }
 
     private async Task<Document05KkPayload> Read_05KK_TNCN_Document(OrgDocument doc)
@@ -505,16 +522,25 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
 
     #endregion
 
-    #region Consolidate Documents
+    #region 01GTGT Documents
 
     public async Task<(string FileName, byte[] File)> ConsolidateVatDocumentsAsync(List<int> ids)
     {
         var docList = await docRepository.FindAndSort(filter: x => ids.Contains(x.Id)
-                                                           && x.Organization.Id.ToString() == WorkingOrg,
-                                                      include:[nameof(OrgDocument.Organization)],
-                                                      sortBy:["DocumentDate ASC"]) //sort by date ascending
+                                                                   && x.Organization.Id.ToString() == WorkingOrg,
+                                                      include: [nameof(OrgDocument.Organization)],
+                                                      sortBy: ["DocumentDate ASC"]) //sort by date ascending
                                          .ToListAsync();
-        if (docList.Count == 0) throw new Exception("Document not found");
+        if (docList.Count == 0)
+        {
+            throw new EmptyResultException("Document not found");
+        }
+        //Asynchrously read all documents into memory to save time
+        var payloads = await this.Get01GtgtPayloads(docList);
+        if (payloads.Count == 0)
+        {
+            throw new EmptyResultException("No document on disk to read. Check the file path.");
+        }
         
         var wb = new Workbook { Version = ExcelVersion.Version2016 };
         var sh = wb.Worksheets[0];
@@ -563,66 +589,140 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
 
         // loop through all documents and consolidate them into one excel file, require reading each document's file
         var index = headerRow + 1;
-        foreach (OrgDocument doc in docList)
+        var processedDocs = 0;
+        
+        //Read all documents and create a dictionary of payloads
+        
+        foreach (var payload in payloads)
         {
-            var readResult = await ReadDocumentFromFileAsync(doc.Id);
-            if (!readResult.Success)
+            var doc = payload.Key;
+            var data = payloads[doc];
+            
+            sh.Range[index, 1].Value2 = $"{doc.PeriodType}{doc.Period}/{doc.Year}";
+            sh.Range[index, 2].Value2 = doc.AdjustmentType switch
             {
-                logger.LogError("Reading document Id: [{name}] failed. {message}", doc.Id, readResult.Message);
-                continue;
+                "C" => "Chính thức",
+                "B" => "Bổ sung",
+                _ => "Không xác định"
+            };
+            sh.Range[index, 3].Value2 = doc.NumberOfAdjustment;
+            sh.Range[index, 4].Value2 = doc.DocumentDate?.ToLocalTime();
+            sh.Range[index, 4].Style.NumberFormat = "dd/mm/yyyy";
+            sh.Range[index, 5].Value2 = data.Ct22;
+            sh.Range[index, 6].Value2 = data.Ct23;
+            sh.Range[index, 7].Value2 = data.Ct25;
+            sh.Range[index, 8].Value2 = data.Ct27;
+            sh.Range[index, 9].Value2 = data.Ct30;
+            sh.Range[index, 10].Value2 = data.Ct31;
+            sh.Range[index, 11].Value2 = data.Ct32;
+            sh.Range[index, 12].Value2 = data.Ct33;
+            sh.Range[index, 13].Value2 = data.Ct36;
+            sh.Range[index, 14].Value2 = data.Ct37;
+            sh.Range[index, 16].Value2 = data.Ct38;
+            sh.Range[index, 16].Value2 = data.Ct40;
+            sh.Range[index, 17].Value2 = data.Ct41;
+            sh.Range[index, 18].Value2 = data.Ct43;
+
+            for (var i = 1; i <= headers.Length; i++)
+            {
+                sh.Range[index, i].BorderAround(LineStyleType.Thin);
             }
 
-
-            var data = (Document01GtgtPayload?)readResult.Data;
-            if (data is not null)
+            for (var i = 5; i <= headers.Length; i++)
             {
-                
-                sh.Range[index, 1].Value2 = $"{doc.PeriodType}{doc.Period}/{doc.Year}";
-                sh.Range[index, 2].Value2 = doc.AdjustmentType switch
-                {
-                    "C" => "Chính thức",
-                    "B" => "Bổ sung",
-                    _ => string.Empty
-                };
-                sh.Range[index, 3].Value2 = doc.NumberOfAdjustment;
-                sh.Range[index, 4].Value2 = doc.DocumentDate?.ToLocalTime();
-                sh.Range[index, 4].Style.NumberFormat = "dd/mm/yyyy";
-                sh.Range[index, 5].Value2 = data.Ct22;
-                sh.Range[index, 6].Value2 = data.Ct23;
-                sh.Range[index, 7].Value2 = data.Ct25;
-                sh.Range[index, 8].Value2 = data.Ct27;
-                sh.Range[index, 9].Value2 = data.Ct30;
-                sh.Range[index, 10].Value2 = data.Ct31;
-                sh.Range[index, 11].Value2 = data.Ct32;
-                sh.Range[index, 12].Value2 = data.Ct33;
-                sh.Range[index, 13].Value2 = data.Ct36;
-                sh.Range[index, 14].Value2 = data.Ct37;
-                sh.Range[index, 16].Value2 = data.Ct38;
-                sh.Range[index, 16].Value2 = data.Ct40;
-                sh.Range[index, 17].Value2 = data.Ct41;
-                sh.Range[index, 18].Value2 = data.Ct43;
-                
-                for(var i = 1; i <= headers.Length; i++)
-                {
-                    sh.Range[index,i].BorderAround(LineStyleType.Thin);
-                }
-
-                for (var i = 5; i <= headers.Length; i++)
-                {
-                    sh.Range[index, i].NumberFormat = "#,##0";
-                }
+                sh.Range[index, i].NumberFormat = "#,##0";
             }
 
             index++; //increment row index
+            processedDocs++;
+            
         }
+        
+        /*foreach (OrgDocument doc in docList)
+        {
+            var data = await Get01GtgtPayload(doc.Id);
+            if (data is null)
+            {
+                continue;
+            }
+
+            sh.Range[index, 1].Value2 = $"{doc.PeriodType}{doc.Period}/{doc.Year}";
+            sh.Range[index, 2].Value2 = doc.AdjustmentType switch
+            {
+                "C" => "Chính thức",
+                "B" => "Bổ sung",
+                _ => "Không xác định"
+            };
+            sh.Range[index, 3].Value2 = doc.NumberOfAdjustment;
+            sh.Range[index, 4].Value2 = doc.DocumentDate?.ToLocalTime();
+            sh.Range[index, 4].Style.NumberFormat = "dd/mm/yyyy";
+            sh.Range[index, 5].Value2 = data.Ct22;
+            sh.Range[index, 6].Value2 = data.Ct23;
+            sh.Range[index, 7].Value2 = data.Ct25;
+            sh.Range[index, 8].Value2 = data.Ct27;
+            sh.Range[index, 9].Value2 = data.Ct30;
+            sh.Range[index, 10].Value2 = data.Ct31;
+            sh.Range[index, 11].Value2 = data.Ct32;
+            sh.Range[index, 12].Value2 = data.Ct33;
+            sh.Range[index, 13].Value2 = data.Ct36;
+            sh.Range[index, 14].Value2 = data.Ct37;
+            sh.Range[index, 16].Value2 = data.Ct38;
+            sh.Range[index, 16].Value2 = data.Ct40;
+            sh.Range[index, 17].Value2 = data.Ct41;
+            sh.Range[index, 18].Value2 = data.Ct43;
+
+            for (var i = 1; i <= headers.Length; i++)
+            {
+                sh.Range[index, i].BorderAround(LineStyleType.Thin);
+            }
+
+            for (var i = 5; i <= headers.Length; i++)
+            {
+                sh.Range[index, i].NumberFormat = "#,##0";
+            }
+
+            index++; //increment row index
+            processedDocs++;
+        }*/
 
         var fileName = $"{docList[0].Organization.TaxId}-01GTGT-{DateTime.Now:yyyyMMddHHmmss}.xlsx";
-        using var ms = new MemoryStream();
-        wb.SaveToStream(ms, FileFormat.Version2016);
-        return (fileName, ms.ToArray());
+        using var stream = new MemoryStream();
+        wb.SaveToStream(stream, FileFormat.Version2016);
+        return (fileName, stream.ToArray());
     }
 
     #endregion
+
+    /// <summary>
+    /// Asynchronously processes a list of organizational documents and retrieves their associated payloads.
+    /// </summary>
+    /// <param name="docs">The collection of organizational documents to be processed.</param>
+    /// <returns>
+    /// A <see cref="Dictionary{OrgDocument, Document01GtgtPayload}"/> where each key is an <see cref="OrgDocument"/>
+    /// and each value is the corresponding <see cref="Document01GtgtPayload"/>. If processing a document fails, it is excluded from the result.
+    /// </returns>
+    private async Task<Dictionary<OrgDocument, Document01GtgtPayload>> Get01GtgtPayloads(List<OrgDocument> docs)
+    {
+        Dictionary<OrgDocument, Document01GtgtPayload> payloads = [];
+        List<Task<(OrgDocument doc, Document01GtgtPayload? payload)>> task = [];
+        foreach (var doc in docs)
+        {
+            task.Add(Task.Run(async () => (doc, await Read_01GTGT_Document(doc))));
+        }
+
+        var result = await Task.WhenAll(task);
+        foreach ((OrgDocument doc, Document01GtgtPayload? payload) in result)
+        {
+            if (payload is null)
+            {
+                logger.LogWarning("Failed to read document Id: [{id}].", doc.Id);
+                continue;
+            }
+            payloads.Add(doc, payload);
+        }
+
+        return payloads;
+    }
 
     private string GetFilePath(OrgDocument doc)
     {

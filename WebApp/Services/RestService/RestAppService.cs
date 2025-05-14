@@ -3,6 +3,7 @@ using System.Net;
 using Microsoft.AspNetCore.SignalR;
 using MongoDB.Driver;
 using Newtonsoft.Json;
+using Polly;
 using RestSharp;
 using WebApp.Authentication;
 using WebApp.Enums;
@@ -51,6 +52,9 @@ public class RestAppService(IRestClient restClient,
                             IUserManager userManager)
     : AppServiceBase(userManager), IRestAppService
 {
+    private const int MaxRetries = 5;
+    private const int DelaySeconds = 30;
+
     #region Authentication
 
     public async Task<CaptchaModel?> GetCaptcha()
@@ -104,41 +108,39 @@ public class RestAppService(IRestClient restClient,
         var toValue = DateTime.ParseExact(to, "yyyy-MM-dd",
                                           CultureInfo.InvariantCulture, DateTimeStyles.None);
 
-        if (fromValue > toValue) throw new InvalidDataException("[From date] can not be greater than [To date]");
-
         var dateRanges = CommonUtil.SplitDateRange(fromValue, toValue);
 
+        
         foreach (var dateRange in dateRanges)
         {
             var pageCount = 1;
+            var invoiceCount = 0;
             await Task.Delay(800);
-            var result = await GetSoldInvoiceFromService(token,
-                                                         dateRange.GetFromDateString(),
-                                                         dateRange.GetToDateString());
+            var result = await GetSoldInvoiceFromService(token, dateRange.GetFromDate(), dateRange.GetToDate());
             await notificationService
                 .SendAsync(UserId, HubName.InvoiceMessage,
-                           $"Tải thông tin hóa đơn bán ra - Từ ngày: {dateRange.GetFromDateString()} " +
-                           $"đến ngày {dateRange.GetToDateString()}\n Trang: {pageCount}");
+                           $"Tải thông tin hóa đơn bán ra - Từ ngày: {dateRange.GetFromDate()} " +
+                           $"đến ngày {dateRange.GetToDate()}\n Trang: {pageCount}");
             if (result == null)
             {
-                logger.LogInformation("Found no invoice in range {fom} -> {to}", 
-                                      dateRange.GetFromDateString(), dateRange.GetToDateString());
+                logger.LogInformation("Found no invoice from {dateRange}", dateRange.ToString());
                 await notificationService
                     .SendAsync(UserId, HubName.InvoiceMessage,
                                $"Không tìm thấy hóa đơn bán ra trong khoảng thời gian\n " +
-                               $"từ ngày {dateRange.GetFromDateString()} đến ngày {dateRange.GetToDateString()}");
+                               $"từ ngày {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
                 continue;
             }
 
             invoicesList.AddRange(result.Datas);
+            invoiceCount += invoicesList.Count;
             if (result.State == null)
             {
-                logger.LogInformation("Found {total} invoices from {from} to {to}. No more pages left", 
-                                      invoicesList.Count, dateRange.GetFromDateString(), dateRange.GetToDateString());
+                logger.LogInformation("Found {total} invoices from {range}. No more pages left",
+                                      invoicesList.Count, dateRange.ToString());
                 await notificationService
                     .SendAsync(UserId, HubName.InvoiceMessage,
-                               $"Tìm thấy {invoicesList.Count} hóa đơn từ ngày" +
-                               $" {dateRange.GetFromDateString()} đến ngày {dateRange.GetToDateString()}");
+                               $"Tìm thấy {invoiceCount} hóa đơn từ ngày " +
+                               $"{dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
                 continue;
             }
 
@@ -147,20 +149,22 @@ public class RestAppService(IRestClient restClient,
             {
                 pageCount++;
                 var nextResult = await GetSoldInvoiceFromService(token,
-                                                                 dateRange.GetFromDateString(),
-                                                                 dateRange.GetToDateString(),
+                                                                 dateRange.GetFromDate(),
+                                                                 dateRange.GetToDate(),
                                                                  nextState);
                 if (nextResult == null) break;
                 invoicesList.AddRange(nextResult.Datas);
+                invoiceCount += invoicesList.Count;
                 if (nextResult.State == null) break;
                 nextState = nextResult.State;
             }
-            logger.LogInformation("Found {total} invoices from {from} to {to}. No more pages left", 
-                                  invoicesList.Count, dateRange.GetFromDateString(), dateRange.GetToDateString());
+
+            logger.LogInformation("Found {total} invoices from {from} to {to}. No more pages left",
+                                  invoicesList.Count, dateRange.GetFromDate(), dateRange.GetToDate());
             await notificationService
                 .SendAsync(UserId, HubName.InvoiceMessage,
-                           $"Tìm thấy {invoicesList.Count} hóa đơn từ ngày" +
-                           $" {dateRange.GetFromDateString()} đến ngày {dateRange.GetToDateString()}");
+                           $"Tìm thấy {invoiceCount} hóa đơn từ ngày" +
+                           $" {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
         }
 
         return AppResponse.SuccessResponse(invoicesList);
@@ -221,7 +225,7 @@ public class RestAppService(IRestClient restClient,
 
         var statusCode = response.StatusCode;
         var retryCount = 0;
-        const int delay = 20;
+        const int delay = 30;
         while (statusCode == HttpStatusCode.TooManyRequests)
         {
             if (retryCount > 5) break;
@@ -232,7 +236,7 @@ public class RestAppService(IRestClient restClient,
             response = await restClient.ExecuteAsync<SoldInvoiceDetail>(request);
             statusCode = response.StatusCode;
             retryCount++;
-            Console.WriteLine($"Retry {retryCount} completed");
+            logger.LogWarning("Retry {RetryCount} completed", retryCount);
         }
 
         if (retryCount > 5)
@@ -311,12 +315,12 @@ public class RestAppService(IRestClient restClient,
                     var pageCount = 1;
                     await Task.Delay(800);
                     var result = await GetPurchaseInvoiceFromService(token, endpoint,
-                                                                     dateRange.GetFromDateString(),
-                                                                     dateRange.GetToDateString(), type);
+                                                                     dateRange.GetFromDate(),
+                                                                     dateRange.GetToDate(), type);
                     await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
-                                                        $"Tải thông tin {displayType} - Từ ngày: {dateRange.GetFromDateString()} đến ngày {dateRange.GetToDateString()}\n Trang: {pageCount}");
+                                                        $"Tải thông tin {displayType} - Từ ngày: {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}\n Trang: {pageCount}");
                     Console.WriteLine(
-                        $"Get invoice type {type} of page {pageCount} - from {dateRange.GetFromDateString()} to {dateRange.GetToDateString()}");
+                        $"Get invoice type {type} of page {pageCount} - from {dateRange.GetFromDate()} to {dateRange.GetToDate()}");
                     if (result == null) continue;
                     invoicesList.AddRange(result.Datas);
                     if (result.State == null) continue;
@@ -325,13 +329,13 @@ public class RestAppService(IRestClient restClient,
                     {
                         pageCount++;
                         var nextResult = await GetPurchaseInvoiceFromService(token, endpoint,
-                                                                             dateRange.GetFromDateString(),
-                                                                             dateRange.GetToDateString(),
+                                                                             dateRange.GetFromDate(),
+                                                                             dateRange.GetToDate(),
                                                                              type, nextState);
                         await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
-                                                            $"Tải thông tin {displayType} - Từ ngày: {dateRange.GetFromDateString()} đến ngày {dateRange.GetToDateString()}\n Trang: {pageCount}");
+                                                            $"Tải thông tin {displayType} - Từ ngày: {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}\n Trang: {pageCount}");
                         Console.WriteLine(
-                            $"Get invoice type {type} of page {pageCount} - from {dateRange.GetFromDateString()} to {dateRange.GetToDateString()}");
+                            $"Get invoice type {type} of page {pageCount} - from {dateRange.GetFromDate()} to {dateRange.GetToDate()}");
                         if (nextResult == null) break;
                         invoicesList.AddRange(nextResult.Datas);
                         if (nextResult.State == null) break;
@@ -339,7 +343,7 @@ public class RestAppService(IRestClient restClient,
                     }
                 }
             }
-    
+
             logger.LogInformation("Finished getting Invoice List at: {time}", DateTime.Now.ToLocalTime());
             //Use the mapper here instead of converting to DTO then convert back to model
             return AppResponse.SuccessResponse(invoicesList);
@@ -467,4 +471,30 @@ public class RestAppService(IRestClient restClient,
     }
 
     #endregion
+
+    private async Task<RestResponse<T>> ExecuteWithRetryAsync<T>(RestRequest request)
+    {
+        var retryPolicy = Policy<RestResponse<T>>
+                          .Handle<HttpRequestException>()
+                          .OrResult(r => r.StatusCode == HttpStatusCode.TooManyRequests)
+                          .WaitAndRetryAsync(retryCount: MaxRetries,
+                                             retryAttempt => TimeSpan.FromSeconds(DelaySeconds),
+                                             onRetry: async void (exception, timeSpan, retryCount, context) =>
+                                             {
+                                                 try
+                                                 {
+                                                     logger.LogWarning(
+                                                         "Attempt {RetryCount} - Retrying after {Delay} seconds...",
+                                                         retryCount, DelaySeconds);
+                                                     await notificationService.SendAsync(UserId, "429",
+                                                         $"Too many requests. Retry {retryCount}/{MaxRetries} after {DelaySeconds} seconds...");
+                                                 }
+                                                 catch (Exception e)
+                                                 {
+                                                     logger.LogError(e, "Error sending notification.");
+                                                 }
+                                             });
+
+        return await retryPolicy.ExecuteAsync(() => restClient.ExecuteAsync<T>(request));
+    }
 }

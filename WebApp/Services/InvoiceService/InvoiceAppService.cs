@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json;
 using Spire.Xls;
@@ -12,8 +13,10 @@ using WebApp.Mongo.FilterBuilder;
 using WebApp.Mongo.Mapper;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
+using WebApp.Payloads.Messages;
 using WebApp.Repositories;
 using WebApp.Services.InvoiceService.dto;
+using WebApp.Services.LoggingService;
 using WebApp.Services.NotificationService;
 using WebApp.Services.RestService;
 using WebApp.Services.RestService.Dto;
@@ -155,9 +158,10 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         var invoiceList = await mongoPurchaseInvoice.FindInvoices(filter: filter,
                                                                   page: invoiceParams.Page!.Value,
                                                                   size: invoiceParams.Size!.Value);
-        await notificationService.SendAsync(UserId,
+        /*await notificationService.SendAsync(UserId,
                                             HubName.InvoiceMessage,
-                                            $"Found {invoiceList.Total} invoice(s)");
+                                            $"Found {invoiceList.Total} invoice(s)");*/
+        
         return new AppResponse
         {
             Data = invoiceList.Data.Select(inv => inv.ToDisplayModel()).ToList(),
@@ -231,8 +235,8 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             newInvoices.Add(inv);
         }
 
-        await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Starting sync...");
-        
+        await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Bắt đầu tải chi tiết hóa đơn...");
+
         foreach (var invoice in newInvoices)
         {
             var invDetail = await restService.GetPurchaseInvoiceDetail(token, invoice);
@@ -273,21 +277,23 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                     "{count}/{new} - Invoice {invNum} added to collection.",
                     countAdd, newInvoices.Count, invoiceToAdd.Shdon
                 );
-                var completed = decimal.Divide(countAdd, newInvoices.Count) * 100;
+                //var completed = decimal.Divide(countAdd, newInvoices.Count) * 100;
                 await notificationService.SendAsync(UserId,
+                                                    HubName.InvoiceStatus,
+                                                    InvoiceMessage.Create(saved: countAdd, total: newInvoices.Count));
+                /*await notificationService.SendAsync(UserId,
                                                     HubName.InvoiceMessage,
-                                                    $"Đã tải: {countAdd}/{newInvoices.Count} - {completed:F2}% completed");
+                                                    $"Đã tải: {countAdd}/{newInvoices.Count} - {completed:F2}% completed");*/
             }
 
             //Handle unsuccessful deserializion
             if (invDetail is { Success: true, Message: not null, Data: not null } && invDetail.Message.Contains("99"))
             {
                 unDeserializedInvoices.Add((string)invDetail.Data);
-                var completed = decimal.Divide(countAdd, newInvoices.Count) * 100;
-                await notificationService
-                    .SendAsync(UserId,
-                               HubName.InvoiceMessage,
-                               $"Đã tải: {countAdd}/{newInvoices.Count} - {completed:F2}% completed");
+                //var completed = decimal.Divide(countAdd, newInvoices.Count) * 100;
+                await notificationService.SendAsync(UserId,
+                                                    HubName.InvoiceStatus,
+                                                    InvoiceMessage.Create(saved: countAdd, total: newInvoices.Count));
             }
 
             logger.LogInformation("Undeserializable count: {Count}", unDeserializedInvoices.Count);
@@ -341,10 +347,10 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
 
     #region Private method
 
-    private async Task<AppResponse> WriteInvoices(List<InvoiceDetailModel> invoicesToSave,
+    private async Task<AppResponse> WriteInvoices(List<InvoiceDetailModel> deserializedInvoices,
                                                   List<string> unDeserializedInvoices, int total)
     {
-        var totalSync = invoicesToSave.Count + unDeserializedInvoices.Count;
+        var totalSync = deserializedInvoices.Count + unDeserializedInvoices.Count;
         try
         {
             var jsonOption = new JsonSerializerOptions
@@ -352,42 +358,65 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 WriteIndented = true
             };
-            await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Writing to database...");
-            var isInserted = await mongoPurchaseInvoice.InsertInvoicesAsync(invoicesToSave
-                                                                            .Select(i => i.ToPurchaseInvoiceDetailBson(
-                                                                                    jsonOption))
-                                                                            .ToList());
-            var isInsered2 = true;
+
+            var listToInsert = new List<InvoiceDetailDoc>();
+            var errorList = new List<string?>();
+            foreach (var invoice in deserializedInvoices)
+            {
+                try
+                {
+                    var doc = invoice.ToPurchaseInvoiceDetailBson(jsonOption);
+                    listToInsert.Add(doc);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError("Failed to deserialize invoice to BSON: {error}", ex.Message);
+                    await notificationService.SendAsync(UserId,
+                                                        HubName.InvoiceMessage,
+                                                        "Failed to process some invoices due to conversion error.");
+                    errorList.Add(invoice.Shdon?.ToString());;
+                }
+            }
+
             if (unDeserializedInvoices.Count > 0)
             {
-                logger.LogWarning("{} undeserializable invoices, trying to save...", unDeserializedInvoices.Count);
-                isInsered2 = await mongoPurchaseInvoice.InsertInvoicesAsync(unDeserializedInvoices
-                                                                            .Select(i => i.ToPurchaseInvoiceDetailBson(
-                                                                                    jsonOption))
-                                                                            .ToList());
+                // Regex to match "shdon": "value" or "shdon": value (string or non-string)
+                var regex = new Regex(@"""shdon""\s*:\s*(?:""(?<value>[^""]*)""|(?<value>[^,\}\s]+))");
+                foreach (string unDeserializedInvoice in unDeserializedInvoices)
+                {
+                    try
+                    {
+                        var doc = unDeserializedInvoice.ToPurchaseInvoiceDetailBson(jsonOption);
+                        listToInsert.Add(doc);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log the error
+                        logger.LogError("Failed to convert undeserialized invoice to BSON: {error}", ex.Message);
+                        // Optionally notify the user about the failed conversion
+                        await notificationService.SendAsync(UserId,
+                                                            HubName.InvoiceMessage,
+                                                            "Failed to process some undeserialized invoices due to conversion error.");
+                        var match = regex.Match(unDeserializedInvoice);
+                        if (match.Success)
+                        {
+                            string value = match.Groups["value"].Value;
+                            errorList.Add(value);
+                        }
+                        
+                    }
+                }
             }
-
-            switch (isInserted)
-            {
-                case false when !isInsered2:
-                    logger.LogWarning("Unable to save invoices. Operation terminated at {time}",
-                                      DateTime.Now.ToLocalTime());
-                    return AppResponse.Error("Nothing to insert.");
-                case true:
-                    logger.LogInformation("Finished syncing invoices at {time}",
-                                          DateTime.Now.ToLocalTime());
-                    break;
-            }
-
-            if (isInsered2)
-            {
-                logger.LogInformation("Finished syncing undeserializable invoices at {time}",
-                                      DateTime.Now.ToLocalTime());
-            }
-
+            //Build a messages for error
+            var message = listToInsert.Count == 0 ? "Không có hóa đơn mới. " : $"Tìm thấy {listToInsert.Count} hóa đơn mới. ";
+            var errorMessage = errorList.Count == 0 ? "" : $" {errorList.Count} hóa đơn không thể lưu do lỗi định dạng.";
+            //Notify user about success/failure
+            await notificationService.SendAsync(UserId, HubName.InvoiceMessage, message + errorMessage);
+            
+            var isInserted = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert); //Insert into DB
             return new AppResponse
             {
-                Success = true,
+                Success = isInserted,
                 Code = totalSync == total ? "200" : "207",
                 Message = totalSync == total
                     ? $"{totalSync}/{total} hóa đơn đã được lưu."
@@ -397,7 +426,8 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                 {
                     Total = total,
                     Success = totalSync,
-                    Remaining = total - totalSync
+                    Remaining = total - totalSync,
+                    Error = errorList
                 }
             };
         }
@@ -459,9 +489,9 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         shSoldSummary.Range[2, 1].Value = $"Danh sách hóa đơn đầu ra - Từ {from} đến {to}";
         shSoldSummary.Range[1, 1, 2, 1].Style.Font.IsBold = true;
 
-        shPurchaseDetail.Range[1, 1].Value = $"{orgName} - {orgTaxId}";
-        shPurchaseDetail.Range[2, 1].Value = $"Chi tiết hóa đơn đầu ra - Từ {from} đến {to}";
-        shPurchaseDetail.Range[1, 1, 2, 1].Style.Font.IsBold = true;
+        shSoldDetail.Range[1, 1].Value = $"{orgName} - {orgTaxId}";
+        shSoldDetail.Range[2, 1].Value = $"Chi tiết hóa đơn đầu ra - Từ {from} đến {to}";
+        shSoldDetail.Range[1, 1, 2, 1].Style.Font.IsBold = true;
 
         const int titleRow = 4;
 
@@ -573,6 +603,8 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         shSoldDetail.Range[titleRow, 1, titleRow, soldDetailTitles.Count].Style.Font.IsBold = true;
         var detailRow = 5;
         var purchaseSummaryRow = 5;
+        var soldSummaryRow = 5;
+        var soldDetailRow = 5;
 
         #region PURCHASE INVOICE PROCESSING
 
@@ -678,8 +710,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
 
         if (soldList.Count > 0)
         {
-            var soldSummaryRow = 5;
-            var soldDetailRow = 5;
+            
             foreach (var inv in soldList)
             {
                 shSoldSummary.Range[soldSummaryRow, 1].Value2 = inv.InvoiceNumber;
@@ -749,7 +780,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                     shSoldDetail.Range[soldDetailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
 
                     shSoldDetail.Range[soldDetailRow, 15].Value2 = inv.IssueDate?.ToLocalTime();
-                    shSoldDetail.Range[soldDetailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+                    shSoldDetail.Range[soldDetailRow, 15].Style.NumberFormat = "dd/mm/yyyy";
 
                     shSoldDetail.Range[soldDetailRow, 16].Value2 = inv.Status;
                     shSoldDetail.Range[soldDetailRow, 17].Value2 = inv.InvoiceType;
@@ -791,7 +822,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         #region Formula and filter
 
         shPurchaseSummary.AutoFilters.Range = shPurchaseSummary.Range[$"A{titleRow}:X{detailRow - 1}"];
-        shPurchaseDetail.AutoFilters.Range = shPurchaseDetail.Range[$"A{titleRow}:X{purchaseSummaryRow - 1}"];
+        shPurchaseDetail.AutoFilters.Range = shPurchaseDetail.Range[$"A{titleRow}:X{detailRow - 1}"];
 
         shPurchaseSummary.Range[3, 1].FormulaR1C1 =
             $"\"Tổng số hóa đơn: \"&COUNT(A{titleRow + 1}:A{purchaseSummaryRow - 1})";
@@ -805,7 +836,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             shPurchaseSummary.Range[titleRow - 1, i].Style.Font.IsBold = true;
         }
 
-        for (var i = 7; i <= 11; i++)
+        for (var i = 7; i <= 12; i++)
         {
             shPurchaseDetail.Range[titleRow - 1, i].FormulaR1C1 = $"=SUBTOTAL(9,R5C{i}:R{detailRow - 1}C{i})";
             shPurchaseDetail.Range[titleRow - 1, i].NumberFormat = "#,##0";
@@ -814,14 +845,14 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
 
         for (var i = 8; i <= 12; i++)
         {
-            shSoldSummary.Range[titleRow - 1, i].FormulaR1C1 = $"=SUBTOTAL(9,R5C{i}:R{detailRow - 1}C{i})";
+            shSoldSummary.Range[titleRow - 1, i].FormulaR1C1 = $"=SUBTOTAL(9,R5C{i}:R{soldDetailRow - 1}C{i})";
             shSoldSummary.Range[titleRow - 1, i].NumberFormat = "#,##0";
             shSoldSummary.Range[titleRow - 1, i].Style.Font.IsBold = true;
         }
 
-        for (var i = 7; i <= 11; i++)
+        for (var i = 7; i <= 12; i++)
         {
-            shSoldDetail.Range[titleRow - 1, i].FormulaR1C1 = $"=SUBTOTAL(9,R5C{i}:R{detailRow - 1}C{i})";
+            shSoldDetail.Range[titleRow - 1, i].FormulaR1C1 = $"=SUBTOTAL(9,R5C{i}:R{soldDetailRow - 1}C{i})";
             shSoldDetail.Range[titleRow - 1, i].NumberFormat = "#,##0";
             shSoldDetail.Range[titleRow - 1, i].Style.Font.IsBold = true;
         }
@@ -833,7 +864,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             cell.BorderAround(LineStyleType.Thin);
         }
 
-        foreach (var cell in shSoldDetail.Range[4, 1, detailRow - 1, 18])
+        foreach (var cell in shSoldDetail.Range[4, 1, soldDetailRow - 1, 18])
         {
             cell.BorderAround(LineStyleType.Thin);
         }
