@@ -53,7 +53,8 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         }
         catch (Exception e)
         {
-            logger.LogError(e.Message);
+            logger.LogError("Error:{message}",e.Message);
+            logger.LogError("Stack trace: {stackTrace}", e.StackTrace);
             return AppResponse.Error("Failed to create provinces");
         }
     }

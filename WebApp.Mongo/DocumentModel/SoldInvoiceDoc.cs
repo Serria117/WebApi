@@ -136,7 +136,7 @@ public class SoldInvoiceDoc
     public object? Nmtnhang { get; set; }
 
     [BsonElement("nmtnmua")]
-    public object? Nmtnmua { get; set; }
+    public string? Nmtnmua { get; set; }
 
     [BsonElement("nmttkhac")]
     public List<object> Nmttkhac { get; set; }

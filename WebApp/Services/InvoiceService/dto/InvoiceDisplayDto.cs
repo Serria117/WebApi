@@ -9,6 +9,8 @@ public class InvoiceDisplayDto
     public string BuyerTaxCode { get; set; } = string.Empty;
     public string? BuyerAddress { get; set; }
     public string BuyerName { get; set; } = string.Empty;
+
+    public string? BuyerNameIndividual { get; set; }
     public string? InvoiceNumber { get; set; } //Số hóa đơn
     public string InvoiceNotation { get; set; } = string.Empty; //Ký hiệu hóa đơn
     public int? InvoiceGroupNotation { get; set; } //Ký hiệu mẫu số

@@ -122,6 +122,9 @@ public class SoldInvoiceDetail
     [BsonElement("tgtttbso")]
     public double? Tgtttbso { get; set; }
 
+    [BsonElement("nmtnmua")] [BsonIgnoreIfNull]
+    public string? Nmtnmua { get; set; }
+
     [BsonElement("thdon")]
     public string Thdon { get; set; }
 

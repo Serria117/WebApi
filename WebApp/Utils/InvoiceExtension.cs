@@ -78,6 +78,7 @@ public static class InvoiceExtension
             Id = doc.Id ?? string.Empty,
             StatusNumber = doc.Tthai,
             BuyerName = doc.Nmten ?? string.Empty,
+            BuyerNameIndividual = doc.Nmtnmua,
             BuyerTaxCode = doc.Nmmst ?? string.Empty,
             SellerName = doc.Nbten ?? string.Empty,
             SellerTaxCode = doc.Nbmst ?? string.Empty,
