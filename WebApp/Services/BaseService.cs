@@ -27,6 +27,11 @@ public class AppServiceBase(IUserManager userManager)
     protected string? WorkingOrg { get; } = userManager.WorkingOrg();
 
     /// <summary>
+    /// Get the list of roles assigned to the current user
+    /// </summary>
+    protected List<string> UserRoles { get; } = userManager.GetRoles();
+
+    /// <summary>
     /// Extract Guid from a string
     /// </summary>
     /// <param name="id">The string represent a Guid</param>

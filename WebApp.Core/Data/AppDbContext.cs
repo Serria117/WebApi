@@ -27,6 +27,9 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     
     public DbSet<UserLog> UserLogs { get; set; }
 
+    public DbSet<MenuItem> MenuItems { get; set; }
+    public DbSet<MenuPermission> MenuPermissions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasSequence<int>(name: "CommonSeq", schema: "dbo")
@@ -65,12 +68,32 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
                     .Navigation(r => r.Permissions)
                     .AutoInclude();
 
+        modelBuilder.Entity<Permission>()
+                    .HasIndex(p => p.PermissionName)
+                    .IsUnique();
+        
         modelBuilder.Entity<Organization>()
                     .HasMany<OrganizationLoginInfo>(o => o.OrganizationLoginInfos)
                     .WithOne(i => i.Organization)
                     .HasForeignKey(i => i.OrganizationId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<MenuItem>()
+                    .HasOne(m => m.Parent)
+                    .WithMany(p => p.Items)
+                    .HasForeignKey(m => m.ParentId)
+                    .IsRequired(false);
+        
+        modelBuilder.Entity<MenuPermission>()
+                    .HasKey(mp => new { mp.MenuId, mp.PermissionId }); // Khóa chính của bảng MenuPermission là MenuId và PermissionId
+        modelBuilder.Entity<MenuPermission>()
+                    .HasOne(mp => mp.MenuItem) // Một MenuPermission thuộc về một Menu
+                    .WithMany(m => m.MenuPermissions) // Một Menu có nhiều MenuPermission
+                    .HasForeignKey(mp => mp.MenuId); // Khóa ngoại là MenuId
+        modelBuilder.Entity<MenuPermission>()
+                    .HasOne(mp => mp.Permission) // Một MenuPermission thuộc về một Permission
+                    .WithMany(p => p.MenuPermissions) // Một Permission có nhiều MenuPermission
+                    .HasForeignKey(mp => mp.PermissionId);
        
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();

@@ -7,7 +7,8 @@ using WebApp.Services.UserService.Dto;
 namespace WebApp.Controllers;
 
 [ApiController, Route("/api/auth")]
-public class AuthController(IUserAppService userAppService) : ControllerBase
+public class AuthController(IUserAppService userAppService, 
+                            IPermissionAppService permissionAppService) : ControllerBase
 {
     /// <summary>
     /// Authenticate user
@@ -123,5 +124,12 @@ public class AuthController(IUserAppService userAppService) : ControllerBase
         // Remove refresh token from the response body:
         res.RefreshToken = null;
         return Ok(res);
+    }
+
+    [HttpGet("menu")]
+    public async Task<IActionResult> LoadMenuItem()
+    {
+        var menuItems = await permissionAppService.GetMenuItems();
+        return Ok(menuItems);
     }
 }

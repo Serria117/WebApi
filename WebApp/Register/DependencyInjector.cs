@@ -16,6 +16,7 @@ using WebApp.Services.RegionService;
 using WebApp.Services.RestService;
 using WebApp.Services.RiskCompanyService;
 using WebApp.Services.UserService;
+using WebApp.Services.UserService.AdminService;
 
 namespace WebApp.Register;
 
@@ -91,6 +92,7 @@ public static class DependencyInjector
         s.AddScoped<ISoldInvoiceAppService, SoldInvoiceAppService>();
         s.AddScoped<IErrorInvoiceAppService, ErrorInvoiceAppService>();
         s.AddScoped<IUserLogAppService, UserLogAppService>();
+        s.AddScoped<IAdminAppService, AdminAppService>();
 
     }
 }

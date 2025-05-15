@@ -476,6 +476,45 @@ namespace WebApp.Core.Migrations
                     b.ToTable("RegionDistrict");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("To")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Label");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("MenuItems");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.OrgDocument", b =>
                 {
                     b.Property<int>("Id")
@@ -765,6 +804,9 @@ namespace WebApp.Core.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("PermissionName")
+                        .IsUnique();
+
                     b.ToTable("Permissions");
                 });
 
@@ -893,8 +935,8 @@ namespace WebApp.Core.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("ShortName")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.HasKey("Id");
 
@@ -983,6 +1025,24 @@ namespace WebApp.Core.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("UserLogs");
+                });
+
+            modelBuilder.Entity("WebApp.Core.MenuPermission", b =>
+                {
+                    b.Property<int>("MenuId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("GrantedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("MenuId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("MenuPermissions");
                 });
 
             modelBuilder.Entity("OrganizationUser", b =>
@@ -1102,6 +1162,15 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.MenuItem", "Parent")
+                        .WithMany("Items")
+                        .HasForeignKey("ParentId");
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.OrgDocument", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
@@ -1154,6 +1223,25 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("WebApp.Core.MenuPermission", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.MenuItem", "MenuItem")
+                        .WithMany("MenuPermissions")
+                        .HasForeignKey("MenuId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Permission", "Permission")
+                        .WithMany("MenuPermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+
+                    b.Navigation("Permission");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.BalanceSheet", b =>
                 {
                     b.Navigation("Details");
@@ -1168,9 +1256,21 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Details");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("MenuPermissions");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Organization", b =>
                 {
                     b.Navigation("OrganizationLoginInfos");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Permission", b =>
+                {
+                    b.Navigation("MenuPermissions");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Province", b =>
