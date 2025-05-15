@@ -27,7 +27,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="file">The list of file to be uploaded</param>
     /// <returns></returns>
-    [HttpPost("upload")] [HasAuthority(Permissions.DocumentUpload)]
+    [HttpPost("upload")]
     public async Task<IActionResult> UploadDocument(List<IFormFile> file)
     {
         var allowedExt = file.Select(f => Path.GetExtension(f.FileName).ToLowerInvariant())
