@@ -17,4 +17,6 @@ public class Permission : BaseEntity<int>
     public string? FrontEndAccess { get; set; }
 
     public ISet<Role> Roles { get; set; } = new HashSet<Role>();
+
+    public ICollection<MenuPermission> MenuPermissions { get; set; } = [];
 }
