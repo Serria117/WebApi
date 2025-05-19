@@ -2,8 +2,19 @@
 
 namespace WebApp.Authentication;
 
-public class PermissionRequirement : IAuthorizationRequirement
+
+
+public class PermissionRequirement(string permission) : IAuthorizationRequirement
 {
-    public PermissionRequirement(string permission) => Permission = permission;
-    public string Permission { get; set; }
+    public string Permission { get; set; } = permission;
+}
+
+public class AllPermissionsRequirement(IEnumerable<string> permissions) : IAuthorizationRequirement
+{
+    public IEnumerable<string> Permissions { get; } = permissions;
+}
+
+public class AnyPermissionRequirement(IEnumerable<string> permissions) : IAuthorizationRequirement
+{
+    public IEnumerable<string> Permissions { get; } = permissions;
 }

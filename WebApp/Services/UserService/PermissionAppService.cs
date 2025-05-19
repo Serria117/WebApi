@@ -99,7 +99,9 @@ namespace WebApp.Services.UserService
 
         public async Task<AppResponse> GetAllPermissionsInSystem()
         {
-            var permissions = await permissionRepo.Find(p => !p.Deleted).ToListAsync();
+            var permissions = await permissionRepo.Find(p => !p.Deleted)
+                                                  .OrderBy(p => p.PermissionName)
+                                                  .ToListAsync();
             //permissions.Select(mapper.Map<PermissionDisplayDto>)
             return AppResponse.SuccessResponse(permissions.MapCollection(x => x.ToDisplayDto()));
         }

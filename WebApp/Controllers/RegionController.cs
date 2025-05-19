@@ -17,7 +17,7 @@ public class RegionController(IRegionAppService regionService) : ControllerBase
     [HttpGet("provinces")]
     public async Task<IActionResult> GetProvince([FromQuery] RequestParam req)
     {
-        var page = PageRequest.GetPagingAndSortingParam(req.Valid());
+        var page = PageRequest.BuildRequest(req.Valid());
         var result = await regionService.GetAllProvincesAsync(page);
         return Ok(result);
     }
@@ -143,7 +143,7 @@ public class RegionController(IRegionAppService regionService) : ControllerBase
     public async Task<IActionResult> GetAllTaxOffice([FromQuery] RequestParam req,
                                                      [FromQuery] bool parentOnly = false)
     {
-        var page = PageRequest.GetPagingAndSortingParam(req.Valid());
+        var page = PageRequest.BuildRequest(req.Valid());
         var result = parentOnly
             ? await regionService.FindTopLevelTaxOfficesAsync()
             : await regionService.GetAllTaxOfficesAsync(page);

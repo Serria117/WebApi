@@ -14,6 +14,8 @@ public class RequestParam
     public string? From { get; set; }
     public string? To { get; set; }
 
+    public string[] Fields { get; set; } = [];
+
     public RequestParam Valid()
     {
         if (Size is <= 0 or > 1000 or null)
@@ -25,7 +27,11 @@ public class RequestParam
         {
             Page = 1;
         }
-
+        
+        if(Fields.Contains("Password")) //Remove the password field from the request
+        {
+            Fields = Fields.Where(x => x != "Password").ToArray();
+        }
         Keyword?.RemoveSpace();
         return this;
     }

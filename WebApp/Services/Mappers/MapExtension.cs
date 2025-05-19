@@ -1,4 +1,7 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using System.Dynamic;
+using System.Reflection;
+using System.Text.Json;
+using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Repositories;
@@ -26,6 +29,79 @@ public static class MapExtension
     {
         var dtoList = entities.Select(mapFunc);
         return new StaticPagedList<TDto>(subset: dtoList, metaData: entities);
+    }
+
+    /// <summary>
+    /// Projects a paged list of entities into a paged list of dynamic objects based on the specified fields.
+    /// </summary>
+    /// <param name="entities">The original paged list of entities to be projected.</param>
+    /// <param name="fields">An array of field names to include in the projection. Each dynamic object will contain only these fields.</param>
+    /// <typeparam name="TEntity">The type of the entities contained in the original paged list.</typeparam>
+    /// <returns>A new paged list containing dynamic objects (ExpandoObject) with the specified fields, preserving the metadata of the original paged list.</returns>
+    public static IPagedList<ExpandoObject> ProjectPagedList<TEntity>(this IPagedList<TEntity> entities,
+                                                                      string[] fields)
+        where TEntity : class // Ràng buộc TEntity là class
+    {
+        // Xử lý trường hợp fields rỗng hoặc null: trả về danh sách rỗng hoặc xử lý tùy ý
+        if (fields.Length == 0)
+        {
+            // Tùy chọn: có thể trả về StaticPagedList với danh sách ExpandoObject rỗng
+            var emptyDynamicList = new List<ExpandoObject>();
+            return new StaticPagedList<ExpandoObject>(
+                subset: emptyDynamicList,
+                metaData: entities // Vẫn giữ metadata từ PagedList gốc
+            );
+            // Hoặc ném ArgumentException nếu việc yêu cầu 0 trường là không hợp lệ
+            // throw new ArgumentException("Fields array cannot be null or empty.", nameof(fields));
+        }
+
+        var selectedFieldsList = new List<ExpandoObject>();
+        var itemType = typeof(TEntity);
+
+        foreach (var item in entities) // entities là IEnumerable<TEntity>
+        {
+            var expando = new ExpandoObject() as IDictionary<string, object>;
+
+            foreach (var fieldName in fields)
+            {
+                // Sử dụng BindingFlags để tìm kiếm thuộc tính không phân biệt hoa thường
+                var propertyInfo =
+                    itemType.GetProperty(
+                        fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+
+                if (propertyInfo != null)
+                {
+                    try
+                    {
+                        var value = propertyInfo.GetValue(item);
+                        var camelCaseFieldName = JsonNamingPolicy.CamelCase.ConvertName(propertyInfo.Name);
+                        expando[camelCaseFieldName] = value;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Xử lý lỗi khi không thể lấy giá trị thuộc tính (ví dụ: thuộc tính chỉ ghi)
+                        // hoặc log lỗi. Trong ví dụ này, ta bỏ qua thuộc tính này.
+                        //Console.WriteLine($"Could not get value for property {fieldName}: {ex.Message}");
+                    }
+                }
+                // Tùy chọn: Nếu tên trường không tồn tại, bạn có thể thêm nó với giá trị null
+                // else
+                // {
+                //     expando[fieldName] = null;
+                // }
+            }
+
+            selectedFieldsList.Add((ExpandoObject)expando!);
+        }
+
+        // Tạo StaticPagedList<ExpandoObject> từ danh sách các đối tượng động
+        // và metadata của PagedList gốc.
+        var pagedResult = new StaticPagedList<ExpandoObject>(
+            subset: selectedFieldsList, // Danh sách các đối tượng động
+            metaData: entities // Thông tin phân trang từ kết quả gốc
+        );
+
+        return pagedResult;
     }
 
     /// <summary>
@@ -249,11 +325,12 @@ public static class MapExtension
             FullName = o.FullName,
             ShortName = o.ShortName,
             ParentId = o.ParentId,
-            Parent = o.Parent == null ? null : new TaxOfficeDisplayDto
-            {
-                Id = o.Parent.Id, FullName = o.Parent.FullName
-                
-            },
+            Parent = o.Parent == null
+                ? null
+                : new TaxOfficeDisplayDto
+                {
+                    Id = o.Parent.Id, FullName = o.Parent.FullName
+                },
             Children = o.Children?.MapCollection(x => new TaxOfficeDisplayDto
             {
                 FullName = x.FullName,
@@ -266,7 +343,7 @@ public static class MapExtension
         };
     }
 
-    public static TaxOffice ToEntity(this TaxOfficeCreateDto d, 
+    public static TaxOffice ToEntity(this TaxOfficeCreateDto d,
                                      IAppRepository<Province, int> provinceRepo)
     {
         return new TaxOffice
@@ -275,7 +352,9 @@ public static class MapExtension
             ShortName = d.ShortName.RemoveSpace()!,
             Code = d.Code.RemoveSpace()!,
             ParentId = d.ParentId,
-            Province = d.ProvinceId != null ? provinceRepo.Attach(id: d.ProvinceId.Value) : null //TODO: check if parent exists or not
+            Province = d.ProvinceId != null
+                ? provinceRepo.Attach(id: d.ProvinceId.Value)
+                : null //TODO: check if parent exists or not
         };
     }
 
@@ -297,6 +376,8 @@ public static class MapExtension
         {
             Id = u.Id,
             Username = u.Username,
+            FullName = u.FullName,
+            Email = u.Email,
             Roles = u.Roles.Select(x => new RoleDisplayDto
             {
                 Id = x.Id,
@@ -305,7 +386,8 @@ public static class MapExtension
             Organizations = u.Organizations.Select(o => new OrganizationInUserDto()
             {
                 Id = o.Id, FullName = o.FullName, TaxId = o.TaxId
-            }).ToList()
+            }).ToList(),
+            Locked = u.Locked,
         };
     }
 
@@ -314,13 +396,20 @@ public static class MapExtension
         return new User
         {
             Username = d.Username.RemoveSpace()!,
+            Email = d.Email.RemoveSpace() ?? null,
+            FullName = d.FullName.RemoveSpace() ?? null,
             Password = d.Password.BCryptHash(),
+            Locked = d.Locked ?? false,
         };
     }
 
     public static void UpdateEntity(this User u, User e)
     {
         e.Password = u.Password.BCryptHash();
+        e.FullName = u.FullName.RemoveSpace() ?? null;
+        e.Locked = u.Locked;
+        e.Email = u.Email.RemoveSpace() ?? null;
+        // Username is forbidden to change
     }
 
     public static RoleDisplayDto ToDisplayDto(this Role role)
@@ -333,7 +422,7 @@ public static class MapExtension
             Permissions = role.Permissions.MapCollection(x => x.ToDisplayDto()).ToHashSet(),
             Users = role.Users.Count == 0
                 ? []
-                : role.Users.Select(u => new UserInfoDto()
+                : role.Users.Select(u => new UserInfoDto
                 {
                     Username = u.Username,
                     Id = u.Id,
@@ -358,11 +447,11 @@ public static class MapExtension
 
     public static PermissionDisplayDto ToDisplayDto(this Permission permission)
     {
-        return new PermissionDisplayDto()
+        return new PermissionDisplayDto
         {
             Id = permission.Id,
-            Description = permission.Description,
             PermissionName = permission.PermissionName,
+            Description = permission.Description,
         };
     }
 

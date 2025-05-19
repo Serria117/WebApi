@@ -7,7 +7,7 @@ namespace WebApp.Enums;
 
 public struct Permissions
 {
-    public const string Admin = "ADMIN";
+    public const string Admin = "SYSTEM.ADMIN";
     
     public const string UserCreate = "USER.CREATE";
     public const string UserView = "USER.VIEW";
@@ -23,7 +23,6 @@ public struct Permissions
     public const string RoleCreate = "ROLE.CREATE";
     public const string RoleView = "ROLE.VIEW";
     public const string RoleUpdate = "ROLE.UPDATE";
-    public const string RoleSelf = "ROLE.SELF";
     public const string RoleDelete = "ROLE.DELETE";
     
     public const string InvoiceSync = "INVOICE.SYNC";

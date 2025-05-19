@@ -14,5 +14,6 @@ public struct CollectionName
     public const string Organization = "orgId";
     public const string BlacklistedToken = "tokens";
     public const string RefreshToken = "refreshTokens";
+    public const string LockedUsers = "lockedUsers";
     
 }

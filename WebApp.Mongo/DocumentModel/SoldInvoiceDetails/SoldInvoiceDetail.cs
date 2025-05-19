@@ -117,7 +117,7 @@ public class SoldInvoiceDetail
     public double? Tgtthue { get; set; }
 
     [BsonElement("tgtttbchu")]
-    public string Tgtttbchu { get; set; }
+    public string? Tgtttbchu { get; set; }
 
     [BsonElement("tgtttbso")]
     public double? Tgtttbso { get; set; }

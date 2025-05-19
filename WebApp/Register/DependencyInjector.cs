@@ -53,6 +53,7 @@ public static class DependencyInjector
         s.AddScoped<IRefreshTokenMongoRepository, RefreshTokenMongoRepository>();
         s.AddScoped<ISoldInvoiceDetailRepository, SoldInvoiceDetailRepository>();
         s.AddScoped<IErrorInvoiceRepository, ErrorInvoiceRepository>();
+        s.AddScoped<ILockedUserMongoRepository, LockedUserMongoRepository>();
     }
 
     /// <summary>
@@ -72,6 +73,7 @@ public static class DependencyInjector
 
         //Add background services here:
         s.AddHostedService<UserLogBackgroundService>();
+        s.AddHostedService<LockedUserSyncService>();
 
         //Add repositories services here:
         s.AddScoped(typeof(IAppRepository<,>), typeof(AppRepository<,>));

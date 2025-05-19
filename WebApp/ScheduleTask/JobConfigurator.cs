@@ -13,21 +13,34 @@ public static class JobConfigurator
     public static IServiceCollection AddQuartzJobs(this IServiceCollection services)
     {
         var vnTimeZone = TZConvert.GetTimeZoneInfo("Asia/Ho_Chi_Minh");
-        services.AddQuartz(q =>
+        services.AddQuartz(quartzConfig =>
         {
-            // Đăng ký job + trigger
+            // Add job keys:
             var clearTokenJob = new JobKey("ClearOldRefreshTokenJob");
-            q.AddJob<ClearOldRefreshTokenJob>(opts => opts.WithIdentity(clearTokenJob));
-            q.AddTrigger(opts => opts
+            var clearOldLogJob = new JobKey("CleanOldUserLogJob");
+            
+            // Add jobs and triggers:
+            quartzConfig.AddJob<ClearOldRefreshTokenJob>(opts => opts.WithIdentity(clearTokenJob));
+            quartzConfig.AddTrigger(opts => opts
                                  .ForJob(clearTokenJob)
                                  .WithIdentity("ClearOldRefreshTokenJob-trigger#1")
-                                 .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(0, 0).InTimeZone(vnTimeZone)) // Thực hiện hàng ngày lúc 0h0m
-                                 .StartNow() // Bắt đầu ngay lập tức khi ứng dụng khởi động
+                                 .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(0, 0)
+                                                                  .InTimeZone(vnTimeZone)) // Thực hiện hàng ngày lúc 0h0m
+                                 .StartNow()
             );
-            
+
+            quartzConfig.AddJob<CleanOldUserLogJob>(ops => ops.WithIdentity(clearOldLogJob));
+            quartzConfig.AddTrigger(opts => opts
+                                 .ForJob(clearOldLogJob)
+                                 .WithIdentity("CleanOldUserLogJob-trigger#2")
+                                 .WithSchedule(CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(1, 0, 0)
+                                                                  .InTimeZone(vnTimeZone))
+                                 .StartNow()
+            );
+
+            // Đăng ký các job khác ở đây...
         });
-        // Đăng ký các job khác ở đây...
-        
+
 
         // Thêm hosted service để chạy các job đã đăng ký
         services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);

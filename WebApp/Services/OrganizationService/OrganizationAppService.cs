@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Linq.Dynamic.Core;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver.Core.WireProtocol.Messages;
 using WebApp.Core.DomainEntities;
@@ -12,6 +14,7 @@ using WebApp.Services.OrganizationService.Dto;
 using WebApp.Services.UserService;
 using X.Extensions.PagedList.EF;
 using X.PagedList;
+using X.PagedList.Extensions;
 using ResponseMessage = WebApp.Enums.ResponseMessage;
 
 namespace WebApp.Services.OrganizationService;
@@ -20,10 +23,11 @@ public interface IOrganizationAppService
 {
     Task<AppResponse> Create(OrganizationInputDto dto);
     Task<AppResponse> CreateMany(List<OrganizationInputDto> dto);
-    Task<AppResponse> Find(PageRequest page);
+    Task<AppResponse> GetAllOrgByCurrentUserAsync(PageRequest req);
     Task<AppResponse> GetOneById(Guid id);
     Task<AppResponse> CheckTaxIdExist(string taxId);
     Task<AppResponse> Update(Guid orgId, OrganizationInputDto updateDto);
+    Task<AppResponse> GetAllOrgForAdmin(PageRequest req);
 }
 
 public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
@@ -138,29 +142,55 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
             : new AppResponse { Success = true, Message = "OK" };
     }
 
-    public async Task<AppResponse> Find(PageRequest page)
+    public async Task<AppResponse> GetAllOrgForAdmin(PageRequest req)
+    {
+        var keyword = req.Keyword.RemoveSpace()?.UnSign();
+        var result = (await orgRepo.Find(filter: o => !o.Deleted &&
+                                                     (string.IsNullOrEmpty(keyword) ||
+                                                      o.UnsignName.Contains(keyword) ||
+                                                      (o.ShortName != null &&
+                                                       o.ShortName.Contains(keyword)) ||
+                                                      o.TaxId.Contains(keyword)),
+                                        sortBy: req.SortBy, order: req.OrderBy,
+                                        include:
+                                        [
+                                            nameof(Organization.TaxOffice),
+                                            nameof(Organization.District),
+                                            nameof(Organization.Users)
+                                        ])
+                                  .AsSplitQuery()
+                                  .AsNoTracking()
+                                  .ToPagedListAsync(req.Number, req.Size)).MapPagedList(x => x.ToDisplayDto());;
+        return req.Fields.Length == 0
+            ? AppResponse.SuccessResponse(result) //If no fields are specified, return all fields
+            : AppResponse.SuccessResponse(result.ProjectPagedList(req.Fields)); //return only specified fields
+    }
+    
+    public async Task<AppResponse> GetAllOrgByCurrentUserAsync(PageRequest req)
     {
         var userId = UserId;
-        var keyword = page.Keyword.RemoveSpace()?.UnSign();
-        var pagedResult = (await orgRepo.Find(filter: o => !o.Deleted &&
-                                                           o.Users.Any(u => u.Id.ToString() == userId) &&
-                                                           (string.IsNullOrEmpty(keyword) ||
-                                                            o.UnsignName.Contains(keyword) ||
-                                                            (o.ShortName != null &&
-                                                             o.ShortName.Contains(keyword)) ||
-                                                            o.TaxId.Contains(keyword)),
-                                              sortBy: page.SortBy, order: page.OrderBy,
-                                              include:
-                                              [
-                                                  nameof(Organization.TaxOffice),
-                                                  nameof(Organization.District),
-                                                  nameof(Organization.Users)
-                                              ])
-                                        .AsSplitQuery()
-                                        .AsNoTracking()
-                                        .ToPagedListAsync(page.Number, page.Size))
-            .MapPagedList(x => x.ToDisplayDto());
-        return AppResponse.SuccessResponse(pagedResult);
+        var keyword = req.Keyword.RemoveSpace()?.UnSign();
+        var query = (await orgRepo.Find(filter: o => !o.Deleted &&
+                                                     o.Users.Any(u => u.Id.ToString() == userId) &&
+                                                     (string.IsNullOrEmpty(keyword) ||
+                                                      o.UnsignName.Contains(keyword) ||
+                                                      (o.ShortName != null &&
+                                                       o.ShortName.Contains(keyword)) ||
+                                                      o.TaxId.Contains(keyword)),
+                                        sortBy: req.SortBy, order: req.OrderBy,
+                                        include:
+                                        [
+                                            nameof(Organization.TaxOffice),
+                                            nameof(Organization.District),
+                                            nameof(Organization.Users)
+                                        ])
+                                  .AsSplitQuery()
+                                  .AsNoTracking()
+                                  .ToPagedListAsync(req.Number, req.Size));
+
+        return req.Fields.Length == 0
+            ? AppResponse.SuccessResponse(query.MapPagedList(x => x.ToDisplayDto()))
+            : AppResponse.SuccessResponse(query.ProjectPagedList(req.Fields));
     }
 
     public async Task<AppResponse> Update(Guid orgId, OrganizationInputDto updateDto)
@@ -169,17 +199,17 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
         if (!invalidMessage.IsNullOrEmpty()) return AppResponse.Error("Invalid input", invalidMessage);
 
         var foundOrg = await orgRepo.Find(o => o.Id == orgId && !o.Deleted,
-                                        include: [
-                                            nameof(Organization.OrganizationLoginInfos)
-                                        ])
+                                          include:
+                                          [
+                                              nameof(Organization.OrganizationLoginInfos)
+                                          ])
                                     .FirstOrDefaultAsync();
-        
+
         if (foundOrg is null)
         {
             return new AppResponse { Success = false, Message = "Organization Id not found" };
-
         }
-        
+
         if (await TaxIdExist(updateDto.TaxId) && updateDto.TaxId != foundOrg.TaxId)
         {
             return new AppResponse { Success = false, Message = "The TaxId you enter has already existed" };
@@ -189,7 +219,7 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
 
         foundOrg.District = districtRepo.Attach(updateDto.DistrictId!.Value);
         foundOrg.TaxOffice = taxOfficeRepo.Attach(updateDto.TaxOfficeId!.Value);
-        
+
         //update login info:
         List<OrganizationLoginInfo> updateList = [];
         //get all existing login infos by organization id:
@@ -211,11 +241,13 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                 updateList.Add(newLoginInfo);
                 continue;
             }
+
             //check if this item exists
             if (!existList.TryGetValue(loginInfo.Id.Value, out var found))
             {
                 continue; //skip this item because it doesn't exist
             }
+
             //update existing item
             found.AccountName = loginInfo.AccountName;
             found.Provider = loginInfo.Provider;
@@ -225,13 +257,13 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
             updateList.Add(found);
             existList.Remove(loginInfo.Id.Value); //remove from exist list
         }
-        
+
         //The rest of items in existList will be deleted:
         foreach (var toDelete in existList.Values)
         {
             foundOrg.OrganizationLoginInfos.Remove(toDelete);
         }
-        
+
         //add new items into existList:
         foundOrg.OrganizationLoginInfos = updateList.ToHashSet();
         var saved = await orgRepo.UpdateAsync(foundOrg);

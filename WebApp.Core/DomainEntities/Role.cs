@@ -1,7 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Core.DomainEntities;
 
+[Index(nameof(RoleName))]
 public class Role : BaseEntity<int>
 {
     [MaxLength(255)]

@@ -904,6 +904,8 @@ namespace WebApp.Core.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("RoleName");
+
                     b.ToTable("Roles");
                 });
 
@@ -957,6 +959,14 @@ namespace WebApp.Core.Migrations
 
                     b.Property<bool>("Deleted")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("FullName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<Guid?>("LastWorkingOrg")
                         .HasColumnType("uniqueidentifier");

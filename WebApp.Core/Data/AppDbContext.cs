@@ -64,10 +64,6 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
                     .Navigation(d => d.Province)
                     .AutoInclude();
         
-        modelBuilder.Entity<Role>()
-                    .Navigation(r => r.Permissions)
-                    .AutoInclude();
-
         modelBuilder.Entity<Permission>()
                     .HasIndex(p => p.PermissionName)
                     .IsUnique();

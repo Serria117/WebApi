@@ -9,4 +9,5 @@ public class UserDoc
     public ObjectId Id { get; set; }
     public string UserId { get; set; } = string.Empty;
     public HashSet<string> Permissions { get; set; } = [];
+    public bool Locked { get; set; }
 }

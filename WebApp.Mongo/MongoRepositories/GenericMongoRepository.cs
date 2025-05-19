@@ -6,7 +6,7 @@ namespace WebApp.Mongo.MongoRepositories;
 public interface IGenericMongoRepository<T, in TKey>
 {
     public Task<T?> FindOneAsync(Expression<Func<T, bool>> filter);
-    Task CreateOneAsync(T document, Expression<Func<T, bool>> filter);
+    public Task CreateOneAsync(T document, Expression<Func<T, bool>> filter);
 }
 
 public class GenericMongoRepository<T, TKey>(string collectionName,

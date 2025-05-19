@@ -8,6 +8,7 @@ using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
 using WebApp.Repositories;
+using WebApp.Services.CachingServices;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService.Dto;
 using X.Extensions.PagedList.EF;
@@ -18,16 +19,18 @@ namespace WebApp.Services.UserService
     public interface IRoleAppService
     {
         Task<RoleDisplayDto> CreateRole(RoleInputDto dto);
-        
-        Task<AppResponse> GetAllRoles(PageRequest page);
-        
+
+        Task<AppResponse> GetRoleById(int id);
+
+        Task<AppResponse> GetAllRoles(PageRequest request);
+
         /// <summary>
         /// Updates an existing role with the specified details.
         /// <param name="roleId">The ID of the role to update.</param>
         /// <param name="dto">The new details of the role.</param>
         /// </summary>
-        Task UpdateRole(int roleId, RoleUpdatetDto dto);
-        
+        Task UpdateRole(int roleId, RoleInputDto dto);
+
         /// <summary>
         /// Retrieves all permissions associated with a specific role.
         /// </summary>
@@ -43,27 +46,37 @@ namespace WebApp.Services.UserService
                                 IAppRepository<Role, int> roleRepository,
                                 IAppRepository<Permission, int> permissionRepository,
                                 IUserMongoRepository userMongoRepository,
+                                ICachingRoleService cachingRoleService,
                                 ILogger<RoleAppService> logger) : IRoleAppService
     {
-        public async Task<AppResponse> GetAllRoles(PageRequest page)
+        public async Task<AppResponse> GetRoleById(int id)
         {
-            var stopWatch = Stopwatch.StartNew();
-            var pagedResult = await roleRepository.Find(filter: r => !r.Deleted && (string.IsNullOrEmpty(page.Keyword) || r.RoleName.Contains(page.Keyword)),
-                                                        sortBy: page.SortBy,
-                                                        order: page.OrderBy,
-                                                        include: [nameof(Role.Permissions)])
-                                                  .AsSplitQuery()
-                                                  .ToPagedListAsync(page.Number, page.Size);
+            var found = await roleRepository.Find(x => x.Id == id && !x.Deleted)
+                                            .Include(x => x.Permissions)
+                                            .Include(x => x.Users)
+                                            .FirstOrDefaultAsync();
+            return found is null
+                ? AppResponse.Error404("Role not found")
+                : AppResponse.SuccessResponse(found.ToDisplayDto());
+        }
+
+        public async Task<AppResponse> GetAllRoles(PageRequest request)
+        {
+            var pagedResult = await roleRepository
+                                    .Find(
+                                        filter: r =>
+                                            !r.Deleted && (string.IsNullOrEmpty(request.Keyword) ||
+                                                           r.RoleName.Contains(request.Keyword)),
+                                        sortBy: request.SortBy,
+                                        order: request.OrderBy,
+                                        include: [nameof(Role.Permissions)])
+                                    .AsSplitQuery()
+                                    .AsNoTracking()
+                                    .ToPagedListAsync(request.Number, request.Size);
             var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
-            logger.LogInformation("Execution time: {time}", stopWatch.ElapsedMilliseconds);
-            return new AppResponse
-            {
-                PageNumber = dtoResult.PageNumber,
-                PageSize = dtoResult.PageSize,
-                TotalCount = dtoResult.TotalItemCount,
-                Data = dtoResult,
-                Message = "Ok"
-            };
+            return request.Fields.Length == 0
+                ? AppResponse.SuccessResponse(dtoResult)
+                : AppResponse.SuccessResponse(dtoResult.ProjectPagedList(request.Fields));
         }
 
         public async Task<AppResponse> GetAllPermissionsInRole(int roleId)
@@ -74,17 +87,16 @@ namespace WebApp.Services.UserService
                 ? new AppResponse { Success = false, Message = "Role not found" }
                 : AppResponse.SuccessResponse(role.ToDisplayDto());
         }
-        
+
         //TODO: implementation for add and remove user from role
         public async Task DeleteRole(int roleId)
         {
-            if(await roleRepository.SoftDeleteAsync(roleId))
+            if (await roleRepository.SoftDeleteAsync(roleId))
             {
                 //TODO: remove users from role
             }
-            
         }
-        
+
         public async Task<RoleDisplayDto> CreateRole(RoleInputDto dto)
         {
             var role = dto.ToEntity();
@@ -93,29 +105,32 @@ namespace WebApp.Services.UserService
             if (permissions.Count > 0)
                 role.Permissions.UnionWith(permissions);
 
-            await AddUsersToRole(role, dto.User);
+            await AddUsersToRole(role, dto.Users);
 
             var saved = await roleRepository.CreateAsync(role);
+            await cachingRoleService.GetPermissionsFromCache(saved.RoleName); // Add to cache
             return saved.ToDisplayDto();
         }
 
         public async Task<AppResponse> FindRoleById(int id)
         {
-            var role = await roleRepository.Find(r => r.Id == id && !r.Deleted, include: nameof(Role.Users))
+            var role = await roleRepository.Find(filter: r => r.Id == id && !r.Deleted, 
+                                                 include: [nameof(Role.Users), nameof(Role.Permissions)])
                                            .FirstOrDefaultAsync();
             return role is null
-                ? new AppResponse {Success = false, Message = "Role not found"}
+                ? new AppResponse { Success = false, Message = "Role not found" }
                 : AppResponse.SuccessResponse(role.ToDisplayDto());
         }
 
         //TODO: re-test this method for potential bugs
-        public async Task UpdateRole(int roleId, RoleUpdatetDto dto)
+        public async Task UpdateRole(int roleId, RoleInputDto dto)
         {
             var role = await roleRepository.Find(r => r.Id == roleId)
                                            .Include(r => r.Permissions)
                                            .Include(r => r.Users)
                                            .FirstOrDefaultAsync();
             if (role is null) throw new Exception("Role id not found");
+            cachingRoleService.InvalidateCacheForRole(role.RoleName); // Invalidate cache for the role
             dto.UpdateEntity(role);
             var newPermissions = await FindAllPermissionById([.. dto.Permissions]);
 
@@ -131,9 +146,12 @@ namespace WebApp.Services.UserService
             {
                 role.Permissions.Add(permission);
             }
-
-            await Task.WhenAll(roleRepository.UpdateAsync(role),
-                               UpdatePermissionForAllUsers(roleId));
+            
+            //TODO: update users in role
+            await AddUsersToRole(role, dto.Users);
+            
+            await roleRepository.UpdateAsync(role);
+            await cachingRoleService.GetPermissionsFromCache(role.RoleName); // Cache the updated role permissions
         }
 
         private async Task<List<User>> GetUsersHaveRole(int roleId)
@@ -169,12 +187,22 @@ namespace WebApp.Services.UserService
             return await permissionRepository.Find(p => ids.Contains(p.Id)).ToListAsync();
         }
 
-        private async Task AddUsersToRole(Role role, ICollection<string> usernames)
+        private async Task AddUsersToRole(Role role, ICollection<Guid> userIds)
         {
             var users = await userRepository
-                              .Find(u => usernames.Contains(u.Username) && !u.Deleted)
+                              .Find(u => userIds.Contains(u.Id) && !u.Deleted)
                               .ToListAsync();
+        
+            // Remove users not in userIds
+            var usersToRemove = role.Users.Where(u => !userIds.Contains(u.Id)).ToList();
+            foreach (var user in usersToRemove)
+            {
+                role.Users.Remove(user);
+            }
+        
+            // Add new users
             role.Users.UnionWith(users);
         }
+        
     }
 }

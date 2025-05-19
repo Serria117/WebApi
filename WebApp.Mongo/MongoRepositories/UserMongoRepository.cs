@@ -22,7 +22,8 @@ public class UserMongoRepository(IMongoDatabase db)
         if (found != null) return;
         await Collection.InsertOneAsync(user);
     }
-
+    
+  
     public async Task<UserDoc> GetUser(Guid uId)
     {
         return await Collection.Find(x => x.UserId == uId.ToString()).FirstOrDefaultAsync();

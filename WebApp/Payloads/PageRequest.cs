@@ -13,13 +13,15 @@ public class PageRequest
     public int? Total { get; set; }
     public string? From { get; set; }
     public string? To { get; set; }
+    
+    public string[] Fields { get; set; } = [];
 
     /// <summary>
     /// Get paging and sorting params from request
     /// </summary>
     /// <param name="req"></param>
     /// <returns>The page request object with the parameters extracted and validated from the request.</returns>
-    public static PageRequest GetPagingAndSortingParam(RequestParam req)
+    public static PageRequest BuildRequest(RequestParam req)
     {
         req.Valid();
         return new PageRequest
@@ -31,7 +33,8 @@ public class PageRequest
             Sort = $"{req.SortBy} {req.OrderBy}",
             Keyword = req.Keyword,
             From = req.From,
-            To = req.To
+            To = req.To,
+            Fields = req.Fields
         };
     }
 }

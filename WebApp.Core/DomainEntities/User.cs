@@ -14,12 +14,20 @@ public class User : BaseEntity<Guid>
 {
     [MaxLength(255)]
     public string Username { get; set; } = string.Empty;
+
     [MaxLength(255)]
     public string Password { get; set; } = string.Empty;
+
+    [MaxLength(255)] [EmailAddress]
+    public string? Email { get; set; }
+
+    [MaxLength(255)]
+    public string? FullName { get; set; }
+
     public int LogInFailedCount { get; set; } = 0;
     public bool Locked { get; set; } = false;
     public ISet<Role> Roles { get; set; } = new HashSet<Role>();
-    
+
     public ISet<Organization> Organizations { get; set; } = new HashSet<Organization>();
     public Guid? LastWorkingOrg { get; set; } // store the last working org id
 }

@@ -4,9 +4,11 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Core.DomainEntities;
 
+[Index(nameof(PermissionName))]
 public class Permission : BaseEntity<int>
 {
     [MaxLength(255)]

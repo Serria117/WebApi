@@ -23,10 +23,15 @@ public interface IAdminAppService
     /// Updates an existing menu item with the provided details.
     /// </summary>
     /// <param name="id">The unique identifier of the menu item to be updated.</param>
-    /// <param name="menu">An instance of <see cref="MenuInputDto"/> containing the updated details for the menu item.</param>
+    /// <param name="input">An instance of <see cref="MenuInputDto"/> containing the updated details for the menu item.</param>
     /// <returns>An <see cref="AppResponse"/> indicating the result of the operation, including success status and any additional information.</returns>
-    Task<AppResponse> UpdateMenu(int id, MenuInputDto menu);
+    Task<AppResponse> UpdateMenu(int id, MenuInputDto input);
 
+    /// <summary>
+    /// Retrieves a menu item by its unique identifier.
+    /// </summary>
+    /// <param name="id">The unique identifier of the menu item to retrieve.</param>
+    /// <returns>An <see cref="AppResponse"/> containing the menu item data if found, or an error response if the menu item does not exist.</returns>
     public Task<AppResponse> GetMenuById(int id);
 
     /// <summary>
@@ -53,11 +58,8 @@ public interface IAdminAppService
 
 public class AdminAppService(IUserManager userManager,
                              IAppRepository<MenuItem, int> menuRepo,
-                             IAppRepository<Role, int> roleRepo,
                              IAppRepository<Permission, int> permissionRepo,
-                             IPermissionAppService permissionAppService,
-                             ILogger<AdminAppService> logger,
-                             IRoleAppService roleAppService) : AppServiceBase(userManager), IAdminAppService
+                             ILogger<AdminAppService> logger) : AppServiceBase(userManager), IAdminAppService
 {
     public async Task<AppResponse> CreateMenu(MenuInputDto inputDto)
     {
@@ -78,17 +80,61 @@ public class AdminAppService(IUserManager userManager,
         return AppResponse.SuccessResponse(result);
     }
 
-    public async Task<AppResponse> UpdateMenu(int id, MenuInputDto menu)
+    public async Task<AppResponse> UpdateMenu(int id, MenuInputDto input)
     {
-        var found = await menuRepo.Find(x => x.Id == id)
-                                  .Include(x => x.MenuPermissions)
-                                  .FirstOrDefaultAsync();
-        
-        if (found is null) return AppResponse.Error404("Menu not found");
-        
-        //TODO: update the found object with the new data
-        
-        return AppResponse.Ok();
+        try
+        {
+            var found = await menuRepo.Find(x => x.Id == id)
+                                      .Include(x => x.MenuPermissions)
+                                      .FirstOrDefaultAsync();
+
+            if (found is null) return AppResponse.Error404("Menu not found");
+
+            //update menu with new values
+            found.Label = input.Label;
+            found.Icon = input.Icon;
+            found.To = input.To;
+            found.Order = input.Order;
+            
+            //remove old permissions
+            found.MenuPermissions.Clear();
+            
+            /*foreach (var permission in found.MenuPermissions.ToList())
+            {
+                if (!input.Permissions.Contains(permission.PermissionId))
+                {
+                    found.MenuPermissions.Remove(permission);
+                }
+            }*/
+
+            if (input.Permissions.Count <= 0)
+            {
+                return AppResponse.Ok();
+            }
+
+            var permissions = await permissionRepo.Find(x => input.Permissions.Contains(x.Id))
+                                                  .Select(x => x.Id)
+                                                  .ToListAsync();
+            if (permissions.Count <= 0)
+            {
+                await menuRepo.UpdateAsync(found);
+                return AppResponse.Ok();
+            }
+
+            foreach (var permission in permissions)
+            {
+                found.MenuPermissions.Add(new MenuPermission { PermissionId = permission });
+            }
+
+            await menuRepo.UpdateAsync(found);
+
+            return AppResponse.Ok();
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error: {message}", e.Message);
+            return AppResponse.Error500(e.Message);
+        }
     }
 
     public async Task<AppResponse> GetMenuById(int id)

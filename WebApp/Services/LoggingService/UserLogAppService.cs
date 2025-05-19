@@ -10,7 +10,7 @@ namespace WebApp.Services.LoggingService;
 
 public interface IUserLogAppService
 {
-    Task ClearOutDateLog(DateTime date);
+    Task<int> ClearOutDateLog(DateTime date);
     Task CreateLog(string action, bool success, string? description = null);
     Task<bool> DeleteLog(Guid id);
     Task<UserLog?> GetLogById(Guid id);
@@ -81,10 +81,11 @@ public class UserLogAppService(IUserManager userManager,
         return await logRepository.HardDeleteAsync(id);
     }
 
-    public async Task ClearOutDateLog(DateTime date)
+    public async Task<int> ClearOutDateLog(DateTime date)
     {
         var logs = await logRepository.Find(x => x.ActionTime < date)
                                       .Select(x => x.Id).ToListAsync();
         await logRepository.HardDeleteManyAsync(logs);
+        return logs.Count;
     }
 }

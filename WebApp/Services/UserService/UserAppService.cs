@@ -17,7 +17,7 @@ namespace WebApp.Services.UserService
 {
     public interface IUserAppService
     {
-        Task<UserDisplayDto> CreateUser(UserInputDto user);
+        Task<AppResponse> CreateUser(UserInputDto user);
 
         /// <summary>
         /// Authenticates the user with the provided login details.
@@ -48,7 +48,7 @@ namespace WebApp.Services.UserService
         /// Unlocks a user account.
         /// </summary>
         /// <param name="userId">The ID of the user to unlock.</param>
-        Task UnlockUser(Guid userId);
+        Task<AppResponse> LockOrUnlockUser(Guid userId);
 
         /// <summary>
         /// Changes the roles of a user.
@@ -98,13 +98,22 @@ namespace WebApp.Services.UserService
         /// <param name="refreshToken">The refresh token, should be retrieved from cookie</param>
         /// <returns>A Task representing the asynchronous logout operation.</returns>
         Task Logout(string accessToken, string refreshToken);
+
+        /// <summary>
+        /// Retrieves a list of all users for use in another service.
+        /// </summary>
+        /// <returns>An <see cref="AppResponse"/> containing the list of users.</returns>
+        Task<AppResponse> GetAllUserForOtherService();
+
+        Task<AppResponse> FindUserById(Guid id);
+        Task<AppResponse> ResetPassword(Guid id, string newPassword);
     }
 
     public class UserAppAppService(IAppRepository<User, Guid> userRepository,
                                    IUserMongoRepository userMongoRepository,
+                                   ILockedUserMongoRepository lockRepository,
                                    IAppRepository<Organization, Guid> organizationRepository,
                                    IBlacklistedTokenMongoRepository blacklistedTokenRepository,
-                                   IOrgMongoRepository orgMongoRepository,
                                    JwtService jwtService,
                                    IConfiguration configuration,
                                    IAppRepository<Role, int> roleRepository,
@@ -114,15 +123,61 @@ namespace WebApp.Services.UserService
     {
         public async Task<AppResponse> GetAllUsers(PageRequest page)
         {
-            var query = userRepository.Find(filter: u => !u.Deleted,
-                                            include: [nameof(User.Roles), nameof(User.Organizations)]);
-            var users = await query
-                              .OrderBy(page.Sort)
-                              .ToPagedListAsync(page.Number, page.Size);
-            return AppResponse.SuccessResponse(users.MapPagedList(x => x.ToDisplayDto()));
+            try
+            {
+                var query = userRepository.Find(filter: u => !u.Deleted,
+                                                include: [nameof(User.Roles), nameof(User.Organizations)]);
+
+                var pagedResult = await query
+                                        .OrderBy(page.Sort)
+                                        .ToPagedListAsync(page.Number, page.Size);
+                var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
+                return page.Fields.Length > 0
+                    ? AppResponse.SuccessResponse(dtoResult.ProjectPagedList(page.Fields))
+                    : AppResponse.SuccessResponse(dtoResult);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError("Error in GetAllUsers: {Message}, caused by {ExceptionType}", ex.Message,
+                                ex.GetType().Name);
+                return AppResponse.Error("Failed to retrieve users");
+            }
         }
 
-        public async Task<UserDisplayDto> CreateUser(UserInputDto userDto)
+
+        public async Task<AppResponse> FindUserById(Guid id)
+        {
+            var foundUser = await userRepository.Find(u => u.Id == id && !u.Deleted)
+                                                .Include(u => u.Roles)
+                                                .Include(u => u.Organizations)
+                                                .FirstOrDefaultAsync();
+            return foundUser is null
+                ? AppResponse.Error404("User not found")
+                : AppResponse.SuccessResponse(foundUser.ToDisplayDto());
+        }
+
+        public async Task<AppResponse> GetAllUserForOtherService()
+        {
+            try
+            {
+                var users = await userRepository.Find(filter: u => !u.Deleted)
+                                                .Select(x => new UserInfoDto
+                                                {
+                                                    Id = x.Id, Username = x.Username
+                                                })
+                                                .OrderBy(x => x.Id)
+                                                .ToListAsync();
+                return AppResponse.SuccessResponse(users);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError("Error in GetAllUserForOtherService: {Message}, caused by {ExceptionType}", ex.Message,
+                                ex.GetType().Name);
+                return AppResponse.Error("Failed to retrieve users for other service");
+            }
+        }
+
+        public async Task<AppResponse> CreateUser(UserInputDto userDto)
         {
             if (userDto == null)
                 throw new Exception("Invalid user input");
@@ -138,11 +193,11 @@ namespace WebApp.Services.UserService
                 user.Roles.UnionWith(roles);
             }
 
-            var created = await userRepository.CreateAsync(user);
+            var createdUser = await userRepository.CreateAsync(user);
 
-            await userMongoRepository.InsertUser(await MapToMongo(created));
+            //await userMongoRepository.InsertUser(MapToMongo(createdUser));
 
-            return created.ToDisplayDto();
+            return AppResponse.SuccessResponse(createdUser.ToDisplayDto());
         }
 
         public async Task<AuthenticationResponse> Authenticate(UserLoginDto login)
@@ -178,12 +233,12 @@ namespace WebApp.Services.UserService
             {
                 return new AuthenticationResponse
                 {
-                    Message = "Too many failed attempts. Your account has been locked."
+                    Message = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với quản trị viên để được hỗ trợ."
                 };
             }
 
+            //reset failed login attempts if user is not locked
             if (foundUser.User is { LogInFailedCount: > 0, Locked: false }) await ResetAccount(foundUser.User);
-            ;
 
             var orgId = string.Empty;
             var orgLists = foundUser.User.Organizations.Select(o => o.Id).ToList();
@@ -309,7 +364,27 @@ namespace WebApp.Services.UserService
             }
         }
 
-        
+        public async Task<AppResponse> ResetPassword(Guid id, string newPassword)
+        {
+            try
+            {
+                var foundUser = await userRepository.Find(u => u.Id == id && !u.Deleted)
+                                                    .FirstOrDefaultAsync();
+                if (foundUser is null)
+                    return AppResponse.Error404("User not found");
+                if (newPassword.Length < 6)
+                    return AppResponse.Error400("Password must be at least 6 characters long");
+                foundUser.Password = newPassword.BCryptHash();
+                await userRepository.UpdateAsync(foundUser);
+                return AppResponse.Ok("Password changed successfully");
+            }
+            catch (Exception e)
+            {
+                logger.LogError("Error: {message}, caused by {exceptionType}", e.Message, e.GetType().Name);
+                return AppResponse.Error("Error while resetting password: " + e.Message);
+            }
+        }
+
 
         public async Task<AppResponse> ChangeUserRoles(Guid id, List<int> roleIds)
         {
@@ -320,21 +395,36 @@ namespace WebApp.Services.UserService
             user.Roles.Clear();
             user.Roles = roles.ToHashSet();
             await userRepository.UpdateAsync(user);
-            await UpdateUserWithMongo(user);
+            // await UpdateUserWithMongo(user);
             return new AppResponse { Message = "OK" };
         }
 
-        public async Task UnlockUser(Guid userId)
+        public async Task<AppResponse> LockOrUnlockUser(Guid userId)
         {
             var user = await userRepository.Find(u => u.Id == userId).FirstOrDefaultAsync();
             if (user is null) throw new Exception("User not found");
-            await ResetAccount(user);
+            if (user.Id.ToString() == UserId)
+                return AppResponse.Error400("Quản trị viên không được phép khóa/mở khóa tài khoản của chính mình");
+            user.Locked = !user.Locked; // toggle lock status
             await userRepository.UpdateAsync(user);
+
+            if (user.Locked)
+            {
+                await LockInMongo(user.Id); // lock user in MongoDB
+            }
+            else
+            {
+                await UnlockInMongo(user.Id); // unlock user in MongoDB
+            }
+
+            var message = user.Locked ? $"Khóa tài khoản {user.Username}" : $"Mở khóa tài khoản {user.Username}";
+            return AppResponse.Ok(message);
         }
 
 
         public async Task<bool> ExistUsername(string username)
         {
+            username = username.RemoveSpace() ?? string.Empty;
             return await userRepository.ExistAsync(user => user.Username == username);
         }
 
@@ -405,7 +495,7 @@ namespace WebApp.Services.UserService
 
             var username = UserManager.CurrentUsername()!;
             //var permissions = await GetUserPermissions(Guid.Parse(UserId));
-            
+
             var roles = await GetUserRoles(Guid.Parse(UserId)); //update user's roles
             //Update new claims:
             var newClaims = new[]
@@ -440,7 +530,7 @@ namespace WebApp.Services.UserService
 
         private async Task UpdateUserWithMongo(User user)
         {
-            var userDoc = await MapToMongo(user);
+            var userDoc = MapToMongo(user);
             await userMongoRepository.UpdateUser(userDoc);
         }
 
@@ -461,7 +551,7 @@ namespace WebApp.Services.UserService
                                        .Distinct()
                                        .ToListAsync();
         }
-        
+
         private async Task<ISet<string>> GetUserRoles(Guid uId)
         {
             var roles = await userRepository.Find(u => u.Id == uId, include: nameof(User.Roles))
@@ -471,16 +561,23 @@ namespace WebApp.Services.UserService
             return roles.ToHashSet();
         }
 
-        private async Task<UserDoc> MapToMongo(User user)
+        private UserDoc MapToMongo(User user)
         {
             return new UserDoc
             {
                 UserId = user.Id.ToString(),
-                Permissions = (await GetUserPermissions(user.Id)).ToHashSet(),
+                //Permissions = (await GetUserPermissions(user.Id)).ToHashSet(),
+                Locked = user.Locked
             };
         }
 
 
+        /// <summary>
+        /// Handles user login failures by incrementing the failed login attempt count
+        /// and locking the account if the failed attempts reach a predefined limit.
+        /// </summary>
+        /// <param name="user">The user for whom the login failure is being handled.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task LoginFailureHandler(User user)
         {
             user.LogInFailedCount += 1; // count login attempt
@@ -498,6 +595,16 @@ namespace WebApp.Services.UserService
             user.LogInFailedCount = 0;
             user.Locked = false;
             await userRepository.UpdateAsync(user);
+        }
+
+        private async Task LockInMongo(Guid userId)
+        {
+            await lockRepository.LockUser(userId);
+        }
+
+        private async Task UnlockInMongo(Guid userId)
+        {
+            await lockRepository.UnlockUser(userId);
         }
     }
 }

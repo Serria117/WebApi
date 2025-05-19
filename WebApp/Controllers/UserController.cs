@@ -8,7 +8,7 @@ using WebApp.Services.UserService.Dto;
 
 namespace WebApp.Controllers;
 
-[ApiController, Route("/api/user")]
+[ApiController, Route("/api/user")][Authorize]
 public class UserController(IUserAppService userAppService) : ControllerBase
 {
     /// <summary>
@@ -19,7 +19,7 @@ public class UserController(IUserAppService userAppService) : ControllerBase
     /// <remarks>
     /// Requires the <see cref="Permissions.UserCreate"/> permission.
     /// </remarks>
-    [HttpPost("create"), HasAuthority(Permissions.UserCreate)]
+    [HttpPost("create"), HasAllAuthorities(Permissions.UserCreate, Permissions.Admin)]
     public async Task<IActionResult> CreateUser(UserInputDto dto)
     {
         try
@@ -33,27 +33,44 @@ public class UserController(IUserAppService userAppService) : ControllerBase
         }
     }
 
-/// <summary>
-/// Retrieve a paginated list of all users
-/// </summary>
-/// <param name="req">The request parameters for pagination and filtering</param>
-/// <returns>A paginated list of users or an error message if the parameters are invalid</returns>
-/// <remarks>
-/// Requires the <see cref="Permissions.UserView"/> permission.
-/// </remarks>
+    /// <summary>
+    /// Retrieve a paginated list of all users
+    /// </summary>
+    /// <param name="req">The request parameters for pagination and filtering</param>
+    /// <returns>A paginated list of users or an error message if the parameters are invalid</returns>
+    /// <remarks>
+    /// Requires the <see cref="Permissions.UserView"/> permission.
+    /// </remarks>
     [HttpGet("all")] [HasAuthority(Permissions.UserView)]
     public async Task<IActionResult> GetAll([FromQuery] RequestParam req)
     {
         try
         {
-            var paging = PageRequest.GetPagingAndSortingParam(req);
-            var res = await userAppService.GetAllUsers(paging);
-            return Ok(res);
+            var pagedRequest = PageRequest.BuildRequest(req);
+            var res = await userAppService.GetAllUsers(pagedRequest);
+            return res.Success ? Ok(res) : BadRequest(res);
         }
         catch (Exception)
         {
             return BadRequest(ErrorResponse.InvalidParams());
         }
+    }
+
+    /// <summary>
+    /// Retrieves a user by their unique identifier.
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <param name="id">The unique identifier of the user.</param>
+    /// <returns>The details of the user if found, or an error response if not.</returns>
+    /// <remarks>
+    /// Requires either the <see cref="Permissions.UserSelf"/> or <see cref="Permissions.UserView"/> permission.
+    /// </remarks>
+    [HttpGet("{userId:guid}")]
+    [HasAnyAuthority(Permissions.UserSelf, Permissions.UserView)]
+    public async Task<IActionResult> GetById(Guid userId)
+    {
+        var res = await userAppService.FindUserById(userId);
+        return res.Success ? Ok(res) : BadRequest(res);
     }
 
     /// <summary>
@@ -78,19 +95,50 @@ public class UserController(IUserAppService userAppService) : ControllerBase
         }
     }
 
-/// <summary>
-/// Unlocks a user account.
-/// </summary>
-/// <param name="userId">The ID of the user to unlock.</param>
-/// <returns>An IActionResult indicating the result of the unlock operation.</returns>
-/// <remarks>
-/// Requires the <see cref="Permissions.UserUpdate"/> permission.
-/// </remarks>
-    [HttpPut("unlock/{userId:guid}")] [HasAuthority(Permissions.UserUpdate)]
-    public async Task<IActionResult> UnlockUser(Guid userId)
+    /// <summary>
+    /// Locks or unlocks a user based on their current status.
+    /// </summary>
+    /// <param name="userId">The unique identifier of the user to lock or unlock.</param>
+    /// <returns>A response indicating the success or failure of the operation.</returns>
+    /// <remarks>
+    /// Requires the <see cref="Permissions.UserUpdate"/> and <see cref="Permissions.Admin"/> permissions.
+    /// </remarks>
+    [HttpPut("lock/{userId:guid}")]
+    [HasAllAuthorities(Permissions.UserUpdate, Permissions.Admin)]
+    public async Task<IActionResult> LockOrUnlock(Guid userId)
     {
-        await userAppService.UnlockUser(userId);
-        return Ok(new { message = "user unlocked" });
+        try
+        {
+            var result = await userAppService.LockOrUnlockUser(userId);
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+
+    /// <summary>
+    /// Resets the user's password.
+    /// </summary>
+    /// <param name="req">Request object containing user ID and new password.</param>
+    /// <returns>A result indicating the success or failure of the password reset operation.</returns>
+    /// <remarks>
+    /// Requires the <see cref="Permissions.UserUpdate"/> and <see cref="Permissions.Admin"/> permissions.
+    /// </remarks>
+    [HttpPut("reset-password")]
+    [HasAllAuthorities(Permissions.UserUpdate, Permissions.Admin)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
+    {
+        try
+        {
+            var result = await userAppService.ResetPassword(req.UserId, req.Password);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, e.Message);
+        }
     }
 
     /// <summary>
@@ -102,7 +150,8 @@ public class UserController(IUserAppService userAppService) : ControllerBase
     /// <remarks>
     /// Requires the <see cref="Permissions.UserUpdate"/> permission.
     /// </remarks>
-    [HttpPut("role-update/{userId:guid}")] [HasAuthority(Permissions.UserUpdate)]
+    [HttpPut("role-update/{userId:guid}")]
+    [HasAllAuthorities(Permissions.UserUpdate, Permissions.Admin)]
     public async Task<IActionResult> UpdateRoles(Guid userId, List<int> roleIds)
     {
         var result = await userAppService.ChangeUserRoles(userId, roleIds);
@@ -124,5 +173,20 @@ public class UserController(IUserAppService userAppService) : ControllerBase
         var result = await userAppService.AddOrganizationToUser(userId, orgIds);
         return result.Success ? Ok(result) : BadRequest(result);
     }
-    
+
+    /// <summary>
+    /// Checks if a username exists in the system.
+    /// </summary>
+    /// <param name="username">The username to check for existence.</param>
+    /// <returns>returns TRUE if the username has already exist, otherwise, returns FALSE</returns>
+    /// <remarks>
+    /// Requires valid permissions for user data access.
+    /// </remarks>
+    [HttpGet("exist-username")]
+    [HasAllAuthorities(Permissions.UserCreate, Permissions.UserView)]
+    public async Task<IActionResult> ExistUsername([FromQuery] string username)
+    {
+        var result = await userAppService.ExistUsername(username);
+        return Ok(result);
+    }
 }

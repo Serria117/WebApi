@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
@@ -39,7 +40,8 @@ Log.Logger = new LoggerConfiguration()
              .WriteTo.File(
                  path: "logs/log-.txt", // Log file path with rolling logs
                  rollingInterval: RollingInterval.Day, // Roll log files daily
-                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+                 outputTemplate:
+                 "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                  restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information // Minimum level to log
              )
              .CreateLogger();
@@ -59,6 +61,7 @@ services.AddControllers()
         {
             options.JsonSerializerOptions.ReferenceHandler =
                 System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+            //options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         });
 
 services.Configure<FormOptions>(op =>
@@ -194,8 +197,9 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var cacheService = scope.ServiceProvider.GetRequiredService<ICachingRoleService>();
     context.Database.EnsureCreated();
-    await PreLoadCachingRoles(cacheService, context);
     await SeedPermissions(context);
+    await SeedAdminRole(context);
+    await PreLoadCachingRoles(cacheService, context);
 }
 
 // Configure the HTTP request pipeline.
@@ -234,6 +238,7 @@ return;
 //Seed default permissions
 async Task SeedPermissions(AppDbContext context)
 {
+    Console.WriteLine("Seeding default permissions...");
     var existingPermissions = context.Permissions.Select(p => p.PermissionName).ToHashSet();
     var defaultPermissions = PermissionSeeder.GetDefaultPermissions();
     var permissionsToAdd = defaultPermissions.Where(permission => !existingPermissions.Contains(permission))
@@ -241,15 +246,40 @@ async Task SeedPermissions(AppDbContext context)
                                              .ToList();
 
     await context.AddRangeAsync(permissionsToAdd);
-    context.SaveChanges();
+    await context.SaveChangesAsync();
+}
+
+async Task SeedAdminRole(AppDbContext context)
+{
+    Console.WriteLine("Seeding Admin role...");
+    var roleAdmin = await context.Roles.Include(r => r.Permissions)
+                                 .FirstOrDefaultAsync(r => r.RoleName == "Admin");
+    if (roleAdmin == null)
+    {
+        roleAdmin = new Role { RoleName = "Admin" };
+        await context.Roles.AddAsync(roleAdmin);
+        await context.SaveChangesAsync();
+    }
+
+    var permissions = await context.Permissions.ToListAsync();
+    foreach (var permission in permissions)
+    {
+        if (roleAdmin.Permissions.All(p => p.PermissionName != permission.PermissionName))
+        {
+            roleAdmin.Permissions.Add(permission);
+        }
+    }
+
+    await context.SaveChangesAsync();
 }
 
 //Preload all permission of each role into memory cache for fast authorization check
 async Task PreLoadCachingRoles(ICachingRoleService caching, AppDbContext context)
 {
+    Console.WriteLine("Loading role into cache...");
     var roles = await context.Roles.Select(r => r.RoleName).ToListAsync();
     foreach (var role in roles)
     {
-        await caching.GetPermissionsInRole(role);
+        await caching.GetPermissionsFromCache(role);
     }
 }
