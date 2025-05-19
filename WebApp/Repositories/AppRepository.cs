@@ -13,15 +13,34 @@ namespace WebApp.Repositories;
 
 public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
 {
-    Task<T> CreateAsync(T entity);
-    Task CreateManyAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Creates a new entity in the database asynchronously.
+    /// </summary>
+    /// <param name="entity">The entity to be created.</param>
+    /// <param name="inTransaction">Indicates whether the operation should be executed within a transaction.
+    /// If the transaction is true, the saveChange() call will be handled by the transaction manager.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the created entity.</returns>
+    Task<T> CreateAsync(T entity, bool inTransaction = false);
+
+    /// <summary>
+    /// Creates multiple entities in the database asynchronously.
+    /// </summary>
+    /// <param name="entities">A collection of entities to be created.</param>
+    /// <param name="inTransaction">Indicates whether the creation should be executed within a transaction.
+    /// If the transaction is true, the saveChange() call will be handled by the transaction manager.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    Task CreateManyAsync(IEnumerable<T> entities,
+                         bool inTransaction = false,
+                         CancellationToken cancellationToken = default);
+
     IQueryable<T> Find(Expression<Func<T, bool>> filter, params string[] include);
 
     IQueryable<T> Find(Expression<Func<T, bool>> filter, string? sortBy = "Id", string? order = SortOrder.ASC,
                        params string[] include);
 
     Task<T?> FindByIdAsync(TK id);
-    Task<T> UpdateAsync(T entity);
+    Task<T> UpdateAsync(T entity, bool inTransaction = false);
     Task<bool> ExistAsync(Expression<Func<T, bool>> predicate);
     Task<int> CountAsync(Expression<Func<T, bool>> predicate);
     Task<bool> SoftDeleteAsync(TK id);
@@ -30,8 +49,16 @@ public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
     Task<bool> SoftDeleteManyAsync(params TK[] ids);
     IQueryable<T> FindAndSort(Expression<Func<T, bool>> filter, string[] include, string[] sortBy);
     T Attach(TK id);
-    Task<bool> HardDeleteAsync(TK id);
-    Task HardDeleteManyAsync(IEnumerable<TK> ids);
+    Task<bool> HardDeleteAsync(TK id, bool inTransaction = false);
+
+    /// <summary>
+    /// Permanently deletes multiple entities identified by their IDs from the database.
+    /// </summary>
+    /// <param name="ids">A collection of IDs representing the entities to delete.</param>
+    /// <param name="inTransaction">Indicates whether the deletion should be executed within a transaction.
+    /// If the transaction is true, the saveChange() call will be handled by the transaction manager.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    Task HardDeleteManyAsync(IEnumerable<TK> ids, bool inTransaction = false);
 }
 
 public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<TK>, new()
@@ -52,13 +79,17 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
 
     public T Attach(TK id)
     {
-        return _dbSet.Attach(new T {Id = id}).Entity;
+        return _dbSet.Attach(new T { Id = id }).Entity;
     }
 
-    public async Task<T> CreateAsync(T entity)
+    public async Task<T> CreateAsync(T entity, bool inTransaction = false)
     {
         var saved = (await _dbSet.AddAsync(entity)).Entity;
-        await _db.SaveChangesAsync();
+        if (inTransaction)
+        {
+            await _db.SaveChangesAsync();
+        }
+
         return saved;
     }
 
@@ -102,10 +133,13 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         return query;
     }
 
-    public async Task CreateManyAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)
+    public async Task CreateManyAsync(IEnumerable<T> entities,
+                                      bool inTransaction = false,
+                                      CancellationToken cancellationToken = default)
     {
         await _dbSet.AddRangeAsync(entities, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
+        if (inTransaction)
+            await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<T?> FindByIdAsync(TK id)
@@ -113,10 +147,10 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         return await _dbSet.FindAsync(id);
     }
 
-    public async Task<T> UpdateAsync(T entity)
+    public async Task<T> UpdateAsync(T entity, bool inTransaction = false)
     {
         var res = _dbSet.Update(entity);
-        await _db.SaveChangesAsync();
+        if (inTransaction) await _db.SaveChangesAsync();
         return res.Entity;
     }
 
@@ -149,20 +183,19 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         return result > 0;
     }
 
-    public async Task<bool> HardDeleteAsync(TK id)
+    public async Task<bool> HardDeleteAsync(TK id, bool inTransaction = false)
     {
         var entity = await _dbSet.FindAsync(id);
         if (entity == null) return false;
         _dbSet.Remove(entity);
-        await _db.SaveChangesAsync();
+        if (inTransaction) await _db.SaveChangesAsync();
         return true;
     }
 
-    public async Task HardDeleteManyAsync(IEnumerable<TK> ids)
+    public async Task HardDeleteManyAsync(IEnumerable<TK> ids, bool inTransaction = false)
     {
         var entities = await _dbSet.Where(x => ids.Contains(x.Id)).ToListAsync();
-        if (entities == null) return;
         _dbSet.RemoveRange(entities);
-        await _db.SaveChangesAsync();
+        if (inTransaction) await _db.SaveChangesAsync();
     }
 }
