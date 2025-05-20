@@ -41,7 +41,7 @@ public class UserLogBackgroundService(IUserLogQueue logQueue,
                     logger.LogInformation("Saving {count} logs to database", logToSave.Count);
                     var logRepository = scope.ServiceProvider.GetRequiredService<IAppRepository<UserLog, Guid>>();
 
-                    await logRepository.CreateManyAsync(logToSave, cts.Token);
+                    await logRepository.CreateManyAsync(logToSave, cancellationToken: cts.Token);
                     
                     _currentBackoff = TimeSpan.FromSeconds(1);
                     
@@ -103,7 +103,7 @@ public class UserLogBackgroundService(IUserLogQueue logQueue,
             var logRepository = scope.ServiceProvider.GetRequiredService<IAppRepository<UserLog, Guid>>();
             try
             {
-                await logRepository.CreateManyAsync(logToSave, CancellationToken.None);
+                await logRepository.CreateManyAsync(logToSave, cancellationToken: CancellationToken.None);
                 logger.LogInformation("Saved {Count} remaining user logs during shutdown.", logToSave.Count);
             }
             catch (Exception ex)

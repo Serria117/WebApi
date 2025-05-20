@@ -114,4 +114,9 @@ public static partial class StringService
             ? (splitted[1].ToInt(), splitted[0].ToInt()) 
             : (splitted[0].ToInt(), 0);
     }
+
+    public static Guid ToGuid(this string? str)
+    {
+        return Guid.TryParse(str, out var result) ? result : Guid.Empty;
+    }
 }
