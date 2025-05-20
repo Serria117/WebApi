@@ -12,6 +12,7 @@ using WebApp.Services.InvoiceService;
 using WebApp.Services.LoggingService;
 using WebApp.Services.NotificationService;
 using WebApp.Services.OrganizationService;
+using WebApp.Services.PayrollService;
 using WebApp.Services.RegionService;
 using WebApp.Services.RestService;
 using WebApp.Services.RiskCompanyService;
@@ -95,6 +96,7 @@ public static class DependencyInjector
         s.AddScoped<IErrorInvoiceAppService, ErrorInvoiceAppService>();
         s.AddScoped<IUserLogAppService, UserLogAppService>();
         s.AddScoped<IAdminAppService, AdminAppService>();
+        s.AddScoped<IPayrollAppService, PayrollAppService>();
 
     }
 }
