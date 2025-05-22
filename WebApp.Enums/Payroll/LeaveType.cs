@@ -1,4 +1,4 @@
-﻿namespace WebApp.Enums;
+﻿namespace WebApp.Enums.Payroll;
 
 public enum LeaveType
 {

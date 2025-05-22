@@ -21,7 +21,11 @@ public class PayrollRecord : BaseEntityAuditable<long>
     public Guid EmployeeId { get; set; } // Foreign key
 
     [ForeignKey(nameof(PayrollPeriodId))]
-    public required PayrollPeriod PayrollPeriod { get; set; } //navigation property
+    public PayrollPeriod PayrollPeriod { get; set; } = null!; //navigation property
 
     public int PayrollPeriodId { get; set; } // Foreign key
+    
+    public List<TimeSheet> TimeSheets { get; set; } = []; //navigation property
+
+    public List<PayrollItem> PayrollItems { get; set; } = []; //navigation property
 }

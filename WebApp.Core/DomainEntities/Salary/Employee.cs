@@ -22,4 +22,12 @@ public class Employee : BaseEntityAuditable<Guid>
 
     [ForeignKey(nameof(Organization))]
     public Guid OrganizationId { get; set; } // Foreign key
+    
+    public List<BaseSalary> BaseSalaries { get; set; } = [];
+    public List<Dependent> Dependents { get; set; } = [];
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? BaseSalary { get; set; }
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? InsuranceSalary { get; set; }
+    
 }

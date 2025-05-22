@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Core.DomainEntities.Salary;
@@ -12,6 +13,7 @@ public class PayrollPeriod : BaseEntityAuditable<int>
     /// <summary>
     /// Gets or sets the name of the payroll period.
     /// </summary>
+    [MaxLength(255)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -34,10 +36,12 @@ public class PayrollPeriod : BaseEntityAuditable<int>
     /// This is a navigation property.
     /// </summary>
     [ForeignKey(nameof(OrganizationId))]
-    public required Organization Organization { get; set; }
+    public Organization Organization { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the foreign key for the associated organization.
     /// </summary>
     public Guid OrganizationId { get; set; }
+    
+    public ICollection<PayrollRecord> PayrollRecords { get; set; } = new List<PayrollRecord>();
 }

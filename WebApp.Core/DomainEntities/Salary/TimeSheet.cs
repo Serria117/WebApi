@@ -1,5 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using WebApp.Enums;
+using WebApp.Enums.Payroll;
 
 namespace WebApp.Core.DomainEntities.Salary;
 
@@ -10,6 +12,7 @@ public class TimeSheet : BaseEntityAuditable<long>
 
     public long PayrollRecordId { get; set; }
     
+    [MaxLength(255)]
     public string? Description { get; set; }
     public DateTime Date { get; set; }
 
