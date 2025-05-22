@@ -364,6 +364,8 @@ FodyWeavers.xsd
 .qodo
 .Uploads/
 
+WebApp.Core/obj/
+
 # Application settings
 appsettings.json
 appsettings.Development.json
