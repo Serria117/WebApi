@@ -130,7 +130,7 @@ namespace WebApp.Services.UserService
 
                 var pagedResult = await query
                                         .OrderBy(page.Sort)
-                                        .ToPagedListAsync(page.Number, page.Size);
+                                        .ToPagedListAsync(page.Page, page.Size);
                 var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
                 return page.Fields.Length > 0
                     ? AppResponse.SuccessResponse(dtoResult.ProjectPagedList(page.Fields))

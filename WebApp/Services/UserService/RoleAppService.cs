@@ -72,7 +72,7 @@ namespace WebApp.Services.UserService
                                         include: [nameof(Role.Permissions)])
                                     .AsSplitQuery()
                                     .AsNoTracking()
-                                    .ToPagedListAsync(request.Number, request.Size);
+                                    .ToPagedListAsync(request.Page, request.Size);
             var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
             return request.Fields.Length == 0
                 ? AppResponse.SuccessResponse(dtoResult)

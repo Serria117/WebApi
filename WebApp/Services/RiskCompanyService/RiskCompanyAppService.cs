@@ -32,7 +32,7 @@ public class RiskCompanyAppService(IAppRepository<RiskCompany, int> riskCompanyR
                                                   sortBy: nameof(RiskCompany.CreateAt), 
                                                   order: SortOrder.DESC
                                             )
-                                            .ToPagedListAsync(page.Number, page.Size);
+                                            .ToPagedListAsync(page.Page, page.Size);
 
         return AppResponse.SuccessResponse(riskList);
     }
