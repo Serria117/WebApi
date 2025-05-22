@@ -364,7 +364,15 @@ FodyWeavers.xsd
 .qodo
 .Uploads/
 
+# build output folders
+obj/
+bin/
 WebApp.Core/obj/
+WebApp.Core/bin/
+WebApp.Enums/obj/
+WebApp.Enums/bin/
+WebApp.Mongo/obj/
+WebApp.Mongo/bin/
 
 # Application settings
 appsettings.json
