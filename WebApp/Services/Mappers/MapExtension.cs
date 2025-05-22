@@ -4,10 +4,12 @@ using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities.Salary;
 using WebApp.Repositories;
 using WebApp.Services.BalanceSheetService.Dto;
 using WebApp.Services.CommonService;
 using WebApp.Services.OrganizationService.Dto;
+using WebApp.Services.PayrollService.Dto;
 using WebApp.Services.RegionService.Dto;
 using WebApp.Services.UserService.Dto;
 using X.PagedList;
@@ -526,6 +528,69 @@ public static class MapExtension
             B02 = d.B02,
             B01TS = d.B01TS,
             B01NV = d.B01NV
+        };
+    }
+
+    #endregion
+
+    #region Employee
+
+    public static EmployeeDisplayDto ToDisplayDto(this Employee e)
+    {
+        return new EmployeeDisplayDto
+        {
+            Id = e.Id,
+            FullName = e.FullName,
+            Pid = e.Pid,
+            TaxId = e.TaxId,
+            HireDate = e.HireDate,
+            TerminationDate = e.TerminationDate,
+            IsActive = e.IsActive,
+            OrganizationId = e.OrganizationId
+        };
+    }
+
+    #endregion
+
+    #region PayrollRecord
+
+    public static PayrollRecord ToEntity(this PayrollCreateDto dto, 
+                                         Employee e, 
+                                         PayrollPeriod period)
+    {
+        return new PayrollRecord
+        {
+            Employee = e,
+            PayrollPeriod = period,
+            Deleted = false
+        };
+    }
+
+    #endregion
+    
+    #region PayrollComponentCategory
+    public static PayrollComponentCategory ToEntity(this PayrollComponentCategoryCreateDto dto)
+    {
+        return new PayrollComponentCategory
+        {
+            Name = dto.Name,
+            Description = dto.Description,
+            Order = dto.Order
+        };
+    }
+
+    #endregion
+
+    #region Payroll InputType
+
+    public static PayrollInputType ToEntity(this PayrollInputTypeCreateDto dto)
+    {
+        return new PayrollInputType
+        {
+            Name = dto.Name,
+            Description = dto.Description,
+            Unit = dto.Unit,
+            DataType = dto.DataType,
         };
     }
 

@@ -104,14 +104,13 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
     public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {
         if (files.Count == 0) return AppResponse.Error("No file uploaded");
-        (bool result, Guid orgId) = GetId(WorkingOrg);
-
-        if (!result)
+        var oId = WorkingOrg.ToGuid();
+        if (oId == Guid.Empty)
         {
             return AppResponse.Error400("You must select working organization first");
         }
 
-        var org = await orgRepository.FindByIdAsync(orgId);
+        var org = await orgRepository.FindByIdAsync(oId);
         if (org is null) return AppResponse.Error404("Organization not found");
         var uploadFiles = new List<OrgDocument>();
         var uploadDir = Path.Combine(env.ContentRootPath, "Uploads", org.TaxId);
@@ -189,8 +188,8 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
     public async Task<AppResponse> FindDocumentsAsync(DocumentType documentType,
                                                       RequestParam requestParam)
     {
-        (bool result, Guid orgId) = GetId(WorkingOrg);
-        if (!result)
+        var oId = WorkingOrg.ToGuid();
+        if (oId == Guid.Empty)
         {
             return AppResponse.Error400("You must select working organization first");
         }
@@ -200,10 +199,10 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         int fromYear;
         int toYear;
 
-        var org = await orgRepository.FindByIdAsync(orgId);
+        var org = await orgRepository.FindByIdAsync(oId);
         if (org is null) return AppResponse.Error404("Organization not found");
 
-        var basedQuery = docRepository.FindAndSort(filter: x => x.Organization.Id == orgId
+        var basedQuery = docRepository.FindAndSort(filter: x => x.Organization.Id == oId
                                                                 && x.DocumentType == documentType,
                                                    include: [],
                                                    sortBy: [$"{nameof(OrgDocument.DocumentDate)} {SortOrder.ASC}"]);
@@ -216,7 +215,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             filteredQuery = basedQuery.Where(x => x.Year >= fromYear && x.Year <= toYear);
         }
 
-        var files = await filteredQuery.ToPagedListAsync(param.Number, param.Size);
+        var files = await filteredQuery.ToPagedListAsync(param.Page, param.Size);
 
         var dtoList = files.MapPagedList(f => new DocumentDisplayDto
         {

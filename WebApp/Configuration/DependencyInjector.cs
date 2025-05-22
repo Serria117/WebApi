@@ -3,7 +3,6 @@ using WebApp.Mongo;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Queues;
 using WebApp.Repositories;
-using WebApp.Services;
 using WebApp.Services.BackgroundServices;
 using WebApp.Services.BalanceSheetService;
 using WebApp.Services.CachingServices;
@@ -19,7 +18,7 @@ using WebApp.Services.RiskCompanyService;
 using WebApp.Services.UserService;
 using WebApp.Services.UserService.AdminService;
 
-namespace WebApp.Register;
+namespace WebApp.Configuration;
 
 /// <summary>
 /// Provides methods to configure dependency injection for both MongoDB s

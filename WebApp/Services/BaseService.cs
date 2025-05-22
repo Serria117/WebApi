@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities.Salary;
 using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.BalanceSheetService.Dto;
@@ -30,19 +31,4 @@ public class AppServiceBase(IUserManager userManager)
     /// Get the list of roles assigned to the current user
     /// </summary>
     protected List<string> UserRoles { get; } = userManager.GetRoles();
-
-    /// <summary>
-    /// Extract Guid from a string
-    /// </summary>
-    /// <param name="id">The string represent a Guid</param>
-    /// <returns>true and the Guid instance if the string was successfully converted to Guid, or failed if not</returns>
-    protected static (bool Result, Guid Id) GetId(string? id)
-    {
-        if (string.IsNullOrEmpty(id) || !Guid.TryParse(id, out var parsedId))
-        {
-            return (false, Guid.Empty);
-        }
-
-        return (true, parsedId);
-    }
 }

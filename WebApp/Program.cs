@@ -11,18 +11,16 @@ using RestSharp;
 using WebApp;
 using WebApp.Authentication;
 using WebApp.Core.Data;
-using WebApp.Core.DomainEntities;
 using WebApp.Mongo;
-using WebApp.Register;
 using WebApp.Services.CommonService;
 using WebApp.Services.Mappers;
 using WebApp.Services.RestService;
 using WebApp.SignalrConfig;
 using Serilog;
+using WebApp.Configuration;
 using WebApp.GlobalExceptionHandler;
 using WebApp.ScheduleTask;
 using WebApp.Services;
-using WebApp.Services.CachingServices;
 
 // Declare variables.
 var builder = WebApplication.CreateBuilder(args);
@@ -37,6 +35,9 @@ var origins = config.GetSection("AllowedOrigins").Get<string[]>() ?? [];
 //Logging configuration:
 Log.Logger = new LoggerConfiguration()
              .WriteTo.Console()
+             .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command",
+                                    Serilog.Events.LogEventLevel.Warning)
+             .Enrich.FromLogContext()
              .WriteTo.File(
                  path: "logs/log-.txt", // Log file path with rolling logs
                  rollingInterval: RollingInterval.Day, // Roll log files daily
@@ -184,6 +185,8 @@ services.AddSingleton<CustomMap>();
 services.AddHttpContextAccessor();
 services.AddScoped<JwtService>();
 services.AddMemoryCache();
+// Register DatabaseSeeder
+services.AddTransient<DatabaseSeeder>();
 
 /* Add application services */
 services.AddAppServices();
@@ -191,15 +194,11 @@ services.AddMongoServices(mongoSettings);
 builder.Host.UseSerilog();
 var app = builder.Build();
 
-// Initialize database and seed default permissions
+// Initialize database and seed default values
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var cacheService = scope.ServiceProvider.GetRequiredService<ICachingRoleService>();
-    context.Database.EnsureCreated();
-    await SeedPermissions(context);
-    await SeedAdminRole(context);
-    await PreLoadCachingRoles(cacheService, context);
+    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+    await seeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline.
@@ -233,53 +232,3 @@ app.MapControllers();
 app.MapHub<AppHub>("/progressHub");
 
 app.Run();
-return;
-
-//Seed default permissions
-async Task SeedPermissions(AppDbContext context)
-{
-    Console.WriteLine("Seeding default permissions...");
-    var existingPermissions = context.Permissions.Select(p => p.PermissionName).ToHashSet();
-    var defaultPermissions = PermissionSeeder.GetDefaultPermissions();
-    var permissionsToAdd = defaultPermissions.Where(permission => !existingPermissions.Contains(permission))
-                                             .Select(permission => new Permission { PermissionName = permission })
-                                             .ToList();
-
-    await context.AddRangeAsync(permissionsToAdd);
-    await context.SaveChangesAsync();
-}
-
-async Task SeedAdminRole(AppDbContext context)
-{
-    Console.WriteLine("Seeding Admin role...");
-    var roleAdmin = await context.Roles.Include(r => r.Permissions)
-                                 .FirstOrDefaultAsync(r => r.RoleName == "Admin");
-    if (roleAdmin == null)
-    {
-        roleAdmin = new Role { RoleName = "Admin" };
-        await context.Roles.AddAsync(roleAdmin);
-        await context.SaveChangesAsync();
-    }
-
-    var permissions = await context.Permissions.ToListAsync();
-    foreach (var permission in permissions)
-    {
-        if (roleAdmin.Permissions.All(p => p.PermissionName != permission.PermissionName))
-        {
-            roleAdmin.Permissions.Add(permission);
-        }
-    }
-
-    await context.SaveChangesAsync();
-}
-
-//Preload all permission of each role into memory cache for fast authorization check
-async Task PreLoadCachingRoles(ICachingRoleService caching, AppDbContext context)
-{
-    Console.WriteLine("Loading role into cache...");
-    var roles = await context.Roles.Select(r => r.RoleName).ToListAsync();
-    foreach (var role in roles)
-    {
-        await caching.GetPermissionsFromCache(role);
-    }
-}

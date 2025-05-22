@@ -195,7 +195,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         var parents = await taxRepo.Find(x => !x.Deleted && (x.ParentId == null || x.ParentId.Value == 0),
                                          sortBy: "Code", order: "ASC")
                                    .AsNoTracking()
-                                   .ToPagedListAsync(req.Number, req.Size);
+                                   .ToPagedListAsync(req.Page, req.Size);
 
         var parentsDict = parents.ToDictionary(x => x.Id, x => x);
 
@@ -262,7 +262,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                                              sortBy: page.SortBy, order: page.OrderBy,
                                              include: [nameof(Province.Districts), nameof(Province.TaxOffices)])
                                        .AsSplitQuery()
-                                       .ToPagedListAsync(page.Number, page.Size);
+                                       .ToPagedListAsync(page.Page, page.Size);
 
         return AppResponse.SuccessResponse(result.MapPagedList(x => x.ToDisplayDto()));
     }

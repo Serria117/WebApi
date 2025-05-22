@@ -160,7 +160,7 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                         ])
                                   .AsSplitQuery()
                                   .AsNoTracking()
-                                  .ToPagedListAsync(req.Number, req.Size)).MapPagedList(x => x.ToDisplayDto());;
+                                  .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto());;
         return req.Fields.Length == 0
             ? AppResponse.SuccessResponse(result) //If no fields are specified, return all fields
             : AppResponse.SuccessResponse(result.ProjectPagedList(req.Fields)); //return only specified fields
@@ -186,7 +186,7 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                         ])
                                   .AsSplitQuery()
                                   .AsNoTracking()
-                                  .ToPagedListAsync(req.Number, req.Size));
+                                  .ToPagedListAsync(req.Page, req.Size));
 
         return req.Fields.Length == 0
             ? AppResponse.SuccessResponse(query.MapPagedList(x => x.ToDisplayDto()))

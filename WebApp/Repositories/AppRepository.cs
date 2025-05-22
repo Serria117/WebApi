@@ -85,10 +85,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
     public async Task<T> CreateAsync(T entity, bool inTransaction = false)
     {
         var saved = (await _dbSet.AddAsync(entity)).Entity;
-        if (inTransaction)
-        {
-            await _db.SaveChangesAsync();
-        }
+        if (!inTransaction) await _db.SaveChangesAsync();
 
         return saved;
     }
@@ -138,7 +135,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
                                       CancellationToken cancellationToken = default)
     {
         await _dbSet.AddRangeAsync(entities, cancellationToken);
-        if (inTransaction)
+        if (!inTransaction)
             await _db.SaveChangesAsync(cancellationToken);
     }
 
@@ -150,7 +147,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
     public async Task<T> UpdateAsync(T entity, bool inTransaction = false)
     {
         var res = _dbSet.Update(entity);
-        if (inTransaction) await _db.SaveChangesAsync();
+        if (!inTransaction) await _db.SaveChangesAsync();
         return res.Entity;
     }
 
@@ -178,7 +175,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
 
     public async Task<bool> SoftDeleteManyAsync(params TK[] ids)
     {
-        var result = await _dbSet.Where(x => ids.Contains(x.Id))
+        var result = await _dbSet.Where(x => ids.Contains(x.Id) && !x.Deleted)
                                  .ExecuteUpdateAsync(x => x.SetProperty(p => p.Deleted, true));
         return result > 0;
     }
@@ -188,7 +185,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         var entity = await _dbSet.FindAsync(id);
         if (entity == null) return false;
         _dbSet.Remove(entity);
-        if (inTransaction) await _db.SaveChangesAsync();
+        if (!inTransaction) await _db.SaveChangesAsync();
         return true;
     }
 
@@ -196,6 +193,6 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
     {
         var entities = await _dbSet.Where(x => ids.Contains(x.Id)).ToListAsync();
         _dbSet.RemoveRange(entities);
-        if (inTransaction) await _db.SaveChangesAsync();
+        if (!inTransaction) await _db.SaveChangesAsync();
     }
 }
