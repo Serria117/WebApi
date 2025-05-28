@@ -32,13 +32,13 @@ public interface ISoldInvoiceAppService
 /// <summary>
 /// Implementation of Sold Invoice Application Service
 /// </summary>
-public class SoldInvoiceAppService(IUserManager userManager,
-                                   ILogger<SoldInvoiceAppService> logger,
+public class SoldInvoiceBaseAppService(IUserManager userManager,
+                                   ILogger<SoldInvoiceBaseAppService> logger,
                                    IRestAppService restService,
                                    ISoldInvoiceDetailRepository soldInvoiceRepository,
                                    IErrorInvoiceRepository errorInvoiceRepository,
                                    INotificationAppService notificationService)
-    : AppServiceBase(userManager), ISoldInvoiceAppService
+    : BaseAppService(userManager), ISoldInvoiceAppService
 {
     public async Task<AppResponse> GetInvoiceFromService(string token, string from, string to)
     {
@@ -78,7 +78,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
         var total = invoiceList.Count;
         if (total == 0)
         {
-            return AppResponse.SuccessResponse("Không có hóa đơn mới cần tải về!");
+            return AppResponse.OkResult("Không có hóa đơn mới cần tải về!");
         }
 
         var deserializedList = new List<SoldInvoiceDetail>();

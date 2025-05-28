@@ -45,12 +45,12 @@ public interface IRestAppService
     Task<AppResponse> GetSoldInvoiceDetail(string token, SoldInvoiceModel invoice);
 }
 
-public class RestAppService(IRestClient restClient,
-                            RestSharpSetting setting,
-                            ILogger<RestAppService> logger,
-                            INotificationAppService notificationService,
-                            IUserManager userManager)
-    : AppServiceBase(userManager), IRestAppService
+public class RestBaseAppService(IRestClient restClient,
+                                RestSharpSetting setting,
+                                ILogger<RestBaseAppService> logger,
+                                INotificationAppService notificationService,
+                                IUserManager userManager)
+    : BaseAppService(userManager), IRestAppService
 {
     private const int MaxRetries = 5;
     private const int DelaySeconds = 30;
@@ -85,7 +85,7 @@ public class RestAppService(IRestClient restClient,
 
         if (response is { IsSuccessful: true, Data: not null })
         {
-            return AppResponse.SuccessResponse(response.Data);
+            return AppResponse.OkResult(response.Data);
         }
 
         return new AppResponse
@@ -110,79 +110,86 @@ public class RestAppService(IRestClient restClient,
 
         var dateRanges = CommonUtil.SplitDateRange(fromValue, toValue);
 
+        List<string> endpoints = ["/query/invoices/sold", "/sco-query/invoices/sold"];
         
-        foreach (var dateRange in dateRanges)
+        foreach (string endpoint in endpoints)
         {
-            var pageCount = 1;
-            var invoiceCount = 0;
-            await Task.Delay(800);
-            var result = await GetSoldInvoiceFromService(token, dateRange.GetFromDate(), dateRange.GetToDate());
-            await notificationService
-                .SendAsync(UserId, HubName.InvoiceMessage,
-                           $"Tải thông tin hóa đơn bán ra - Từ ngày: {dateRange.GetFromDate()} " +
-                           $"đến ngày {dateRange.GetToDate()}\n Trang: {pageCount}");
-            if (result == null)
+            foreach (var dateRange in dateRanges)
             {
-                logger.LogInformation("Found no invoice from {dateRange}", dateRange.ToString());
+                var pageCount = 1;
+                var invoiceCount = 0;
+                await Task.Delay(800);
+                var result =
+                    await GetSoldInvoiceFromService(token, endpoint, dateRange.GetFromDate(), dateRange.GetToDate());
                 await notificationService
                     .SendAsync(UserId, HubName.InvoiceMessage,
-                               $"Không tìm thấy hóa đơn bán ra trong khoảng thời gian\n " +
-                               $"từ ngày {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
-                continue;
-            }
+                               $"Tải thông tin hóa đơn bán ra - Từ ngày: {dateRange.GetFromDate()} " +
+                               $"đến ngày {dateRange.GetToDate()}\n Trang: {pageCount}");
+                if (result == null)
+                {
+                    logger.LogInformation("Found no invoice from {dateRange}", dateRange.ToString());
+                    await notificationService
+                        .SendAsync(UserId, HubName.InvoiceMessage,
+                                   $"Không tìm thấy hóa đơn bán ra trong khoảng thời gian\n " +
+                                   $"từ ngày {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
+                    continue;
+                }
 
-            invoicesList.AddRange(result.Datas);
-            invoiceCount += invoicesList.Count;
-            if (result.State == null)
-            {
-                logger.LogInformation("Found {total} invoices from {range}. No more pages left",
-                                      invoicesList.Count, dateRange.ToString());
-                await notificationService
-                    .SendAsync(UserId, HubName.InvoiceMessage,
-                               $"Tìm thấy {invoiceCount} hóa đơn từ ngày " +
-                               $"{dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
-                continue;
-            }
-
-            var nextState = result.State;
-            while (true)
-            {
-                pageCount++;
-                var nextResult = await GetSoldInvoiceFromService(token,
-                                                                 dateRange.GetFromDate(),
-                                                                 dateRange.GetToDate(),
-                                                                 nextState);
-                if (nextResult == null) break;
-                invoicesList.AddRange(nextResult.Datas);
+                invoicesList.AddRange(result.Datas);
                 invoiceCount += invoicesList.Count;
-                if (nextResult.State == null) break;
-                nextState = nextResult.State;
-            }
+                if (result.State == null)
+                {
+                    logger.LogInformation("Found {total} invoices from {range}. No more pages left",
+                                          invoicesList.Count, dateRange.ToString());
+                    await notificationService
+                        .SendAsync(UserId, HubName.InvoiceMessage,
+                                   $"Tìm thấy {invoiceCount} hóa đơn từ ngày " +
+                                   $"{dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
+                    continue;
+                }
 
-            logger.LogInformation("Found {total} invoices from {from} to {to}. No more pages left",
-                                  invoicesList.Count, dateRange.GetFromDate(), dateRange.GetToDate());
-            await notificationService
-                .SendAsync(UserId, HubName.InvoiceMessage,
-                           $"Tìm thấy {invoiceCount} hóa đơn từ ngày" +
-                           $" {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
+                var nextState = result.State;
+                while (true)
+                {
+                    pageCount++;
+                    var nextResult = await GetSoldInvoiceFromService(token,
+                                                                     dateRange.GetFromDate(),
+                                                                     dateRange.GetToDate(),
+                                                                     nextState);
+                    if (nextResult == null) break;
+                    invoicesList.AddRange(nextResult.Datas);
+                    invoiceCount += invoicesList.Count;
+                    if (nextResult.State == null) break;
+                    nextState = nextResult.State;
+                }
+
+                logger.LogInformation("Found {total} invoices from {from} to {to}. No more pages left",
+                                      invoicesList.Count, dateRange.GetFromDate(), dateRange.GetToDate());
+                await notificationService
+                    .SendAsync(UserId, HubName.InvoiceMessage,
+                               $"Tìm thấy {invoiceCount} hóa đơn từ ngày" +
+                               $" {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
+            }
         }
 
-        return AppResponse.SuccessResponse(invoicesList);
+
+        return AppResponse.OkResult(invoicesList);
     }
 
     /// <summary>
     /// Queries sold invoices from the service within a specified date range, optionally continuing from a previous state.
     /// </summary>
     /// <param name="token">Bearer token used for authentication with the service</param>
+    /// <param name="endpoint">The URL</param>
     /// <param name="from">Start date of the range for fetching sold invoices, formatted as a string</param>
     /// <param name="to">End date of the range for fetching sold invoices, formatted as a string</param>
     /// <param name="state">Optional parameter representing the pagination state for fetching subsequent data, if available</param>
     /// <returns>A SoldInvoiceResponseModel object containing the results of the request or null if the request fails</returns>
-    private async Task<SoldInvoiceResponseModel?> GetSoldInvoiceFromService(string token,
+    private async Task<SoldInvoiceResponseModel?> GetSoldInvoiceFromService(string token, string endpoint,
                                                                             string from, string to,
                                                                             string? state = null)
     {
-        var request = new RestRequest("/query/invoices/sold", Method.Get);
+        var request = new RestRequest(endpoint, Method.Get);
         request.AddHeader("Cookie", setting.Cookie);
         request.AddHeader("Authorization", $"Bearer {token}");
         request.AddQueryParameter("sort", "tdlap:desc,khmshdon:asc,shdon:desc");
@@ -197,7 +204,7 @@ public class RestAppService(IRestClient restClient,
         var response = await restClient.ExecuteAsync<SoldInvoiceResponseModel>(request);
         if (response.IsSuccessful)
         {
-            logger.LogInformation("Successfully retrieved  invoice from {From} to {To}", from, to);
+            logger.LogInformation("Successfully retrieved  invoices from {From} to {To}", from, to);
             //logger.LogInformation("content {content}", response.Content);
             return response.Data;
         }
@@ -210,7 +217,13 @@ public class RestAppService(IRestClient restClient,
 
     public async Task<AppResponse> GetSoldInvoiceDetail(string token, SoldInvoiceModel invoice)
     {
-        const string endpoint = "/query/invoices/detail";
+        List<string> endpoints = ["/query/invoices/detail", "/sco-query/invoices/detail"];
+        
+        var endpoint = invoice switch
+        {
+            { Ttxly: 8 } => endpoints[1],
+            _ => endpoints[0]
+        };
         var request = new RestRequest(endpoint, Method.Get);
         request.AddHeader("Cookie", setting.Cookie);
         request.AddHeader("Authorization", $"Bearer {token}");
@@ -275,7 +288,7 @@ public class RestAppService(IRestClient restClient,
         }
 
         //Console.WriteLine($"{response.Content} successfully retrieved");
-        return AppResponse.SuccessResponse(response.Data!);
+        return AppResponse.OkResult(response.Data!);
     }
 
     #endregion
@@ -346,7 +359,7 @@ public class RestAppService(IRestClient restClient,
 
             logger.LogInformation("Finished getting Invoice List at: {time}", DateTime.Now.ToLocalTime());
             //Use the mapper here instead of converting to DTO then convert back to model
-            return AppResponse.SuccessResponse(invoicesList);
+            return AppResponse.OkResult(invoicesList);
             //return AppResponse.SuccessResponse(invoicesList.Select(x => x.ToDisplayModel()).ToList());
         }
         catch (Exception e)
@@ -467,7 +480,7 @@ public class RestAppService(IRestClient restClient,
         }
 
         //Console.WriteLine($"{response.Content} successfully retrieved");
-        return AppResponse.SuccessResponse(response.Data!);
+        return AppResponse.OkResult(response.Data!);
     }
 
     #endregion

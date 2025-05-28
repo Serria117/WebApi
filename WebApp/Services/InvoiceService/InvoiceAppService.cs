@@ -71,15 +71,15 @@ public interface IInvoiceAppService
     Task<AppResponse> FindSoldInvoices(string taxCode, InvoiceRequestParam invoiceParams);
 }
 
-public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
+public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                                ISoldInvoiceMongoRepository mongoSoldInvoice,
                                IRestAppService restService,
-                               ILogger<InvoiceAppService> logger,
+                               ILogger<InvoiceBaseAppService> logger,
                                IRiskCompanyAppService riskService,
                                IAppRepository<SyncInvoiceHistory, long> historyRepository,
                                ISoldInvoiceDetailRepository soldInvoiceDetailRepository,
                                INotificationAppService notificationService,
-                               IUserManager userManager) : AppServiceBase(userManager), IInvoiceAppService
+                               IUserManager userManager) : BaseAppService(userManager), IInvoiceAppService
 {
     #region Sold Invoices
 
@@ -118,12 +118,12 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                                          .FromDate(invoiceParams.From)
                                          .ToDate(invoiceParams.To)
                                          .WithInvoiceNumber(invoiceParams.InvoiceNumber)
+                                         .WithType(invoiceParams.InvoiceType)
                                          .Build<SoldInvoiceDetail>();
 
         var result = await soldInvoiceDetailRepository.FindInvoiceAsync(filter,
                                                                         invoiceParams.Page!.Value,
                                                                         invoiceParams.Size!.Value);
-
         return new AppResponse
         {
             Success = true,
@@ -218,7 +218,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         {
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
                                                 $"Không có hóa đơn phát sinh từ {from} dến {to}!");
-            return AppResponse.SuccessResponse("No new invoices found");
+            return AppResponse.OkResult("No new invoices found");
         }
 
         var buyerTaxId = invoiceList.First().Nmmst;
@@ -341,7 +341,7 @@ public class InvoiceAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
     {
         var found = await mongoPurchaseInvoice.FindOneAsync(x => x.Id == id && x.Nmmst == taxCode);
         return found != null
-            ? AppResponse.SuccessResponse(found.ToDisplayModel())
+            ? AppResponse.OkResult(found.ToDisplayModel())
             : AppResponse.Error404("No invoice was found.");
     }
 
