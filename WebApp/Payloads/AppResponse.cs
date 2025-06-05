@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using Microsoft.IdentityModel.Tokens;
+using WebApp.Mongo.DeserializedModel;
 using X.PagedList;
 
 namespace WebApp.Payloads;
@@ -29,7 +30,7 @@ public class AppResponse
     {
         return new AppResponse { Success = true, Message = message, Code = code };
     }
-    public static AppResponse SuccessResponse(object data)
+    public static AppResponse OkResult(object data)
     {
         AppResponse response = new()
         {
@@ -48,6 +49,12 @@ public class AppResponse
                 response.PageNumber = pagedList.PageNumber;
                 response.PageSize = pagedList.PageSize;
                 response.PageCount = pagedList.PageCount;
+                break;
+            case IPaginatedDocResult paginatedDocResult:
+                response.TotalCount = paginatedDocResult.Total;
+                response.PageCount = paginatedDocResult.PageCount;
+                response.PageNumber = paginatedDocResult.Page;
+                response.PageCount = paginatedDocResult.PageCount;
                 break;
         }
 
@@ -105,6 +112,17 @@ public class AppResponse
             Success = false,
             Message = message,
             Data = details
+        };
+    }
+
+    public int ToHttpStatusCode()
+    {
+        return Code switch
+        {
+            "200" => 200,
+            "400" => 400,
+            "404" => 404,
+            _ => 500
         };
     }
 }

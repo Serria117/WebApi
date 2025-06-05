@@ -57,7 +57,7 @@ namespace WebApp.Services.UserService
                                             .FirstOrDefaultAsync();
             return found is null
                 ? AppResponse.Error404("Role not found")
-                : AppResponse.SuccessResponse(found.ToDisplayDto());
+                : AppResponse.OkResult(found.ToDisplayDto());
         }
 
         public async Task<AppResponse> GetAllRoles(PageRequest request)
@@ -75,8 +75,8 @@ namespace WebApp.Services.UserService
                                     .ToPagedListAsync(request.Page, request.Size);
             var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
             return request.Fields.Length == 0
-                ? AppResponse.SuccessResponse(dtoResult)
-                : AppResponse.SuccessResponse(dtoResult.ProjectPagedList(request.Fields));
+                ? AppResponse.OkResult(dtoResult)
+                : AppResponse.OkResult(dtoResult.ProjectPagedList(request.Fields));
         }
 
         public async Task<AppResponse> GetAllPermissionsInRole(int roleId)
@@ -85,7 +85,7 @@ namespace WebApp.Services.UserService
                                            .Include(r => r.Permissions).FirstOrDefaultAsync();
             return role is null
                 ? new AppResponse { Success = false, Message = "Role not found" }
-                : AppResponse.SuccessResponse(role.ToDisplayDto());
+                : AppResponse.OkResult(role.ToDisplayDto());
         }
 
         //TODO: implementation for add and remove user from role
@@ -119,7 +119,7 @@ namespace WebApp.Services.UserService
                                            .FirstOrDefaultAsync();
             return role is null
                 ? new AppResponse { Success = false, Message = "Role not found" }
-                : AppResponse.SuccessResponse(role.ToDisplayDto());
+                : AppResponse.OkResult(role.ToDisplayDto());
         }
 
         //TODO: re-test this method for potential bugs

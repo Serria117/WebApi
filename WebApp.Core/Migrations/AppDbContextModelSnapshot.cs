@@ -476,6 +476,32 @@ namespace WebApp.Core.Migrations
                     b.ToTable("RegionDistrict");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.EmailConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AppPassword")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EmailConfigs");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
                 {
                     b.Property<int>("Id")
@@ -909,6 +935,86 @@ namespace WebApp.Core.Migrations
                     b.ToTable("Roles");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.AllowanceCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("Limit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("LimitPerUnit")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PR_AllowanceCategory");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.AllowanceRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AllowanceCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("JobTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AllowanceCategoryId");
+
+                    b.ToTable("PR_AllowanceRate", (string)null);
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.BaseSalary", b =>
                 {
                     b.Property<int>("Id")
@@ -949,7 +1055,44 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("EmployeeId", "EffectiveDate")
                         .IsUnique();
 
-                    b.ToTable("BaseSalaries");
+                    b.ToTable("PR_BaseSalary", (string)null);
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.CostDepartment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PR_CostDepartment", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.Dependent", b =>
@@ -977,20 +1120,24 @@ namespace WebApp.Core.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Pid")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Relationship")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("TaxId")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
 
@@ -1000,7 +1147,41 @@ namespace WebApp.Core.Migrations
                         .IsUnique()
                         .HasFilter("[TaxId] IS NOT NULL");
 
-                    b.ToTable("Dependents");
+                    b.ToTable("PR_Dependent", (string)null);
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.DependentDeductionAmount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PR_DependentDeductionAmount", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.Employee", b =>
@@ -1011,6 +1192,9 @@ namespace WebApp.Core.Migrations
 
                     b.Property<decimal?>("BaseSalary")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("CostDepartmentId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreateAt")
                         .HasColumnType("datetime2");
@@ -1054,9 +1238,177 @@ namespace WebApp.Core.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CostDepartmentId");
+
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("Employees");
+                    b.ToTable("PR_Employee", (string)null);
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.IncomeTaxBracket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("CumulativeTax")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("Max")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Min")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TaxBracketGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxBracketGroupId");
+
+                    b.ToTable("PR_IncomeTaxBracket", (string)null);
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.InsuranceRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("InsuranceRateGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsEmployeePaid")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("Rate")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InsuranceRateGroupId");
+
+                    b.ToTable("PR_InsuranceRate", (string)null);
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.InsuranceRateGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PR_InsuranceRateGroup", (string)null);
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.InsuranceSalary", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("PR_InsuranceSalary", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollComponentCategory", b =>
@@ -1084,7 +1436,10 @@ namespace WebApp.Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PayrollComponentCategories");
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("PR_PayrollComponentCategory", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollComponentType", b =>
@@ -1137,11 +1492,14 @@ namespace WebApp.Core.Migrations
 
                     b.HasIndex("InputTypeId");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.HasIndex("OrganizationId");
 
                     b.HasIndex("PayrollComponentCategoryId");
 
-                    b.ToTable("PayrollComponentTypes");
+                    b.ToTable("PR_PayrollComponentType", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollInput", b =>
@@ -1171,7 +1529,7 @@ namespace WebApp.Core.Migrations
 
                     b.HasIndex("PayrollRecordId");
 
-                    b.ToTable("PayrollInputs");
+                    b.ToTable("PR_PayrollInput", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollInputType", b =>
@@ -1208,7 +1566,7 @@ namespace WebApp.Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PayrollInputTypes");
+                    b.ToTable("PR_PayrollInputType", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollItem", b =>
@@ -1250,7 +1608,7 @@ namespace WebApp.Core.Migrations
 
                     b.HasIndex("PayrollRecordId");
 
-                    b.ToTable("PayrollItems");
+                    b.ToTable("PR_PayrollItem", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollPeriod", b =>
@@ -1276,13 +1634,22 @@ namespace WebApp.Core.Migrations
                     b.Property<bool>("IsClosed")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsFinal")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("LastUpdateAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<decimal>("NetWorkDays")
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
@@ -1290,13 +1657,22 @@ namespace WebApp.Core.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WeekendType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name");
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("PayrollPeriods");
+                    b.ToTable("PR_PayrollPeriod", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollRecord", b =>
@@ -1306,6 +1682,9 @@ namespace WebApp.Core.Migrations
                         .HasColumnType("bigint");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("ActualWorkDays")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreateAt")
                         .HasColumnType("datetime2");
@@ -1319,10 +1698,16 @@ namespace WebApp.Core.Migrations
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("IsClosed")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("LastUpdateAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("PayrollPeriodId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TaxType")
                         .HasColumnType("int");
 
                     b.Property<decimal>("TotalDeduction")
@@ -1341,10 +1726,75 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("EmployeeId", "PayrollPeriodId")
                         .IsUnique();
 
-                    b.ToTable("PayrollRecords");
+                    b.ToTable("PR_PayrollRecord", (string)null);
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.TimeSheet", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.SelfDeductionAmount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PR_SelfDeductionAmount");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.TaxBracketGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PR_TaxBracketGroup", (string)null);
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.Timesheet", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -1374,6 +1824,9 @@ namespace WebApp.Core.Migrations
                     b.Property<bool>("IsHoliday")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTripDay")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsWeekend")
                         .HasColumnType("bit");
 
@@ -1394,7 +1847,7 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("PayrollRecordId", "Date")
                         .IsUnique();
 
-                    b.ToTable("TimeSheets");
+                    b.ToTable("PR_Timesheet", (string)null);
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
@@ -1706,6 +2159,17 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.AllowanceRate", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Salary.AllowanceCategory", "AllowanceCategory")
+                        .WithMany()
+                        .HasForeignKey("AllowanceCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AllowanceCategory");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.BaseSalary", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Salary.Employee", "Employee")
@@ -1730,20 +2194,58 @@ namespace WebApp.Core.Migrations
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.Employee", b =>
                 {
+                    b.HasOne("WebApp.Core.DomainEntities.Salary.CostDepartment", "CostDepartment")
+                        .WithMany("Employees")
+                        .HasForeignKey("CostDepartmentId");
+
                     b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("CostDepartment");
+
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.IncomeTaxBracket", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Salary.TaxBracketGroup", "TaxBracketGroup")
+                        .WithMany("IncomeTaxBrackets")
+                        .HasForeignKey("TaxBracketGroupId");
+
+                    b.Navigation("TaxBracketGroup");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.InsuranceRate", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Salary.InsuranceRateGroup", "InsuranceRateGroup")
+                        .WithMany("InsuranceRates")
+                        .HasForeignKey("InsuranceRateGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InsuranceRateGroup");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.InsuranceSalary", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Salary.Employee", "Employee")
+                        .WithMany("InsuranceSalaries")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollComponentType", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Salary.PayrollInputType", "InputType")
                         .WithMany("PayrollComponentTypes")
-                        .HasForeignKey("InputTypeId");
+                        .HasForeignKey("InputTypeId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
                         .WithMany()
@@ -1830,7 +2332,7 @@ namespace WebApp.Core.Migrations
                     b.Navigation("PayrollPeriod");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.TimeSheet", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.Timesheet", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Salary.PayrollRecord", "PayrollRecord")
                         .WithMany("TimeSheets")
@@ -1913,11 +2415,23 @@ namespace WebApp.Core.Migrations
                     b.Navigation("TaxOffices");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.CostDepartment", b =>
+                {
+                    b.Navigation("Employees");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.Employee", b =>
                 {
                     b.Navigation("BaseSalaries");
 
                     b.Navigation("Dependents");
+
+                    b.Navigation("InsuranceSalaries");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.InsuranceRateGroup", b =>
+                {
+                    b.Navigation("InsuranceRates");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.PayrollComponentCategory", b =>
@@ -1947,6 +2461,11 @@ namespace WebApp.Core.Migrations
                     b.Navigation("PayrollItems");
 
                     b.Navigation("TimeSheets");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Salary.TaxBracketGroup", b =>
+                {
+                    b.Navigation("IncomeTaxBrackets");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>

@@ -109,7 +109,7 @@ namespace WebApp.Services.UserService
         Task<AppResponse> ResetPassword(Guid id, string newPassword);
     }
 
-    public class UserAppAppService(IAppRepository<User, Guid> userRepository,
+    public class UserBaseAppBaseAppService(IAppRepository<User, Guid> userRepository,
                                    IUserMongoRepository userMongoRepository,
                                    ILockedUserMongoRepository lockRepository,
                                    IAppRepository<Organization, Guid> organizationRepository,
@@ -118,8 +118,8 @@ namespace WebApp.Services.UserService
                                    IConfiguration configuration,
                                    IAppRepository<Role, int> roleRepository,
                                    IHttpContextAccessor http,
-                                   ILogger<UserAppAppService> logger,
-                                   IUserManager userManager) : AppServiceBase(userManager), IUserAppService
+                                   ILogger<UserBaseAppBaseAppService> logger,
+                                   IUserManager userManager) : BaseAppService(userManager), IUserAppService
     {
         public async Task<AppResponse> GetAllUsers(PageRequest page)
         {
@@ -133,8 +133,8 @@ namespace WebApp.Services.UserService
                                         .ToPagedListAsync(page.Page, page.Size);
                 var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
                 return page.Fields.Length > 0
-                    ? AppResponse.SuccessResponse(dtoResult.ProjectPagedList(page.Fields))
-                    : AppResponse.SuccessResponse(dtoResult);
+                    ? AppResponse.OkResult(dtoResult.ProjectPagedList(page.Fields))
+                    : AppResponse.OkResult(dtoResult);
             }
             catch (Exception ex)
             {
@@ -153,7 +153,7 @@ namespace WebApp.Services.UserService
                                                 .FirstOrDefaultAsync();
             return foundUser is null
                 ? AppResponse.Error404("User not found")
-                : AppResponse.SuccessResponse(foundUser.ToDisplayDto());
+                : AppResponse.OkResult(foundUser.ToDisplayDto());
         }
 
         public async Task<AppResponse> GetAllUserForOtherService()
@@ -167,7 +167,7 @@ namespace WebApp.Services.UserService
                                                 })
                                                 .OrderBy(x => x.Id)
                                                 .ToListAsync();
-                return AppResponse.SuccessResponse(users);
+                return AppResponse.OkResult(users);
             }
             catch (Exception ex)
             {
@@ -197,7 +197,7 @@ namespace WebApp.Services.UserService
 
             //await userMongoRepository.InsertUser(MapToMongo(createdUser));
 
-            return AppResponse.SuccessResponse(createdUser.ToDisplayDto());
+            return AppResponse.OkResult(createdUser.ToDisplayDto());
         }
 
         public async Task<AuthenticationResponse> Authenticate(UserLoginDto login)

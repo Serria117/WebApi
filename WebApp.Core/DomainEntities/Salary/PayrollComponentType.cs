@@ -40,7 +40,7 @@ public class PayrollComponentType : BaseEntity<int>
     // Nullable if ComponentType is not Input
     public int? InputTypeId { get; set; }
 
-    [ForeignKey("InputTypeId")]
+    [ForeignKey(nameof(InputTypeId))]
     public PayrollInputType? InputType { get; set; }
 
     /// <summary>

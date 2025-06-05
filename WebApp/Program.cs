@@ -180,18 +180,21 @@ services.AddSingleton<IRestClient>(new RestClient(new RestClientOptions(restSett
 /*services.AddAutoMapper(typeof(UserMapper), typeof(RoleMapper),
                        typeof(OrgMapper), typeof(PagedMapper), typeof(RegionMapper));*/
 
-services.AddSingleton<CustomMap>();
+//services.AddSingleton<CustomMap>();
 
-services.AddHttpContextAccessor();
+/*services.AddHttpContextAccessor();
 services.AddScoped<JwtService>();
-services.AddMemoryCache();
-// Register DatabaseSeeder
-services.AddTransient<DatabaseSeeder>();
+services.AddMemoryCache();*/
 
 /* Add application services */
 services.AddAppServices();
 services.AddMongoServices(mongoSettings);
+
+// Register DatabaseSeeder
+services.AddTransient<DatabaseSeeder>();
+
 builder.Host.UseSerilog();
+
 var app = builder.Build();
 
 // Initialize database and seed default values
@@ -212,7 +215,7 @@ app.UseCors(op =>
     op.Build();
 });
 app.UseWebSockets();
-app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<ExceptionHandlerMiddleware>();
 app.UseStaticFiles();
 if (app.Environment.IsDevelopment())
 {

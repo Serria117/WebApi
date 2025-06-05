@@ -9,8 +9,8 @@ public interface IErrorInvoiceAppService
     Task<List<ErrorInvoiceDoc>> FindInvoiceAsync(string orgId, int type);
 }
 
-public class ErrorInvoiceAppService(IUserManager userManager,
-    IErrorInvoiceRepository errorInvoiceRepository) : AppServiceBase(userManager), IErrorInvoiceAppService
+public class ErrorInvoiceBaseAppService(IUserManager userManager,
+    IErrorInvoiceRepository errorInvoiceRepository) : BaseAppService(userManager), IErrorInvoiceAppService
 {
     public async Task<List<ErrorInvoiceDoc>> FindInvoiceAsync(string orgId, int type)
     {

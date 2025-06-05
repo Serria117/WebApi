@@ -1,7 +1,10 @@
-﻿namespace WebApp.Payloads;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace WebApp.Payloads;
 
 public class EmailFilterRequest
 {
+    public string Email { get; set; } = string.Empty;
     public string? Sender { get; set; }
     public string? Subject { get; set; }
     public string? Body { get; set; }

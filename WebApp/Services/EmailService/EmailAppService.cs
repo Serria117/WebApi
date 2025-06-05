@@ -1,35 +1,33 @@
 ﻿using MailKit.Net.Imap;
 using MailKit.Search;
 using MailKit.Security;
-using Microsoft.OpenApi.Expressions;
+using Microsoft.EntityFrameworkCore;
 using MimeKit;
+using WebApp.Core.DomainEntities;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.UserService;
 using WebApp.Utils;
 
-namespace WebApp.Services;
+namespace WebApp.Services.EmailService;
 
 public class EmailService(IConfiguration config, 
                           IHostEnvironment env,
-                          IUnitOfWork uow,
-                          IUserManager userManager) : AppServiceBase(userManager)
+                          IAppRepository<EmailConfig, int> emailConfigRepository,
+                          IUserManager userManager) : BaseAppService(userManager)
 {
-    private readonly string _email = config["EmailSettings:Email"] ?? string.Empty;
-    private readonly string _password = config["EmailSettings:AppPassword"] ?? string.Empty;
-    
     
     public async Task<ICollection<MimeMessage>> FindEmailsAsync(EmailFilterRequest request)
     {
-        if (_email.IsNullOrEmpty() || _password.IsNullOrEmpty())
-        {
-            throw new Exception("Email or password not configured");
-        }
-
+        var emailConfig = await emailConfigRepository.Find(x => x.Email == request.Email)
+                                                     .FirstOrDefaultAsync();
+        
+        NotFoundException.ThrowIfNull(emailConfig, "Email configuration not matched or not found.");
+        
         using var client = new ImapClient();
         await client.ConnectAsync("imap.gmail.com", 993, SecureSocketOptions.SslOnConnect);
-        await client.AuthenticateAsync(_email, _password);
+        await client.AuthenticateAsync(emailConfig!.Email, emailConfig.AppPassword);
         var inbox = client.Inbox;
         await inbox.OpenAsync(MailKit.FolderAccess.ReadOnly);
         // 1. Search for emails from the sender

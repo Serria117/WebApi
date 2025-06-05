@@ -73,7 +73,7 @@ public class BalanceSheetAppService(AppDbContext db,
         try
         {
             var savedBs = await importedBsRepo.CreateAsync(balanceSheet);
-            return AppResponse.SuccessResponse(new
+            return AppResponse.OkResult(new
             {
                 savedBs.Id,
                 Valid = savedBs.IsValid,
@@ -102,7 +102,7 @@ public class BalanceSheetAppService(AppDbContext db,
                                          .ToListAsync();
         return result.IsNullOrEmpty()
             ? AppResponse.Error(ResponseMessage.NotFound)
-            : AppResponse.SuccessResponse(result.MapCollection(x => x.ToDisplayDto()));
+            : AppResponse.OkResult(result.MapCollection(x => x.ToDisplayDto()));
     }
 
     public async Task<AppResponse> GetImportedBalanceSheets(int id)
@@ -113,12 +113,12 @@ public class BalanceSheetAppService(AppDbContext db,
 
         if (result is null) return AppResponse.Error404(ResponseMessage.NotFound);
 
-        return AppResponse.SuccessResponse(result.ToDisplayDto());
+        return AppResponse.OkResult(result.ToDisplayDto());
     }
 
     public async Task<AppResponse> DeleteImportedBalanceSheet(int id)
     {
-        await transaction.BeginTransactionAsync();
+        await transaction.BeginAsync();
         var detailIds = await importedBsDetailRepo.Find(x => x.ImportedBalanceSheet.Id == id)
                                                   .Select(x => x.Id)
                                                   .ToArrayAsync();
@@ -149,7 +149,7 @@ public class BalanceSheetAppService(AppDbContext db,
         
         //TODO: save imported balance sheet to db
 
-        return AppResponse.SuccessResponse(new
+        return AppResponse.OkResult(new
         {
             ImportedBalanceSheet = importedBalanceSheet,
             BalanceSheet = new BalanceSheet
@@ -182,7 +182,7 @@ public class BalanceSheetAppService(AppDbContext db,
                              .OrderBy(x => x.AccountNumber)
                              .AsNoTracking()
                              .ToListAsync();
-        return AppResponse.SuccessResponse(result);
+        return AppResponse.OkResult(result);
     }
 
     public async Task<AppResponse> CreateAccountTemplate(AccountCreateDto input)

@@ -18,7 +18,7 @@ public interface IUnitOfWork
     /// Begins a new database transaction asynchronously.
     /// </summary>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task BeginTransactionAsync();
+    Task BeginAsync();
 
     /// <summary>
     /// Asynchronously commits all changes made within the current unit of work to the database.
@@ -49,7 +49,7 @@ public class UnitOfWork(AppDbContext context,
         return repo;
     }
 
-    public async Task BeginTransactionAsync()
+    public async Task BeginAsync()
     {
         if (_transaction != null) 
             throw new InvalidOperationException("Transaction already started.");

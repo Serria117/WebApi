@@ -16,13 +16,13 @@ namespace WebApp.Services.UserService
         Task<List<MenuItemDisplayDto>> GetMenuItems();
     }
 
-    public class PermissionAppService(IAppRepository<User, Guid> userRepo,
+    public class PermissionBaseAppService(IAppRepository<User, Guid> userRepo,
                                       IAppRepository<Permission, int> permissionRepo,
                                       IAppRepository<Role, int> roleRepo,
                                       IAppRepository<MenuItem, int> menuItemRepo,
                                       IUserManager userManager,
                                       IUserMongoRepository userMongoRepository)
-        : AppServiceBase(userManager), IPermissionAppService
+        : BaseAppService(userManager), IPermissionAppService
     {
         public async Task<List<Permission>> GetPermissions()
         {
@@ -103,7 +103,7 @@ namespace WebApp.Services.UserService
                                                   .OrderBy(p => p.PermissionName)
                                                   .ToListAsync();
             //permissions.Select(mapper.Map<PermissionDisplayDto>)
-            return AppResponse.SuccessResponse(permissions.MapCollection(x => x.ToDisplayDto()));
+            return AppResponse.OkResult(permissions.MapCollection(x => x.ToDisplayDto()));
         }
     }
 }

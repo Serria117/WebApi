@@ -10,4 +10,9 @@ public class EmployeeDisplayDto
     public DateTime? TerminationDate { get; set; }
     public bool IsActive { get; set; }
     public Guid OrganizationId { get; set; }
+    
+    public decimal? Salary { get; set; }
+    public decimal? InsuranceSalary { get; set; }
+    
+    public List<DependentDisplayDto> Dependents { get; set; } = [];
 }

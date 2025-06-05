@@ -95,11 +95,11 @@ public interface IDocumentAppService
     Task<AppResponse> ReadXmlToStringAsync(int id);
 }
 
-public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
+public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docRepository,
                                 IAppRepository<Organization, Guid> orgRepository,
-                                ILogger<DocumentAppService> logger,
+                                ILogger<DocumentBaseAppService> logger,
                                 IUserManager userManager,
-                                IHostEnvironment env) : AppServiceBase(userManager), IDocumentAppService
+                                IHostEnvironment env) : BaseAppService(userManager), IDocumentAppService
 {
     public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {
@@ -176,7 +176,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
 
         var total = uploadFiles.Count;
         await docRepository.CreateManyAsync(uploadFiles);
-        return AppResponse.SuccessResponse(new
+        return AppResponse.OkResult(new
         {
             message = $"{total} file(s) uploaded successfully.",
             total,
@@ -232,7 +232,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             DocumentDate = f.DocumentDate ?? DateTime.Now,
             AdjustmentType = f.AdjustmentType
         });
-        return AppResponse.SuccessResponse(dtoList);
+        return AppResponse.OkResult(dtoList);
     }
 
     public async Task<AppResponse> GetDocumentByIdAsync(int documentId)
@@ -242,7 +242,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
                                include: nameof(OrgDocument.Organization))
                          .FirstOrDefaultAsync();
         return file is not null
-            ? AppResponse.SuccessResponse(file.FilePath)
+            ? AppResponse.OkResult(file.FilePath)
             : AppResponse.Error404("Document not found");
     }
 
@@ -255,7 +255,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
         var filePath = GetFilePath(file);
         using var stream = new FileStream(filePath, FileMode.Open);
         var xmlDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
-        return AppResponse.SuccessResponse(xmlDocument.ToString());
+        return AppResponse.OkResult(xmlDocument.ToString());
     }
 
     public async Task<AppResponse> DeleteFileByIdAsync(int documentId)
@@ -309,7 +309,7 @@ public class DocumentAppService(IAppRepository<OrgDocument, int> docRepository,
             };
 
             return data is not null
-                ? AppResponse.SuccessResponse(data)
+                ? AppResponse.OkResult(data)
                 : AppResponse.Error400("Document type is not supported");
         }
         catch (Exception e)

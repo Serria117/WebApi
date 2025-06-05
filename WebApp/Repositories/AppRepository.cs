@@ -41,6 +41,8 @@ public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
 
     Task<T?> FindByIdAsync(TK id);
     Task<T> UpdateAsync(T entity, bool inTransaction = false);
+
+    Task<ICollection<T>> UpdateManyAsync(ICollection<T> entities, bool inTransaction = false);
     Task<bool> ExistAsync(Expression<Func<T, bool>> predicate);
     Task<int> CountAsync(Expression<Func<T, bool>> predicate);
     Task<bool> SoftDeleteAsync(TK id);
@@ -150,6 +152,14 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         if (!inTransaction) await _db.SaveChangesAsync();
         return res.Entity;
     }
+
+    public async Task<ICollection<T>> UpdateManyAsync(ICollection<T> entities, bool inTransaction = false)
+    {
+        _dbSet.UpdateRange(entities);
+        if (!inTransaction) await _db.SaveChangesAsync();
+        return entities;
+    }
+    
 
     public async Task<bool> ExistAsync(Expression<Func<T, bool>> predicate)
     {

@@ -9,26 +9,34 @@ using WebApp.Services.UserService;
 
 namespace WebApp.Services;
 
-public class AppServiceBase(IUserManager userManager)
+/// <summary>
+/// Base service class providing common user-related properties.
+/// </summary>
+/// <param name="userManager">The user manager instance to retrieve user information.</param>
+public class BaseAppService(IUserManager userManager)
 {
-    protected IUserManager UserManager { get; } = userManager;
     /// <summary>
-    /// Get the current user's id
+    /// Gets the user manager instance.
+    /// </summary>
+    protected IUserManager UserManager { get; } = userManager;
+
+    /// <summary>
+    /// Gets the current user's ID.
     /// </summary>
     protected string? UserId { get; } = userManager.CurrentUserId();
     
     /// <summary>
-    /// Get current username
+    /// Gets the current user's username.
     /// </summary>
     protected string? UserName { get; } = userManager.CurrentUsername();
     
     /// <summary>
-    /// Get current working organization of current user
+    /// Gets the current working organization of the user.
     /// </summary>
     protected string? WorkingOrg { get; } = userManager.WorkingOrg();
 
     /// <summary>
-    /// Get the list of roles assigned to the current user
+    /// Gets the list of roles assigned to the current user.
     /// </summary>
     protected List<string> UserRoles { get; } = userManager.GetRoles();
 }

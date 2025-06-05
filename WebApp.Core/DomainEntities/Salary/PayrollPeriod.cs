@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using WebApp.Enums.Payroll;
 
 namespace WebApp.Core.DomainEntities.Salary;
 
@@ -27,6 +28,33 @@ public class PayrollPeriod : BaseEntityAuditable<int>
     public DateTime EndDate { get; set; }
 
     /// <summary>
+    /// Gets or sets the year of the payroll period.
+    /// </summary>
+    [Range(1990, 2900)]
+    public int Year { get; set; }
+
+    /// <summary>
+    /// Gets or sets the month of the payroll period.
+    /// </summary>
+    [Range(1, 12)]
+    public int Month { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of net workdays in the payroll period.
+    /// </summary>
+    [Column(TypeName = "decimal(18, 2)")]
+    public decimal NetWorkDays { get; set; }
+    /// <summary>
+    /// The version of the payroll period.
+    /// </summary>
+    public int Version { get; set; }
+    /// <summary>
+    /// Indicates whether the payroll period is final. Final payroll periods are typically used for year-end processing or final settlements.
+    /// </summary>
+    public bool IsFinal { get; set; }
+    public WeekendType WeekendType { get; set; } = WeekendType.Sunday;
+
+    /// <summary>
     /// Indicates whether the payroll period is closed.
     /// </summary>
     public bool IsClosed { get; set; } = false;
@@ -42,6 +70,9 @@ public class PayrollPeriod : BaseEntityAuditable<int>
     /// Gets or sets the foreign key for the associated organization.
     /// </summary>
     public Guid OrganizationId { get; set; }
-    
+
+    /// <summary>
+    /// Gets or sets the collection of payroll records associated with this payroll period.
+    /// </summary>
     public ICollection<PayrollRecord> PayrollRecords { get; set; } = new List<PayrollRecord>();
 }

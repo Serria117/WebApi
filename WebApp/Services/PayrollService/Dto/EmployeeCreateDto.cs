@@ -16,5 +16,9 @@ public class EmployeeCreateDto
     public DateTime HireDate { get; set; }
     public DateTime? TerminationDate { get; set; }
 
+    public decimal Salary { get; set; }
+    public decimal InsuranceSalary { get; set; }
+    public List<DependentCreateDto> Dependents { get; set; } = [];
+
    // public Guid OrganizationId { get; set; }
 }

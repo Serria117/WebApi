@@ -4,11 +4,11 @@ using WebApp.Repositories;
 
 namespace WebApp.Services.UserService;
 
-public class MenuAppService(IUserManager userManager, 
+public class MenuBaseAppService(IUserManager userManager, 
                             IAppRepository<Permission, int> permissionRepo,
                             IAppRepository<Role, int> roleRepo,
                             IAppRepository<MenuItem, int> menuRepo) 
-    : AppServiceBase(userManager)
+    : BaseAppService(userManager)
 {
    
 }

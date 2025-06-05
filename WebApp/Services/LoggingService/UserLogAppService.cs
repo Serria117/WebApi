@@ -19,11 +19,11 @@ public interface IUserLogAppService
                                 DateTime? toDate = null);
 }
 
-public class UserLogAppService(IUserManager userManager,
+public class UserLogBaseAppService(IUserManager userManager,
                                IUserLogQueue logQueue,
                                IHttpContextAccessor context,
                                IAppRepository<UserLog, Guid> logRepository)
-    : AppServiceBase(userManager), IUserLogAppService
+    : BaseAppService(userManager), IUserLogAppService
 {
     public Task CreateLog(string action, bool success = true, string? description = null)
     {

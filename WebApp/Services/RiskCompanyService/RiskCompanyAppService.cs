@@ -20,8 +20,8 @@ public interface IRiskCompanyAppService
     bool IsInvoiceRisk(string? sellerTaxCode);
 }
 
-public class RiskCompanyAppService(IAppRepository<RiskCompany, int> riskCompanyRepo,
-                                   IUserManager userManager) : AppServiceBase(userManager), IRiskCompanyAppService
+public class RiskCompanyBaseAppService(IAppRepository<RiskCompany, int> riskCompanyRepo,
+                                   IUserManager userManager) : BaseAppService(userManager), IRiskCompanyAppService
 {
     public async Task<AppResponse> GetAsync(PageRequest page)
     {
@@ -34,12 +34,12 @@ public class RiskCompanyAppService(IAppRepository<RiskCompany, int> riskCompanyR
                                             )
                                             .ToPagedListAsync(page.Page, page.Size);
 
-        return AppResponse.SuccessResponse(riskList);
+        return AppResponse.OkResult(riskList);
     }
 
     public async Task<AppResponse> CreateAsync(RiskCompany riskCompany)
     {
-        return AppResponse.SuccessResponse(await riskCompanyRepo.CreateAsync(riskCompany));
+        return AppResponse.OkResult(await riskCompanyRepo.CreateAsync(riskCompany));
     }
 
     public async Task<AppResponse> CreateManyAsync(List<RiskCompany> riskCompanies)
@@ -60,7 +60,7 @@ public class RiskCompanyAppService(IAppRepository<RiskCompany, int> riskCompanyR
         var positiveInv = invoices.Where(invoice => riskList.Contains(invoice.SellerTaxCode))
                                   .ToList();
 
-        return AppResponse.SuccessResponse(positiveInv);
+        return AppResponse.OkResult(positiveInv);
     }
 
     public bool IsInvoiceRisk(string? sellerTaxCode)

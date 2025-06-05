@@ -12,4 +12,6 @@ public struct ResponseMessage
     
     public const string IdNotFound = "Id không hợp lệ hoặc không tồn tại";
     public const string Duplicate = "DUPLICATE";
+    
+    public const string GenericError = "Đã có lỗi xảy ra, vui lòng thử lại sau.";
 }

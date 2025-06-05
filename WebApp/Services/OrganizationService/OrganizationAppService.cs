@@ -30,14 +30,14 @@ public interface IOrganizationAppService
     Task<AppResponse> GetAllOrgForAdmin(PageRequest req);
 }
 
-public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
+public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRepo,
                                     IAppRepository<Province, int> provinceRepo,
                                     IAppRepository<District, int> districtRepo,
                                     IAppRepository<TaxOffice, int> taxOfficeRepo,
                                     IAppRepository<User, Guid> userRepo,
                                     IAppRepository<OrganizationLoginInfo, int> loginInfoRepo,
                                     IOrgMongoRepository orgMongoRepository,
-                                    IUserManager userManager) : AppServiceBase(userManager), IOrganizationAppService
+                                    IUserManager userManager) : BaseAppService(userManager), IOrganizationAppService
 {
     public async Task<AppResponse> Create(OrganizationInputDto dto)
     {
@@ -62,7 +62,7 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
         var saved = await orgRepo.CreateAsync(newOrg);
         //store new Id in mongo:
         await orgMongoRepository.InsertOrgId(new OrgDoc { OrgId = saved.Id.ToString() });
-        return AppResponse.SuccessResponse(saved.ToDisplayDto());
+        return AppResponse.OkResult(saved.ToDisplayDto());
     }
 
     public async Task<AppResponse> CreateMany(List<OrganizationInputDto> input)
@@ -162,8 +162,8 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                   .AsNoTracking()
                                   .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto());;
         return req.Fields.Length == 0
-            ? AppResponse.SuccessResponse(result) //If no fields are specified, return all fields
-            : AppResponse.SuccessResponse(result.ProjectPagedList(req.Fields)); //return only specified fields
+            ? AppResponse.OkResult(result) //If no fields are specified, return all fields
+            : AppResponse.OkResult(result.ProjectPagedList(req.Fields)); //return only specified fields
     }
     
     public async Task<AppResponse> GetAllOrgByCurrentUserAsync(PageRequest req)
@@ -189,8 +189,8 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                   .ToPagedListAsync(req.Page, req.Size));
 
         return req.Fields.Length == 0
-            ? AppResponse.SuccessResponse(query.MapPagedList(x => x.ToDisplayDto()))
-            : AppResponse.SuccessResponse(query.ProjectPagedList(req.Fields));
+            ? AppResponse.OkResult(query.MapPagedList(x => x.ToDisplayDto()))
+            : AppResponse.OkResult(query.ProjectPagedList(req.Fields));
     }
 
     public async Task<AppResponse> Update(Guid orgId, OrganizationInputDto updateDto)
@@ -282,7 +282,7 @@ public class OrganizationAppService(IAppRepository<Organization, Guid> orgRepo,
                                .FirstOrDefaultAsync();
         return org == null
             ? AppResponse.Error(ResponseMessage.NotFound)
-            : AppResponse.SuccessResponse(org.ToDisplayDto());
+            : AppResponse.OkResult(org.ToDisplayDto());
     }
 
     private async Task<bool> TaxIdExist(string taxId)

@@ -56,10 +56,10 @@ public interface IAdminAppService
     Task<AppResponse> GetAllMenus();
 }
 
-public class AdminAppService(IUserManager userManager,
+public class AdminBaseAppService(IUserManager userManager,
                              IAppRepository<MenuItem, int> menuRepo,
                              IAppRepository<Permission, int> permissionRepo,
-                             ILogger<AdminAppService> logger) : AppServiceBase(userManager), IAdminAppService
+                             ILogger<AdminBaseAppService> logger) : BaseAppService(userManager), IAdminAppService
 {
     public async Task<AppResponse> CreateMenu(MenuInputDto inputDto)
     {
@@ -77,7 +77,7 @@ public class AdminAppService(IUserManager userManager,
             menu.MenuPermissions.Add(new MenuPermission { PermissionId = permission.Id });
 
         var result = await menuRepo.CreateAsync(menu);
-        return AppResponse.SuccessResponse(result);
+        return AppResponse.OkResult(result);
     }
 
     public async Task<AppResponse> UpdateMenu(int id, MenuInputDto input)
@@ -143,7 +143,7 @@ public class AdminAppService(IUserManager userManager,
                                   .Include(x => x.Parent)
                                   .Include(x => x.MenuPermissions)
                                   .FirstOrDefaultAsync();
-        return found is null ? AppResponse.Error404("Menu not found") : AppResponse.SuccessResponse(found);
+        return found is null ? AppResponse.Error404("Menu not found") : AppResponse.OkResult(found);
     }
 
     public async Task<AppResponse> SetPermissionsForMenu(int menuId, List<int> permissionsId)
@@ -205,7 +205,7 @@ public class AdminAppService(IUserManager userManager,
                                           .ThenInclude(x => x.MenuPermissions)
                                           .OrderBy(x => x.Order)
                                           .ToListAsync();
-            return AppResponse.SuccessResponse(childList);
+            return AppResponse.OkResult(childList);
         }
         catch (Exception e)
         {

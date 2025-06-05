@@ -6,6 +6,7 @@ using WebApp.Repositories;
 using WebApp.Services.BackgroundServices;
 using WebApp.Services.BalanceSheetService;
 using WebApp.Services.CachingServices;
+using WebApp.Services.CommonService;
 using WebApp.Services.DocumentService;
 using WebApp.Services.InvoiceService;
 using WebApp.Services.LoggingService;
@@ -70,31 +71,38 @@ public static class DependencyInjector
         s.AddSingleton<INotificationAppService, NotificationAppService>();
         s.AddSingleton<ICachingRoleService, CachingRoleService>();
         s.AddSingleton<IUserLogQueue, UserLogQueue>();
-
+        
+        //Add Http Context Accessor:
+        s.AddHttpContextAccessor();
+        
+        //Add Memory Cache:
+        s.AddMemoryCache();
+        
         //Add background services here:
         s.AddHostedService<UserLogBackgroundService>();
         s.AddHostedService<LockedUserSyncService>();
 
         //Add repositories services here:
         s.AddScoped(typeof(IAppRepository<,>), typeof(AppRepository<,>));
-        s.AddScoped<IRestAppService, RestAppService>();
+        s.AddScoped<IRestAppService, RestBaseAppService>();
         s.AddScoped<IUnitOfWork, UnitOfWork>();
 
         //Add business services here:
+        s.AddScoped<JwtService>();
         s.AddScoped<IUserManager, UserManager>();
-        s.AddScoped<IUserAppService, UserAppAppService>();
+        s.AddScoped<IUserAppService, UserBaseAppBaseAppService>();
         s.AddScoped<IRoleAppService, RoleAppService>();
-        s.AddScoped<IPermissionAppService, PermissionAppService>();
-        s.AddScoped<IOrganizationAppService, OrganizationAppService>();
-        s.AddScoped<IInvoiceAppService, InvoiceAppService>();
+        s.AddScoped<IPermissionAppService, PermissionBaseAppService>();
+        s.AddScoped<IOrganizationAppService, OrganizationBaseAppService>();
+        s.AddScoped<IInvoiceAppService, InvoiceBaseAppService>();
         s.AddScoped<IRegionAppService, RegionAppService>();
-        s.AddScoped<IRiskCompanyAppService, RiskCompanyAppService>();
+        s.AddScoped<IRiskCompanyAppService, RiskCompanyBaseAppService>();
         s.AddScoped<IBalanceSheetAppService, BalanceSheetAppService>();
-        s.AddScoped<IDocumentAppService, DocumentAppService>();
-        s.AddScoped<ISoldInvoiceAppService, SoldInvoiceAppService>();
-        s.AddScoped<IErrorInvoiceAppService, ErrorInvoiceAppService>();
-        s.AddScoped<IUserLogAppService, UserLogAppService>();
-        s.AddScoped<IAdminAppService, AdminAppService>();
+        s.AddScoped<IDocumentAppService, DocumentBaseAppService>();
+        s.AddScoped<ISoldInvoiceAppService, SoldInvoiceBaseAppService>();
+        s.AddScoped<IErrorInvoiceAppService, ErrorInvoiceBaseAppService>();
+        s.AddScoped<IUserLogAppService, UserLogBaseAppService>();
+        s.AddScoped<IAdminAppService, AdminBaseAppService>();
         s.AddScoped<IPayrollAppService, PayrollAppService>();
 
     }

@@ -5,8 +5,8 @@ using WebApp.Enums;
 
 namespace WebApp.GlobalExceptionHandler;
 
-public class ExceptionMiddleware(RequestDelegate next, 
-                                 ILogger<ExceptionMiddleware> logger, 
+public class ExceptionHandlerMiddleware(RequestDelegate next, 
+                                 ILogger<ExceptionHandlerMiddleware> logger, 
                                  IWebHostEnvironment environment)
 {
     public async Task InvokeAsync(HttpContext httpContext)
