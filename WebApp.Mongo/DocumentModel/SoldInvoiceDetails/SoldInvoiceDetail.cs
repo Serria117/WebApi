@@ -8,13 +8,13 @@ namespace WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 public class SoldInvoiceDetail
 {
     [BsonElement("nbmst")]
-    public string Nbmst { get; set; }
+    public string? Nbmst { get; set; }
 
     [BsonElement("khmshdon")][BsonIgnoreIfNull]
     public int Khmshdon { get; set; }
 
     [BsonElement("khhdon")]
-    public string Khhdon { get; set; }
+    public string? Khhdon { get; set; }
 
     [BsonElement("shdon")]
     public int Shdon { get; set; }
@@ -26,7 +26,7 @@ public class SoldInvoiceDetail
     public List<object> Cttkhac { get; set; } = [];
 
     [BsonElement("dvtte")]
-    public string Dvtte { get; set; }
+    public string? Dvtte { get; set; }
 
     [BsonElement("hdon")]
     public string Hdon { get; set; }
@@ -51,16 +51,16 @@ public class SoldInvoiceDetail
     public string Idtbao { get; set; }
 
     [BsonElement("mhdon")]
-    public string Mhdon { get; set; }
+    public string? Mhdon { get; set; }
 
     [BsonElement("mtdtchieu")]
-    public string Mtdtchieu { get; set; }
+    public string? Mtdtchieu { get; set; }
 
     [BsonElement("nbdchi")]
-    public string Nbdchi { get; set; }
+    public string? Nbdchi { get; set; }
 
     [BsonElement("nbten")]
-    public string Nbten { get; set; }
+    public string? Nbten { get; set; }
 
     [BsonElement("nbttkhac")] [JsonIgnore]
     public List<Cttkhac>? Nbttkhac { get; set; } = [];
@@ -78,16 +78,16 @@ public class SoldInvoiceDetail
     public DateTime? Nky { get; set; }
 
     [BsonElement("nmdchi")]
-    public string Nmdchi { get; set; }
+    public string? Nmdchi { get; set; }
 
     [BsonElement("nmmst")][BsonIgnoreIfNull]
-    public string Nmmst { get; set; }
+    public string? Nmmst { get; set; }
 
     [BsonElement("nmten")][BsonIgnoreIfNull]
-    public string Nmten { get; set; }
+    public string? Nmten { get; set; }
 
     [BsonElement("nmttkhac")] [JsonIgnore]
-    public List<object> Nmttkhac { get; set; }
+    public List<object>? Nmttkhac { get; set; }
 
     [BsonElement("ntao")] [BsonRepresentation(BsonType.String)]
     public DateTime Ntao { get; set; }
@@ -105,7 +105,7 @@ public class SoldInvoiceDetail
     public int Tchat { get; set; }
 
     [BsonElement("tdlap")] [BsonRepresentation(BsonType.String)]
-    public DateTime Tdlap { get; set; }
+    public DateTime? Tdlap { get; set; }
 
     [BsonElement("tgia")]
     public double? Tgia { get; set; }
@@ -162,7 +162,7 @@ public class SoldInvoiceDetail
     public string Thtttoan { get; set; }
 
     [BsonElement("msttcgp")]
-    public string Msttcgp { get; set; }
+    public string? Msttcgp { get; set; }
 
     [BsonElement("nbcks")]
     public string? Nbcks { get; set; }
@@ -171,7 +171,7 @@ public class SoldInvoiceDetail
     public string? Cqtcks { get; set; }
 
     [BsonElement("hdhhdvu")]
-    public List<ChiTietHangHoa> Hdhhdvu { get; set; } = [];
+    public List<ChiTietHangHoa>? Hdhhdvu { get; set; } = [];
 
     [BsonElement("qrcode")]
     public string Qrcode { get; set; }
@@ -201,7 +201,7 @@ public class ChiTietHangHoa
     public double? Sluong { get; set; }
 
     [BsonElement("ten")] [BsonIgnoreIfNull]
-    public string Ten { get; set; } = string.Empty;
+    public string? Ten { get; set; } = string.Empty;
 
     [BsonElement("thtien")] [BsonIgnoreIfNull]
     public decimal? Thtien { get; set; }

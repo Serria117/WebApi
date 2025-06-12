@@ -20,7 +20,7 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
         await SeedPermissions();
         await SeedAdminRole();
         await PreLoadCachingRoles();
-        await SeedPayrollComponentCategory();
+        //await SeedPayrollComponentCategory();
         //await SeedGeneralPayrollInputType();
         Console.WriteLine("Finished seeding. Application is ready to use.");
     }
@@ -58,13 +58,17 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
 
         var existingPermissions = roleAdmin.Permissions.Select(p => p.PermissionName).ToHashSet();
         var defaultPermissions = PermissionSeeder.GetDefaultPermissions();
-        var permissionsToAdd = defaultPermissions.Where(permission => !existingPermissions.Contains(permission))
-                                                 .Select(permission => new Permission { PermissionName = permission })
-                                                 .ToList();
-
-        //var permissions = await context.Permissions.ToListAsync();
-        if (permissionsToAdd.IsNullOrEmpty()) return; // No new permissions to add
-
+        var newPermissionName = defaultPermissions.Where(permission => !existingPermissions.Contains(permission))
+                                                  .ToList();
+        if (newPermissionName.IsNullOrEmpty()) return; // No new permissions to add
+        
+        // Fetching permissions to add based on the new permission names
+        var permissionsToAdd = await context.Permissions
+                                            .Where(p => newPermissionName.Contains(p.PermissionName))
+                                            .ToListAsync();
+        
+        if (!permissionsToAdd.IsNullOrEmpty()) return; // No new permissions to add
+        
         foreach (var permission in permissionsToAdd)
         {
             if (roleAdmin.Permissions.All(p => p.PermissionName != permission.PermissionName))
@@ -99,8 +103,10 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
                                   Name = category ?? string.Empty,
                                   Description = category switch
                                   {
-                                      ComponentCategoryType.TaxableIncome => "Các khoản thu nhập tính vào thu nhập chịu thuế",
-                                      ComponentCategoryType.NonTaxableIncome => "Các khoản thu nhập không tính vào chịu thuế",
+                                      ComponentCategoryType.TaxableIncome =>
+                                          "Các khoản thu nhập tính vào thu nhập chịu thuế",
+                                      ComponentCategoryType.NonTaxableIncome =>
+                                          "Các khoản thu nhập không tính vào chịu thuế",
                                       ComponentCategoryType.Deduction => "Các khoản phải khấu trừ",
                                       ComponentCategoryType.PersonalIncomeTax => "Thuế TNCN",
                                       _ => null
@@ -108,7 +114,7 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
                                   Order = defaultCategories.IndexOf(category) + 1,
                               })
                               .ToList();
-        if(categoriesToAdd.IsNullOrEmpty()) return;
+        if (categoriesToAdd.IsNullOrEmpty()) return;
         await context.PayrollComponentCategories.AddRangeAsync(categoriesToAdd);
         await context.SaveChangesAsync();
     }

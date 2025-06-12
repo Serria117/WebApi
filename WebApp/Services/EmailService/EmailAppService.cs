@@ -7,6 +7,7 @@ using WebApp.Core.DomainEntities;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
 using WebApp.Repositories;
+using WebApp.Services.CommonService;
 using WebApp.Services.UserService;
 using WebApp.Utils;
 
@@ -52,7 +53,7 @@ public class EmailService(IConfiguration config,
 
     public async Task SaveAttachmentsAsync(MimeMessage mail, string fileExtension)
     {
-        if(WorkingOrg.IsNullOrEmpty()) throw new InvalidActionException("User has no organization");
+        if(WorkingOrg.ToGuid() == Guid.Empty) throw new InvalidActionException("User has no organization");
         var saveDir = Path.Combine(env.ContentRootPath, "Downloads", "Attachments", WorkingOrg!);
         Directory.CreateDirectory(saveDir);
         foreach (var attachment in mail.Attachments)

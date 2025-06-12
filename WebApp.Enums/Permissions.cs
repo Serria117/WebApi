@@ -29,6 +29,7 @@ public struct Permissions
     public const string InvoiceSync = "INVOICE.SYNC";
     public const string InvoiceQuery = "INVOICE.QUERY";
     public const string InvoiceView = "INVOICE.VIEW";
+    public const string InvoiceUpload = "INVOICE.UPLOAD";
 
     public const string DocumentCreate = "DOCUMENT.CREATE";
     public const string DocumentView = "DOCUMENT.VIEW";

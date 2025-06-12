@@ -91,7 +91,8 @@ public class RestBaseAppService(IRestClient restClient,
         return new AppResponse
         {
             Success = false,
-            Message = $"Error: {response.StatusCode}"
+            Message = $"StatusCode: {response.StatusCode}.",
+            Data = response.Content
         };
     }
 

@@ -16,7 +16,7 @@ using X.PagedList;
 
 namespace WebApp.Services.Mappers;
 
-public static class MapExtension
+public static class DataObjectMapExtension
 {
     /// <summary>
     /// Maps a paged list of entities to a paged list of another type using the provided mapping function.

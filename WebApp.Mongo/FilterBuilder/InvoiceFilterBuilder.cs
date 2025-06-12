@@ -96,7 +96,7 @@ public sealed class InvoiceFilterBuilder
         return filter;
     }
 
-    public InvoiceFilterBuilder WitdId(string? id)
+    public InvoiceFilterBuilder WithId(string? id)
     {
         _id = id;
         return this;

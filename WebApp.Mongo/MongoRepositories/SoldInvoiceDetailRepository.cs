@@ -43,8 +43,8 @@ public class SoldInvoiceDetailRepository(IMongoDatabase database)
         return invoiceList.Count; // If no exception is thrown, all documents were inserted
     }
 
-    public async Task<PaginatedDocResult<SoldInvoiceDetail>> FindInvoiceAsync(
-        FilterDefinition<SoldInvoiceDetail> filter, int page, int size)
+    public async Task<PaginatedDocResult<SoldInvoiceDetail>> FindInvoiceAsync(FilterDefinition<SoldInvoiceDetail> filter, 
+                                                                              int page, int size)
     {
         var sortFilter = Builders<SoldInvoiceDetail>.Sort.Ascending("tdlap")
                                                     .Ascending("shdon");

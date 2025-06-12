@@ -88,7 +88,7 @@ public class InvoiceController(IRestAppService restService,
     /// <param name="request">The request body containing token and date range</param>
     /// <param name="cancellationToken">The cancellation token used to propagate notification that operation should be canceled</param>
     /// <returns></returns>
-    [HttpPost("sync")]
+    [HttpPost("sync")][HasAuthority(Permissions.InvoiceSync)]
     public async Task<IActionResult> SyncInvoice(SyncInvoiceRequest request, CancellationToken cancellationToken)
     {
         try
@@ -231,5 +231,43 @@ public class InvoiceController(IRestAppService restService,
             logger.LogWarning("Request was canceled. {message}", e.Message);
             return StatusCode(499, "Request canceled by the client or server.");
         }
+    }
+
+    /// <summary>
+    /// Uploads a purchase invoice in XML format.
+    /// </summary>
+    /// <param name="files">The XML file containing the purchase invoice to upload.</param>
+    /// <returns>
+    /// Returns <see cref="OkObjectResult"/> with the result if the upload is successful (result.Code == "200"),
+    /// otherwise returns <see cref="BadRequestResult"/> and the error message.
+    /// </returns>
+    [HttpPost("upload/purchase")][HasAuthority(Permissions.InvoiceUpload)]
+    public async Task<IActionResult> UploadXmlInvoice(List<IFormFile> files)
+    {
+        var result = await invService.UploadPurchaseXml(files);
+        return result.Code == "200"
+            ? Ok(result)
+            : BadRequest("File could not be uploaded. " +
+                         "Please check the file format and content. " +
+                         "If the problem persists, contact support.");
+    }
+    
+    /// <summary>
+    /// Uploads sold invoices in XML format.
+    /// </summary>
+    /// <param name="files">The XML files containing the sold invoices to upload.</param>
+    /// <returns>
+    /// Returns <see cref="OkObjectResult"/> with the result if the upload is successful (result.Code == "200"),
+    /// otherwise returns <see cref="BadRequestResult"/> with an error message.
+    /// </returns>
+    [HttpPost("upload/sold")][HasAuthority(Permissions.InvoiceUpload)]
+    public async Task<IActionResult> UploadSoldXmlInvoice(List<IFormFile> files)
+    {
+        var result = await invService.UploadSoldXml(files);
+        return result.Code == "200"
+            ? Ok(result)
+            : BadRequest("File could not be uploaded. " +
+                         "Please check the file format and content. " +
+                         "If the problem persists, contact support.");
     }
 }

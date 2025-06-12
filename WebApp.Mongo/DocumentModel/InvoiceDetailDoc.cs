@@ -254,7 +254,7 @@ public class InvoiceDetailDoc
 
     [BsonElement("ktkhthue")] public object? Ktkhthue { get; set; }
 
-    [BsonElement("hdhhdvu")] public List<Hdhhdvu> Hdhhdvu { get; set; } = [];
+    [BsonElement("hdhhdvu")] public List<Hdhhdvu>? Hdhhdvu { get; set; } = [];
 
     [BsonElement("qrcode")] public string? Qrcode { get; set; }
 
