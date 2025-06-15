@@ -10,12 +10,12 @@ public class PayrollItem: BaseEntityAuditable<long>
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal Value { get; set; }
-    
+
     [ForeignKey(nameof(PayrollRecordId))]
-    public required PayrollRecord PayrollRecord { get; set; }
+    public PayrollRecord PayrollRecord { get; set; } = null!;
     public long PayrollRecordId { get; set; } // Foreign key
 
     [ForeignKey(nameof(PayrollComponentTypeId))]
-    public required PayrollComponentType PayrollComponentType { get; set; }
+    public PayrollComponentType PayrollComponentType { get; set; } = null!;
     public int PayrollComponentTypeId { get; set; } // Foreign key
 }

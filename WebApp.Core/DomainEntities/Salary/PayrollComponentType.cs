@@ -8,7 +8,13 @@ namespace WebApp.Core.DomainEntities.Salary;
 public class PayrollComponentType : BaseEntity<int>
 {
     [MaxLength(255)]
-    public required string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// A short code or identifier for the payroll component type.
+    /// </summary>
+    [MaxLength(255)]
+    public string? Code { get; set; }
 
     [MaxLength(255)]
     public string? Description { get; set; }
@@ -36,6 +42,8 @@ public class PayrollComponentType : BaseEntity<int>
     public bool IsActive { get; set; } = true;
     public bool IsDeductible { get; set; } = false;
     public bool IsTaxable { get; set; } = true;
+    
+    public int? Order { get; set; } = 0;
 
     // Nullable if ComponentType is not Input
     public int? InputTypeId { get; set; }

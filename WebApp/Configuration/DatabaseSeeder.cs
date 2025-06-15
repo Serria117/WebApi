@@ -2,9 +2,7 @@
 using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
-using WebApp.Core.DomainEntities.Salary;
 using WebApp.Enums;
-using WebApp.Enums.Payroll;
 using WebApp.Services.CachingServices;
 
 namespace WebApp.Configuration;
@@ -89,52 +87,5 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
         {
             await caching.GetPermissionsFromCache(role);
         }
-    }
-
-    private async Task SeedPayrollComponentCategory()
-    {
-        Console.WriteLine("--- Seeding Payroll Component Category...");
-        var existingCategories = context.PayrollComponentCategories.Select(c => c.Name).ToHashSet();
-        var defaultCategories = ComponentCategoryType.GetFields().ToList();
-        var categoriesToAdd = defaultCategories
-                              .Where(category => category != null && !existingCategories.Contains(category))
-                              .Select(category => new PayrollComponentCategory
-                              {
-                                  Name = category ?? string.Empty,
-                                  Description = category switch
-                                  {
-                                      ComponentCategoryType.TaxableIncome =>
-                                          "Các khoản thu nhập tính vào thu nhập chịu thuế",
-                                      ComponentCategoryType.NonTaxableIncome =>
-                                          "Các khoản thu nhập không tính vào chịu thuế",
-                                      ComponentCategoryType.Deduction => "Các khoản phải khấu trừ",
-                                      ComponentCategoryType.PersonalIncomeTax => "Thuế TNCN",
-                                      _ => null
-                                  },
-                                  Order = defaultCategories.IndexOf(category) + 1,
-                              })
-                              .ToList();
-        if (categoriesToAdd.IsNullOrEmpty()) return;
-        await context.PayrollComponentCategories.AddRangeAsync(categoriesToAdd);
-        await context.SaveChangesAsync();
-    }
-
-    private async Task SeedGeneralPayrollInputType()
-    {
-        Console.WriteLine("--- Seeding General Payroll Input Type...");
-        var existingTypes = context.PayrollInputTypes
-                                   .Where(t => t.OrganizationId == null)
-                                   .Select(t => t.Name).ToHashSet();
-        var defaultTypes = new List<PayrollInputType>
-        {
-            new() { Name = "Số người phụ thuộc", Unit = "Người", DataType = InputDataType.Number },
-            new() { Name = "Ngày công", Unit = "Ngày", DataType = InputDataType.Date },
-            new() { Name = "Ngày nghỉ", Unit = "Ngày", DataType = InputDataType.Date },
-            new() { Name = "Ngày đi công tác", Unit = "Ngày", DataType = InputDataType.Date },
-        };
-        var typesToAdd = defaultTypes.Where(type => !existingTypes.Contains(type.Name))
-                                     .ToList();
-        if (!typesToAdd.IsNullOrEmpty())
-            await context.PayrollInputTypes.AddRangeAsync(typesToAdd);
     }
 }
