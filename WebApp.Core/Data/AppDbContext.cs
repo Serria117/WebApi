@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
-using WebApp.Core.DomainEntities.Salary;
 
 namespace WebApp.Core.Data;
 
@@ -31,8 +30,6 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<MenuItem> MenuItems { get; set; }
     public DbSet<MenuPermission> MenuPermissions { get; set; }
 
-    public DbSet<Employee> Employees { get; set; } //
-    
     public DbSet<EmailConfig> EmailConfigs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

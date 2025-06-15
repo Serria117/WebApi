@@ -4,7 +4,6 @@ using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
-using WebApp.Core.DomainEntities.Salary;
 using WebApp.Repositories;
 using WebApp.Services.BalanceSheetService.Dto;
 using WebApp.Services.CommonService;
