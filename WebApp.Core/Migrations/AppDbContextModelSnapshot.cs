@@ -24,6 +24,21 @@ namespace WebApp.Core.Migrations
 
             modelBuilder.HasSequence<int>("CommonSeq", "dbo");
 
+            modelBuilder.Entity("EmployeeExpenseTypeHistory", b =>
+                {
+                    b.Property<long>("EmployeesId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ExpenseTypeHistoriesId")
+                        .HasColumnType("CHAR(26)");
+
+                    b.HasKey("EmployeesId", "ExpenseTypeHistoriesId");
+
+                    b.HasIndex("ExpenseTypeHistoriesId");
+
+                    b.ToTable("EmployeeExpenseTypeHistory");
+                });
+
             modelBuilder.Entity("OrganizationUser", b =>
                 {
                     b.Property<Guid>("OrganizationsId")
@@ -388,13 +403,16 @@ namespace WebApp.Core.Migrations
                     b.ToTable("ImportedBalanceSheetDetails");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.SyncInvoiceHistory", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.InvoiceHistory", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("CreateAt")
                         .HasColumnType("datetime2");
@@ -408,18 +426,22 @@ namespace WebApp.Core.Migrations
                     b.Property<DateTime>("FromDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool?>("IsRetried")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("LastUpdateAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("RetryTime")
+                        .HasColumnType("int");
 
                     b.Property<int>("SyncType")
                         .HasColumnType("int");
 
-                    b.Property<string>("TaxId")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("ToDateTime")
+                    b.Property<DateTime>("ToDate")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("TotalFound")
@@ -428,16 +450,11 @@ namespace WebApp.Core.Migrations
                     b.Property<int>("TotalSuccess")
                         .HasColumnType("int");
 
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("TaxId");
+                    b.HasIndex("OrganizationId");
 
-                    b.ToTable("SyncInvoiceHistories");
+                    b.ToTable("INV_InvoiceHistory");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.District", b =>
@@ -476,6 +493,55 @@ namespace WebApp.Core.Migrations
                     b.ToTable("RegionDistrict");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.EmailAttachment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("HashValue")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MessageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId", "HashValue")
+                        .IsUnique()
+                        .HasFilter("[MessageId] IS NOT NULL AND [HashValue] IS NOT NULL");
+
+                    b.ToTable("EmailAttachments");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.EmailConfig", b =>
                 {
                     b.Property<int>("Id")
@@ -500,6 +566,91 @@ namespace WebApp.Core.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EmailConfigs");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.EmailSenderAddress", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email");
+
+                    b.ToTable("EmailSenderAddresses");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.InvoiceServiceToken", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TaxId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Token")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxId");
+
+                    b.ToTable("InvoiceServiceTokens");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.JobSetting", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsActivated")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("JobSettings");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
@@ -804,6 +955,493 @@ namespace WebApp.Core.Migrations
                     b.ToTable("OrganizationLoginInfos");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Allowance", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AllowanceTypeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EmployeeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AllowanceTypeId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("PR_Allowance");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.AllowanceType", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("DefaultAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsInsurance")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsTaxable")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MaxAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("PR_AllowanceType");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Bonus", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<long>("BonusTypeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BonusTypeId");
+
+                    b.HasIndex("EffectiveDate");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EndDate");
+
+                    b.ToTable("PR_Bonus");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.BonusType", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PR_BonusType");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Department", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("CHAR(26)");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Departments");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Dependents", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("DateOfBirth")
+                        .HasColumnType("datetime2")
+                        .HasColumnOrder(3);
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnOrder(0);
+
+                    b.Property<string>("OtherDocument")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("OtherDocumentId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PersonalId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnOrder(1);
+
+                    b.Property<string>("Relationship")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnOrder(2);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("PR_Dependents");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Employee", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("JoinDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnOrder(1);
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OtherDocument")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("OtherDocumentId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PersonalId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnOrder(3);
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnOrder(2);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("PR_Employee");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExpenseType", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("PR_ExpenseType");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExpenseTypeHistory", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("CHAR(26)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExpenseTypeId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenseTypeId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("PR_ExpenseTypeHistory");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.PayrollPeriod", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TotalWorkDay")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Weekend")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("PR_PayrollPeriod");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Salary", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("InsuranceSalaryValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SalaryValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("PR_Salary");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Timesheet", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("CHAR(26)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsHoliday")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsLeave")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsTripDay")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsWorkDay")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LeaveType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("PayrollPeriodId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("PayrollPeriodId");
+
+                    b.ToTable("PR_Timesheet");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Permission", b =>
                 {
                     b.Property<int>("Id")
@@ -1081,6 +1719,21 @@ namespace WebApp.Core.Migrations
                     b.ToTable("MenuPermissions");
                 });
 
+            modelBuilder.Entity("EmployeeExpenseTypeHistory", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.ExpenseTypeHistory", null)
+                        .WithMany()
+                        .HasForeignKey("ExpenseTypeHistoriesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OrganizationUser", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Organization", null)
@@ -1244,6 +1897,143 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Allowance", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.AllowanceType", "AllowanceType")
+                        .WithMany("Allowances")
+                        .HasForeignKey("AllowanceTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.Employee", "Employee")
+                        .WithMany("Allowances")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("AllowanceType");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.AllowanceType", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Bonus", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.BonusType", "BonusType")
+                        .WithMany("Bonus")
+                        .HasForeignKey("BonusTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.Employee", "Employee")
+                        .WithMany("Bonus")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BonusType");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Dependents", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.Employee", "Employee")
+                        .WithMany("Dependents")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Employee", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExpenseType", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExpenseTypeHistory", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.ExpenseType", "ExpenseType")
+                        .WithMany("ExpenseTypeHistories")
+                        .HasForeignKey("ExpenseTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ExpenseType");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.PayrollPeriod", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Salary", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.Employee", "Employee")
+                        .WithMany("Salaries")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Timesheet", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.Employee", "Employee")
+                        .WithMany("Timesheets")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Payroll.PayrollPeriod", "PayrollPeriod")
+                        .WithMany("Timesheets")
+                        .HasForeignKey("PayrollPeriodId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("PayrollPeriod");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.TaxOffice", "Parent")
@@ -1302,6 +2092,39 @@ namespace WebApp.Core.Migrations
             modelBuilder.Entity("WebApp.Core.DomainEntities.Organization", b =>
                 {
                     b.Navigation("OrganizationLoginInfos");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.AllowanceType", b =>
+                {
+                    b.Navigation("Allowances");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.BonusType", b =>
+                {
+                    b.Navigation("Bonus");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Employee", b =>
+                {
+                    b.Navigation("Allowances");
+
+                    b.Navigation("Bonus");
+
+                    b.Navigation("Dependents");
+
+                    b.Navigation("Salaries");
+
+                    b.Navigation("Timesheets");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExpenseType", b =>
+                {
+                    b.Navigation("ExpenseTypeHistories");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.PayrollPeriod", b =>
+                {
+                    b.Navigation("Timesheets");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Permission", b =>

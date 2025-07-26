@@ -46,7 +46,7 @@ public class UserController(IUserAppService userAppService) : ControllerBase
     {
         try
         {
-            var pagedRequest = PageRequest.BuildRequest(req);
+            var pagedRequest = PageRequest.FromParams(req);
             var res = await userAppService.GetAllUsers(pagedRequest);
             return res.Success ? Ok(res) : BadRequest(res);
         }

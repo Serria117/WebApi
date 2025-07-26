@@ -33,7 +33,7 @@ public class RoleController(IRoleAppService roleService, IPermissionAppService p
     [HasAuthority(permission: Permissions.RoleView)]
     public async Task<IActionResult> GetAllRoles([FromQuery] RequestParam req)
     {
-        var paging = PageRequest.BuildRequest(req);
+        var paging = PageRequest.FromParams(req);
         var result = await roleService.GetAllRoles(paging);
         return Ok(result);
     }

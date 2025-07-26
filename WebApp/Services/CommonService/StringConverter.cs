@@ -117,7 +117,7 @@ public static partial class StringConverter
         return double.TryParse(value, out var result) ? result : defaultValue;
     }
 
-    /*public static DateTime ToDateTime(this string? value, DateTime defaultValue = new())
+    /*public static DateTime ToDate(this string? value, DateTime defaultValue = new())
     {
         if (value.IsNullOrEmpty()) return defaultValue;
         return DateTime.TryParse(value, out var result) ? result : defaultValue;
@@ -276,5 +276,23 @@ public static partial class StringConverter
     public static Guid ToGuid(this string? str)
     {
         return Guid.TryParse(str, out var result) ? result : Guid.Empty;
+    }
+
+    /// <summary>
+    /// Extracts a value from a json-like string using a regular expression.
+    /// </summary>
+    /// <param name="str">The json string</param>
+    /// <param name="regex">The regular expression to match</param>
+    /// <returns>the value if match, otherwise null</returns>
+    public static string? ExtractValueRegex(this string str, Regex regex)
+    {
+        string decodedString = str.UnescapeUnicode();
+        var match = regex.Match(decodedString);
+        return match.Success ? match.Groups["value"].Value : null;
+    }
+
+    public static string UnescapeUnicode(this string str)
+    {
+        return Regex.Unescape(str);
     }
 }

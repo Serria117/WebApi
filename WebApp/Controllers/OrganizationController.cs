@@ -48,7 +48,7 @@ public class OrganizationController(IOrganizationAppService orgService) : Contro
     [HasAuthority(Permissions.OrgView)]
     public async Task<IActionResult> GetAll([FromQuery] RequestParam req)
     {
-        var page = PageRequest.BuildRequest(req);
+        var page = PageRequest.FromParams(req);
         var res = await orgService.GetAllOrgByCurrentUserAsync(page);
         return Ok(res);
     }
@@ -56,7 +56,7 @@ public class OrganizationController(IOrganizationAppService orgService) : Contro
     [HttpGet("all-admin")]
     public async Task<IActionResult> GetAllOrgForAdmin([FromQuery] RequestParam req)
     {
-        var page = PageRequest.BuildRequest(req);
+        var page = PageRequest.FromParams(req);
         var res = await orgService.GetAllOrgForAdmin(page);
         return Ok(res);
     }

@@ -10,5 +10,10 @@ public struct CronExp
     /// <summary>
     /// Every first day of month.
     /// </summary>
-    public const string FirstDayOfMonth = "0 0 0 1 1/1 ? *";
+    public const string FirstDayOfMonth = "0 0 0 1 * ?";
+
+    /// <summary>
+    /// Last day of month at 12 PM.
+    /// </summary>
+    public const string LastDayOfMonthAtNoon = " 0 0 12 L * ?";
 }

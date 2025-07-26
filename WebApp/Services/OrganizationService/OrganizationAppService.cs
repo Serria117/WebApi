@@ -61,7 +61,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         var saved = await orgRepo.CreateAsync(newOrg);
         //store new Id in mongo:
-        await orgMongoRepository.InsertOrgId(new OrgDoc { OrgId = saved.Id.ToString() });
+        //await orgMongoRepository.InsertOrgId(new OrgDoc { OrgId = saved.Id.ToString() });
         return AppResponse.OkResult(saved.ToDisplayDto());
     }
 
@@ -111,7 +111,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         {
             var org = dto.ToEntity();
             org.TaxOffice = taxOfficeRepo.Attach(dto.TaxOfficeId!.Value);
-            org.District = districtRepo.Attach(dto.DistrictId!.Value);
+            //org.District = districtRepo.Attach(dto.DistrictId!.Value);
             return org;
         }).ToList();
 
@@ -299,10 +299,10 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
             errors.Add("Invalid tax office or tax office not found");
         }
 
-        if (dto.DistrictId is null || !await districtRepo.ExistAsync(x => x.Id == dto.DistrictId))
+        /*if (dto.DistrictId is null || !await districtRepo.ExistAsync(x => x.Id == dto.DistrictId))
         {
             errors.Add("Invalid district or district not found");
-        }
+        }*/
 
         return errors;
     }

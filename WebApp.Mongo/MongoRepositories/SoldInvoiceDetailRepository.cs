@@ -1,5 +1,7 @@
-﻿using MongoDB.Driver;
+﻿using MongoDB.Bson;
+using MongoDB.Driver;
 using WebApp.Mongo.DeserializedModel;
+using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Mongo.FilterBuilder;
 
@@ -30,6 +32,7 @@ public interface ISoldInvoiceDetailRepository
     /// <param name="filter">The filter definition to match the criteria of the invoice to be checked.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a boolean value indicating whether the invoice exists (true) or not (false).</returns>
     Task<bool> InvoiceExist(FilterDefinition<SoldInvoiceDetail> filter);
+    Task<bool> DeleteSoldInvoice(List<string> ids);
 }
 
 public class SoldInvoiceDetailRepository(IMongoDatabase database)
@@ -71,5 +74,13 @@ public class SoldInvoiceDetailRepository(IMongoDatabase database)
     public async Task<bool> InvoiceExist(FilterDefinition<SoldInvoiceDetail> filter)
     {
         return await Collection.CountDocumentsAsync(filter, new CountOptions { Limit = 1 }) > 0;
+    }
+
+    public async Task<bool> DeleteSoldInvoice(List<string> ids)
+    {
+        if (ids.Count == 0) return false;        
+        var filter = Builders<SoldInvoiceDetail>.Filter.In(i => i.Id, ids);
+        var result = await Collection.DeleteManyAsync(filter);
+        return result.DeletedCount > 0;
     }
 }

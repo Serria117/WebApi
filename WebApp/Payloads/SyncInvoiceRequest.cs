@@ -10,4 +10,5 @@ public class SyncInvoiceRequest
     public string From { get; set; } = string.Empty;
     [Required]
     public string To { get; set; } = string.Empty;
+    public int[]? InvoiceTypes { get; set; }
 }

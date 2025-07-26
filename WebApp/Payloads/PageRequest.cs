@@ -17,24 +17,24 @@ public class PageRequest
     public string[] Fields { get; set; } = [];
 
     /// <summary>
-    /// Get paging and sorting params from request
+    /// Get paging and sorting params from request parameters.
     /// </summary>
-    /// <param name="req"></param>
+    /// <param name="pr"></param>
     /// <returns>The page request object with the parameters extracted and validated from the request.</returns>
-    public static PageRequest BuildRequest(RequestParam req)
+    public static PageRequest FromParams(RequestParam pr)
     {
-        req.Valid();
+        pr.Valid();
         return new PageRequest
         {
-            Page = req.Page ?? 1,
-            Size = req.Size ?? 10,
-            SortBy = req.SortBy ?? "Id",
-            OrderBy = req.OrderBy ?? SortOrder.ASC,
-            Sort = $"{req.SortBy} {req.OrderBy}",
-            Keyword = req.Keyword,
-            From = req.From,
-            To = req.To,
-            Fields = req.Fields
+            Page = pr.Page ?? 1,
+            Size = pr.Size ?? 10,
+            SortBy = pr.SortBy ?? "Id",
+            OrderBy = pr.OrderBy ?? SortOrder.ASC,
+            Sort = $"{pr.SortBy} {pr.OrderBy}",
+            Keyword = pr.Keyword,
+            From = pr.From,
+            To = pr.To,
+            Fields = pr.Fields
         };
     }
 }

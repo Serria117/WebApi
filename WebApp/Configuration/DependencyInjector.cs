@@ -8,10 +8,12 @@ using WebApp.Services.BalanceSheetService;
 using WebApp.Services.CachingServices;
 using WebApp.Services.CommonService;
 using WebApp.Services.DocumentService;
+using WebApp.Services.EmailService;
 using WebApp.Services.InvoiceService;
 using WebApp.Services.LoggingService;
 using WebApp.Services.NotificationService;
 using WebApp.Services.OrganizationService;
+using WebApp.Services.PayrollService;
 using WebApp.Services.RegionService;
 using WebApp.Services.RestService;
 using WebApp.Services.RiskCompanyService;
@@ -93,14 +95,18 @@ public static class DependencyInjector
         s.AddScoped<IRoleAppService, RoleAppService>();
         s.AddScoped<IPermissionAppService, PermissionBaseAppService>();
         s.AddScoped<IOrganizationAppService, OrganizationBaseAppService>();
-        s.AddScoped<IInvoiceAppService, InvoiceBaseAppService>();
+        s.AddScoped<IInvoiceAppService, InvoiceAppService_Old>();
+        s.AddScoped<IInvoiceService, InvoiceService>(); //the new invoice service
         s.AddScoped<IRegionAppService, RegionAppService>();
         s.AddScoped<IRiskCompanyAppService, RiskCompanyBaseAppService>();
         s.AddScoped<IBalanceSheetAppService, BalanceSheetAppService>();
         s.AddScoped<IDocumentAppService, DocumentBaseAppService>();
-        s.AddScoped<ISoldInvoiceAppService, SoldInvoiceBaseAppService>();
+        s.AddScoped<ISoldInvoiceAppService, SoldInvoiceAppService>();
         s.AddScoped<IErrorInvoiceAppService, ErrorInvoiceBaseAppService>();
         s.AddScoped<IUserLogAppService, UserLogBaseAppService>();
         s.AddScoped<IAdminAppService, AdminBaseAppService>();
+        s.AddScoped<IPayrollAppService, PayrollAppService>();
+        s.AddScoped<IInvoiceHistoryAppService, InvoiceHistoryAppService>();
+        s.AddScoped<IEmailAppService, EmailAppService>();
     }
 }

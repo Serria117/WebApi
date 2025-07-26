@@ -18,6 +18,7 @@ namespace WebApp.Controllers;
 public class InvoiceController(IRestAppService restService,
                                IInvoiceAppService invService,
                                IUserLogAppService logService,
+                               IInvoiceService invoiceService,
                                ISoldInvoiceAppService soldInvoiceService,
                                ILogger<InvoiceController> logger) : ControllerBase
 {
@@ -70,7 +71,8 @@ public class InvoiceController(IRestAppService restService,
     {
         try
         {
-            var result = await invService.FindPurchaseInvoices(taxId, parameters.Valid());
+            //var result = await invService.FindPurchaseInvoices(taxId, parameters.Valid());
+            var result = await invoiceService.QueryPurchaseInvoices(taxId, parameters.Valid());
             await logService.CreateLog(LogAction.Query, true,
                                        $"Mst [{taxId}] tìm kiếm hóa đơn mua hàng từ {parameters.From} đến {parameters.To}");
             return Ok(result);
@@ -96,7 +98,8 @@ public class InvoiceController(IRestAppService restService,
             var jwtHandler = new JwtSecurityTokenHandler();
             var taxId = jwtHandler.ReadJwtToken(request.Token).Subject;
 
-            var res = await invService.ExtractPurchaseInvoices(request.Token, request.From, request.To);
+            //var res = await invService.ExtractPurchaseInvoices(request.Token, request.From, request.To);
+            var res = await invoiceService.ExtractPurchaseInvoices(request.Token, request.From, request.To, request.InvoiceTypes);
             await logService.CreateLog(LogAction.Sync, true,
                                        $"Mst [{taxId}] đồng bộ hóa đơn mua hàng từ {request.From} đến {request.To}");
             return Ok(res);
@@ -123,7 +126,7 @@ public class InvoiceController(IRestAppService restService,
     {
         try
         {
-            var fileByte = await invService.ExportExcel(taxId, from, to);
+            var fileByte = await invoiceService.ExportExcel(taxId, from, to);
             if (fileByte is null)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, new
@@ -222,7 +225,8 @@ public class InvoiceController(IRestAppService restService,
             var result = await invService.FindSoldInvoices(taxId, parameters);
 
             await logService.CreateLog(LogAction.Query, true,
-                                       $"Mst [{taxId}] tìm kiếm hóa đơn bán hàng từ {parameters.From} đến {parameters.To}");
+                                       $"Mst [{taxId}] tìm kiếm hóa đơn bán hàng " +
+                                       $"từ {parameters.From} đến {parameters.To}");
 
             return Ok(result);
         }
@@ -244,7 +248,7 @@ public class InvoiceController(IRestAppService restService,
     [HttpPost("upload/purchase")][HasAuthority(Permissions.InvoiceUpload)]
     public async Task<IActionResult> UploadXmlInvoice(List<IFormFile> files)
     {
-        var result = await invService.UploadPurchaseXml(files);
+        var result = await invoiceService.UploadPurchaseInvoices(files);
         return result.Code == "200"
             ? Ok(result)
             : BadRequest("File could not be uploaded. " +
@@ -269,5 +273,19 @@ public class InvoiceController(IRestAppService restService,
             : BadRequest("File could not be uploaded. " +
                          "Please check the file format and content. " +
                          "If the problem persists, contact support.");
+    }
+
+    [HttpDelete("delete/purchase")]
+    public async Task<IActionResult> DeletePurchaseInvoices(List<string> ids)
+    {
+        var result = await invoiceService.DeletePurchaseInvoicesAsync(ids);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("delete/sold")]
+    public async Task<IActionResult> DeleteSoldInvoice(List<string> ids)
+    {
+        var result = await invoiceService.DeleteSoldInvoicesAsync(ids);
+        return result.Success ? Ok(result) : BadRequest(result);
     }
 }

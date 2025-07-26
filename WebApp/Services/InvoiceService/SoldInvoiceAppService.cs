@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Enums;
 using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
@@ -6,6 +7,7 @@ using WebApp.Mongo.FilterBuilder;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
 using WebApp.Payloads.Messages;
+using WebApp.Services.CommonService;
 using WebApp.Services.NotificationService;
 using WebApp.Services.RestService;
 using WebApp.Services.RestService.Dto.SoldInvoice;
@@ -32,18 +34,26 @@ public interface ISoldInvoiceAppService
 /// <summary>
 /// Implementation of Sold Invoice Application Service
 /// </summary>
-public class SoldInvoiceBaseAppService(IUserManager userManager,
-                                   ILogger<SoldInvoiceBaseAppService> logger,
+public class SoldInvoiceAppService(IUserManager userManager,
+                                   ILogger<SoldInvoiceAppService> logger,
                                    IRestAppService restService,
                                    ISoldInvoiceDetailRepository soldInvoiceRepository,
                                    IErrorInvoiceRepository errorInvoiceRepository,
+                                   IInvoiceHistoryAppService invoiceHistoryService,
                                    INotificationAppService notificationService)
     : BaseAppService(userManager), ISoldInvoiceAppService
 {
     public async Task<AppResponse> GetInvoiceFromService(string token, string from, string to)
     {
         var response = await restService.GetSoldInvoiceInRangeAsync(token, from, to);
-
+        var countFromResponse = response.TotalCount ?? 0;
+        Console.WriteLine($"Count from response = {countFromResponse}");
+        if (countFromResponse == 0)
+        {
+            await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Không có hóa đơn mới cần tải về!");
+            return AppResponse.OkResult("Không có hóa đơn mới cần tải về!");
+        }
+        
         if (response is not { Success: true, Data: not null })
         {
             logger.LogWarning("Invoice not found. {message}", response.Message);
@@ -72,7 +82,8 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
         {
             await notificationService.SendAsync(UserId, 
                                                 HubName.InvoiceMessage,
-                                                $"{duplicatedCount}/{responseData.Count} hóa đơn đã có trong hệ thống"); //Notify user about duplicated invoices
+                                                $"{duplicatedCount}/{responseData.Count} " +
+                                                $"hóa đơn đã có trong hệ thống"); //Notify user about duplicated invoices
         }
 
         var total = invoiceList.Count;
@@ -97,12 +108,10 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                 await notificationService.SendAsync(UserId,
                                                     HubName.InvoiceStatus,
                                                     InvoiceMessage.Create(
-                                                        saved: downloadCount, total: invoiceList.Count)
+                                                        saved: downloadCount, 
+                                                        total: invoiceList.Count)
                 );
 
-                /*await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
-                                                    $"Tải thành công hóa đơn số {invoice.Shdon}. " +
-                                                    $"Đã tải {downloadCount}/{invoiceList.Count} hóa đơn");*/
                 try
                 {
                     var invoiceDetailJson = JsonConvert.SerializeObject(invoiceDetailResponse.Data);
@@ -114,7 +123,8 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                     }
                     else
                     {
-                        logger.LogWarning("Failed to deserialize invoice {number} - result was null", invoice.Shdon);
+                        logger.LogWarning("Failed to deserialize invoice {number} of {mst} [{date}] - result was null", 
+                                          invoice.Shdon, invoice.Nbmst, invoice.Tdlap);
                         await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
                                                             $"Không thể xử lý dữ liệu hóa đơn số {invoice.Shdon}");
                     }
@@ -129,9 +139,9 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                     await errorInvoiceRepository.InsertAsync(new ErrorInvoiceDoc()
                     {
                         InvoiceNumber = invoice.Shdon,
-                        ClientId = WorkingOrg,
+                        OrgId = WorkingOrg,
                         Content = invoiceDetailResponse.Data.ToString(),
-                        CreateDate = DateTime.UtcNow.ToLocalTime(),
+                        InvoiceDate = DateTime.UtcNow.ToLocalTime(),
                         Message = ex.Message,
                         Period = $"{from} - {to}"
                     });
@@ -146,9 +156,9 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                     await errorInvoiceRepository.InsertAsync(new ErrorInvoiceDoc
                     {
                         InvoiceNumber = invoice.Shdon,
-                        ClientId = WorkingOrg,
+                        OrgId = WorkingOrg,
                         Content = invoiceDetailResponse.Data.ToString(),
-                        CreateDate = DateTime.UtcNow.ToLocalTime(),
+                        InvoiceDate = DateTime.UtcNow.ToLocalTime(),
                         Message = ex.Message,
                         Period = $"{from} - {to}"
                     });
@@ -163,9 +173,9 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                     await errorInvoiceRepository.InsertAsync(new ErrorInvoiceDoc
                     {
                         InvoiceNumber = invoice.Shdon,
-                        ClientId = WorkingOrg,
+                        OrgId = WorkingOrg,
                         Content = invoiceDetailResponse.Data.ToString(),
-                        CreateDate = DateTime.UtcNow.ToLocalTime(),
+                        InvoiceDate = DateTime.UtcNow.ToLocalTime(),
                         Message = ex.Message,
                         Period = $"{from} - {to}"
                     });
@@ -202,9 +212,9 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                     await errorInvoiceRepository.InsertAsync(new ErrorInvoiceDoc
                     {
                         InvoiceNumber = invoice.Shdon,
-                        ClientId = WorkingOrg,
+                        OrgId = WorkingOrg,
                         Content = invoiceDetailResponse.Data.ToString(),
-                        CreateDate = DateTime.UtcNow.ToLocalTime(),
+                        InvoiceDate = DateTime.UtcNow.ToLocalTime(),
                         Message = ex.Message,
                         Period = $"{from} - {to}"
                     });
@@ -222,7 +232,8 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                 await soldInvoiceRepository.InsertManyInvoiceAsync(deserializedList); //Insert many record at once
             if (insertedCount > 0)
             {
-                logger.LogInformation("A batch of {count} invoices have been successfully inserted.", insertedCount);
+                logger.LogInformation("A batch of {count} invoices have been successfully inserted.", 
+                                      insertedCount);
             }
             deserializedList.Clear(); //Clear list after inserting
         }
@@ -235,10 +246,19 @@ public class SoldInvoiceBaseAppService(IUserManager userManager,
                                             $"{insertedCount}/{total} hóa đơn đã được lưu.\n" +
                                             $"{duplicatedCount} hóa đơn đã có trong hệ thống.\n" +
                                             $"{errors.Count} hóa đơn lỗi.");
+       
+        //write history:
+        await invoiceHistoryService.CreateHistoryAsync(from: from.ToDateTime()!.Value,
+                                                       to: to.ToDateTime()!.Value,
+                                                       totalFound: countFromResponse,
+                                                       totalSuccess: insertedCount,
+                                                       type: SyncType.Sold);
+
         return new AppResponse
         {
             Success = true,
             Message = "Ok",
+            TotalCount = countFromResponse,
             Data = new
             {
                 Total = total,

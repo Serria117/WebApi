@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Linq.Expressions;
+using System.Net.WebSockets;
 using System.Text.RegularExpressions;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -22,7 +23,9 @@ public interface IInvoiceMongoRepository
     Task CreateOneAsync(InvoiceDetailDoc document, Expression<Func<InvoiceDetailDoc, bool>> filter);
     Task CreateManyAsync(IEnumerable<InvoiceDetailDoc> documents, Expression<Func<InvoiceDetailDoc, bool>> filter);
     Task<long> UpdateInvoiceStatus(string invId, int status);
+    Task<long> UpdateInvoiceStatus(FilterDefinition<InvoiceDetailDoc> filter, int status);
     Task<bool> InvoiceExist(FilterDefinition<InvoiceDetailDoc> filter);
+    Task<bool> DeleteInvoices(IEnumerable<string> ids);
 }
 
 public class InvoiceMongoRepository(IMongoDatabase db)
@@ -37,6 +40,13 @@ public class InvoiceMongoRepository(IMongoDatabase db)
         var result =
             await Collection.UpdateOneAsync(filter, Builders<InvoiceDetailDoc>.Update.Set(i => i.Tthai, status));
         return result.IsModifiedCountAvailable ? result.ModifiedCount : 0;
+    }
+
+    public async Task<long> UpdateInvoiceStatus(FilterDefinition<InvoiceDetailDoc> filter, int status)
+    {
+        var updateResult = await Collection.UpdateOneAsync(filter,
+                                                           Builders<InvoiceDetailDoc>.Update.Set(i => i.Tthai, status));
+        return updateResult.IsModifiedCountAvailable ? updateResult.ModifiedCount : 0;
     }
 
     public async Task<HashSet<string>> GetExistingInvoiceIdsAsync(List<string> ids, string? taxCode = null)
@@ -102,6 +112,22 @@ public class InvoiceMongoRepository(IMongoDatabase db)
     public async Task<bool> InvoiceExist(FilterDefinition<InvoiceDetailDoc> filter)
     {
         return await Collection.CountDocumentsAsync(filter, new CountOptions { Limit = 1 }) > 0;
+    }
+
+    public async Task<bool> DeleteInvoices(IEnumerable<string> ids)
+    {
+        if (ids is null || !ids.Any()) return false;
+        List<ObjectId> idToDelete = [];
+        foreach(var id in ids)
+        {
+            if (ObjectId.TryParse(id, out var objId))
+            {
+                idToDelete.Add(objId);
+            }
+        }
+        var filter = Builders<InvoiceDetailDoc>.Filter.In(x => x._id, idToDelete);
+        var result = await Collection.DeleteManyAsync(filter);
+        return result.DeletedCount > 0;
     }
 
     /*public bool InvoiceExist(string? invoiceId, string? taxId = null)

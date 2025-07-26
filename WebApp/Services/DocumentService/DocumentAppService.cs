@@ -194,7 +194,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             return AppResponse.Error400("You must select working organization first");
         }
 
-        var param = PageRequest.BuildRequest(requestParam);
+        var param = PageRequest.FromParams(requestParam);
 
         int fromYear;
         int toYear;

@@ -50,4 +50,6 @@ public class Organization : BaseEntityAuditable<Guid>
     public string? TypeOfVatPeriod { get; set; } = "Q";
 
     public HashSet<OrganizationLoginInfo> OrganizationLoginInfos { get; set; } = [];
+
+    public ICollection<Contract> Contracts { get; set; } = [];
 }

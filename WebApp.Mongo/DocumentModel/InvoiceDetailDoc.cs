@@ -76,17 +76,20 @@ public class InvoiceDetailDoc
 
     [BsonElement("nbtnvchuyen")] public object? Nbtnvchuyen { get; set; }
 
-    [BsonElement("nbttkhac")] public List<object>? Nbttkhac { get; set; } = [];
+    [BsonElement("nbttkhac")] public List<Nbttkhac>? Nbttkhac { get; set; }
 
-    [BsonElement("ncma")] [BsonRepresentation(BsonType.String)]
+    [BsonElement("ncma")]
+    [BsonRepresentation(BsonType.String)]
     public DateTime? Ncma { get; set; }
 
-    [BsonElement("ncnhat")] [BsonRepresentation(BsonType.String)]
+    [BsonElement("ncnhat")]
+    [BsonRepresentation(BsonType.String)]
     public DateTime? Ncnhat { get; set; }
 
     [BsonElement("ngcnhat")] public string? Ngcnhat { get; set; }
 
-    [BsonElement("nky")] [BsonRepresentation(BsonType.String)]
+    [BsonElement("nky")]
+    [BsonRepresentation(BsonType.String)]
     public DateTime? Nky { get; set; }
 
     [BsonElement("nmdchi")] public string? Nmdchi { get; set; }
@@ -101,12 +104,14 @@ public class InvoiceDetailDoc
 
     [BsonElement("nmtnmua")] public object? Nmtnmua { get; set; }
 
-    [BsonElement("nmttkhac")] public List<object> Nmttkhac { get; set; } = [];
+    [BsonElement("nmttkhac")] public List<Nmttkhac>? Nmttkhac { get; set; }
 
-    [BsonElement("ntao")] [BsonRepresentation(BsonType.String)]
+    [BsonElement("ntao")]
+    [BsonRepresentation(BsonType.String)]
     public DateTime? Ntao { get; set; }
 
-    [BsonElement("ntnhan")] [BsonRepresentation(BsonType.String)]
+    [BsonElement("ntnhan")]
+    [BsonRepresentation(BsonType.String)]
     public DateTime? Ntnhan { get; set; }
 
     [BsonElement("pban")] public string? Pban { get; set; }
@@ -117,7 +122,8 @@ public class InvoiceDetailDoc
 
     [BsonElement("tchat")] public int? Tchat { get; set; }
 
-    [BsonElement("tdlap")] [BsonRepresentation(BsonType.String)]
+    [BsonElement("tdlap")]
+    [BsonRepresentation(BsonType.String)]
     public DateTime? Tdlap { get; set; }
 
     [BsonElement("tgia")] public double? Tgia { get; set; }
@@ -144,11 +150,11 @@ public class InvoiceDetailDoc
 
     [BsonElement("tthai")] public int? Tthai { get; set; }
 
-    [BsonElement("ttkhac")] public List<object> Ttkhac { get; set; } = [];
+    [BsonElement("ttkhac")] public List<Ttkhac>? Ttkhac { get; set; }
 
     [BsonElement("tttbao")] public int? Tttbao { get; set; }
 
-    [BsonElement("ttttkhac")] public List<object> Ttttkhac { get; set; } = [];
+    [BsonElement("ttttkhac")] public List<Ttttkhac>? Ttttkhac { get; set; }
 
     [BsonElement("ttxly")] public int? Ttxly { get; set; }
 
@@ -320,8 +326,8 @@ public class Hdhhdvu
 
     [BsonElement("thtcthue")] public object? Thtcthue { get; set; }
 
-    [BsonElement("thtien")] public decimal? Thtien { get; set; }
-
+    [BsonElement("thtien"), BsonIgnoreIfNull, BsonRepresentation(BsonType.Decimal128)]
+    public decimal? Thtien { get; set; }
     [BsonElement("tlckhau")] public double? Tlckhau { get; set; }
 
     [BsonElement("tsuat")] public decimal? Tsuat { get; set; }
@@ -330,7 +336,7 @@ public class Hdhhdvu
 
     [BsonElement("sxep")] public int? Sxep { get; set; }
 
-    [BsonElement("ttkhac")] public List<object> Ttkhac { get; set; } = [];
+    [BsonElement("ttkhac")] public List<Ttkhac>? Ttkhac { get; set; }
 
     public object? Dvtte { get; set; }
 
@@ -345,4 +351,64 @@ public class Cttkhac
     [BsonElement("kdlieu")] public string? Kdlieu { get; set; }
 
     [BsonElement("dlieu")] public string? Dlieu { get; set; }
+}
+
+public class Ttkhac
+{
+    [BsonElement("ttruong")]
+    [BsonIgnoreIfNull]
+    public string? Ttruong { get; set; }
+
+    [BsonElement("kdlieu")]
+    [BsonIgnoreIfNull]
+    public string? Kdlieu { get; set; }
+
+    [BsonElement("dlieu")]
+    [BsonIgnoreIfNull]
+    public string? Dlieu { get; set; }
+}
+
+public class Nbttkhac
+{
+    [BsonElement("ttruong")]
+    [BsonIgnoreIfNull]
+    public string? Ttruong { get; set; }
+
+    [BsonElement("kdlieu")]
+    [BsonIgnoreIfNull]
+    public string? Kdlieu { get; set; }
+
+    [BsonElement("dlieu")]
+    [BsonIgnoreIfNull]
+    public string? Dlieu { get; set; }
+}
+
+public class Nmttkhac
+{
+    [BsonElement("ttruong")]
+    [BsonIgnoreIfNull]
+    public string? Ttruong { get; set; }
+
+    [BsonElement("kdlieu")]
+    [BsonIgnoreIfNull]
+    public string? Kdlieu { get; set; }
+
+    [BsonElement("dlieu")]
+    [BsonIgnoreIfNull]
+    public string? Dlieu { get; set; }
+}
+
+public class Ttttkhac
+{
+    [BsonElement("ttruong")]
+    [BsonIgnoreIfNull]
+    public string? Ttruong { get; set; }
+
+    [BsonElement("kdlieu")]
+    [BsonIgnoreIfNull]
+    public string? Kdlieu { get; set; }
+
+    [BsonElement("dlieu")]
+    [BsonIgnoreIfNull]
+    public string? Dlieu { get; set; }
 }

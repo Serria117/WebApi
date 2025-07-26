@@ -3,6 +3,7 @@
 public class InvoiceDisplayDto
 {
     public string Id { get; set; } = string.Empty;
+    public string MongoId { get; set; } = string.Empty;
     public string SellerTaxCode { get; set; } = string.Empty;
     public string? SellerAddress { get; set; }
     public string SellerName { get; set; } = string.Empty;
@@ -35,6 +36,9 @@ public class InvoiceDisplayDto
     public bool? Risk { get; set; } = false;
 
     public string? SellerSignature { get; set; }
+
+    public string? LookUpUrl { get; set; }
+    public string? LookUpCode { get; set; }
 }
 
 public class Goods

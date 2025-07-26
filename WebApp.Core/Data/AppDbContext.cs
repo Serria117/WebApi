@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities.Payroll;
 
 namespace WebApp.Core.Data;
 
@@ -10,20 +11,26 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<Permission> Permissions { get; set; }
-    public DbSet<Organization> Organizations { get; set; }
-    public DbSet<OrganizationInfo> OrganizationInfos { get; set; }
+    
     public DbSet<TaxOffice> TaxOffices { get; set; }
     public DbSet<District> Districts { get; set; }
     public DbSet<Province> Provinces { get; set; }
+
     public DbSet<Account> Accounts { get; set; }
     public DbSet<BalanceSheet> BalanceSheets { get; set; }
     public DbSet<BalanceSheetDetail> BalanceSheetDetails { get; set; }
     public DbSet<ImportedBalanceSheet> ImportedBalanceSheets { get; set; }
     public DbSet<ImportedBalanceSheetDetail> ImportedBalanceSheetDetails { get; set; }
+
     public DbSet<RiskCompany> RiskCompanies { get; set; }
-    public DbSet<SyncInvoiceHistory> SyncInvoiceHistories { get; set; }
+    public DbSet<InvoiceHistory> SyncInvoiceHistories { get; set; }
+
     public DbSet<OrgDocument> Documents { get; set; }
+    public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationLoginInfo> OrganizationLoginInfos { get; set; }
+    public DbSet<OrganizationInfo> OrganizationInfos { get; set; }
+
+    public DbSet<JobSetting> JobSettings { get; set; }
 
     public DbSet<UserLog> UserLogs { get; set; }
 
@@ -31,6 +38,29 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<MenuPermission> MenuPermissions { get; set; }
 
     public DbSet<EmailConfig> EmailConfigs { get; set; }
+    public DbSet<EmailAttachment> EmailAttachments { get; set; }
+    public DbSet<EmailSenderAddress> EmailSenderAddresses { get; set; }
+
+    public DbSet<InvoiceServiceToken> InvoiceServiceTokens { get; set; }
+
+    // Payroll related entities
+    public DbSet<Employee> Employees { get; set; }
+    public DbSet<Dependents> Dependents { get; set; }
+    public DbSet<Salary> Salaries { get; set; }
+    public DbSet<Allowance> Allowances { get; set; }
+    public DbSet<AllowanceType> AllowanceTypes { get; set; }
+    public DbSet<Bonus> Bonus { get; set; }
+    public DbSet<BonusType> BonusTypes { get; set; }
+
+    public DbSet<PayrollPeriod> PayrollPeriods { get; set; }
+
+    public DbSet<Timesheet> Timesheets { get; set; }
+
+    public DbSet<Department> Departments { get; set; }
+    public DbSet<ExpenseType> ExpenseTypes { get; set; }
+    public DbSet<ExpenseTypeHistory> ExpenseTypeHistories { get; set; }
+
+    public DbSet<Contract> Contracts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,7 +115,8 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
         modelBuilder.Entity<MenuPermission>()
                     .HasKey(mp => new
                     {
-                        mp.MenuId, mp.PermissionId
+                        mp.MenuId,
+                        mp.PermissionId
                     }); // Khóa chính của bảng MenuPermission là MenuId và PermissionId
 
         modelBuilder.Entity<MenuPermission>()
@@ -97,7 +128,81 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
                     .HasOne(mp => mp.Permission) // Một MenuPermission thuộc về một Permission
                     .WithMany(p => p.MenuPermissions) // Một Permission có nhiều MenuPermission
                     .HasForeignKey(mp => mp.PermissionId);
-        
+
+        modelBuilder.Entity<Employee>(en =>
+        {
+            en.HasMany(e => e.Dependents) // Một Employee có nhiều Dependent
+              .WithOne(d => d.Employee)
+              .OnDelete(DeleteBehavior.Cascade) // Xóa
+              .HasForeignKey(d => d.EmployeeId);
+
+            en.HasMany(e => e.Salaries)
+              .WithOne(s => s.Employee)
+              .OnDelete(DeleteBehavior.Cascade)
+              .HasForeignKey(s => s.EmployeeId);
+
+            en.HasMany(e => e.Allowances)
+              .WithOne(a => a.Employee)
+              .OnDelete(DeleteBehavior.Cascade)
+              .HasForeignKey(s => s.EmployeeId);
+        });
+
+        modelBuilder.Entity<Allowance>(en =>
+        {
+            en.HasOne(al => al.AllowanceType)
+              .WithMany(at => at.Allowances)
+              .HasForeignKey(al => al.AllowanceTypeId)
+              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Timesheet>(e =>
+        {
+            e.HasOne(s => s.PayrollPeriod)
+             .WithMany(p => p.Timesheets)
+             .HasForeignKey(s => s.PayrollPeriodId)
+             .OnDelete(DeleteBehavior.NoAction);
+
+            e.HasOne(s => s.Employee)
+             .WithMany(em => em.Timesheets)
+             .HasForeignKey(s => s.EmployeeId)
+             .OnDelete(DeleteBehavior.NoAction);
+
+            e.Property(s => s.Id).HasColumnType("CHAR(26)");
+        });
+
+        modelBuilder.Entity<Bonus>(e =>
+        {
+            e.HasOne(b => b.BonusType)
+             .WithMany(t => t.Bonus)
+             .HasForeignKey(b => b.BonusTypeId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(b => b.Employee)
+             .WithMany(em => em.Bonus)
+             .HasForeignKey(b => b.EmployeeId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Department>(e =>
+        {
+            e.Property(d => d.Id).HasColumnType("CHAR(26)");
+        });
+
+        modelBuilder.Entity<ExpenseTypeHistory>(e =>
+        {
+            e.Property(eh => eh.Id).HasColumnType("CHAR(26)");
+
+            e.HasOne(eh => eh.ExpenseType)
+             .WithMany(et => et.ExpenseTypeHistories)
+             .HasForeignKey(eh => eh.ExpenseTypeId)
+             .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<InvoiceServiceToken>(en =>
+        {
+            en.HasIndex(i => i.TaxId);
+        });
+
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
     }

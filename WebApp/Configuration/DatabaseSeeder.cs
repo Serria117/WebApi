@@ -15,12 +15,12 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
     public async Task SeedAsync()
     {
         Console.WriteLine("Performing database seeding...");
-        await SeedPermissions();
-        await SeedAdminRole();
+        //await SeedPermissions();
+        //await SeedAdminRole();
         await PreLoadCachingRoles();
         //await SeedPayrollComponentCategory();
         //await SeedGeneralPayrollInputType();
-        Console.WriteLine("Finished seeding. Application is ready to use.");
+        Console.WriteLine("Finished seeding database. Application is ready to run.");
     }
 
     //Seed default permissions
@@ -37,6 +37,7 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
             await context.AddRangeAsync(permissionsToAdd);
             await context.SaveChangesAsync();
             Console.WriteLine($"------ {permissionsToAdd.Count} permissions added.");
+            return;
         }
 
         Console.WriteLine("------ All permissions are up-to-date. No new permissions added.");

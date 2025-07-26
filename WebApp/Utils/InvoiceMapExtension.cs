@@ -17,6 +17,7 @@ public static class InvoiceMapExtension
         return new InvoiceDisplayDto
         {
             Id = doc.Id ?? string.Empty,
+            MongoId = doc._id.ToString(),
             VerifyCode = doc.Mhdon,
             StatusNumber = doc.Tthai,
             BuyerName = doc.Nmten ?? string.Empty,
@@ -71,6 +72,8 @@ public static class InvoiceMapExtension
                 TaxType = g.Ltsuat
             }).ToList(),
             SellerSignature = doc.Nbcks,
+            LookUpUrl = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "PortalLink")?.Dlieu,
+            LookUpCode = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "Fkey")?.Dlieu,
         };
     }
 
@@ -128,7 +131,9 @@ public static class InvoiceMapExtension
             VerifyCode = doc.Mhdon,
             TotalInWord = doc.Tgtttbchu,
             BuyerAddress = doc.Nmdchi,
-            SellerAddress = doc.Nbdchi
+            SellerAddress = doc.Nbdchi,
+            LookUpUrl = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "PortalLink")?.Dlieu,
+            LookUpCode = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "Fkey")?.Dlieu,
         };
     }
 
@@ -224,6 +229,7 @@ public static class InvoiceMapExtension
     {
         return new InvoiceDetailDoc
         {
+            Id = Guid.NewGuid().ToString(),
             Khhdon = doc.GetXmlNodeValue("KHHDon"),
             Khmshdon = doc.GetXmlNodeValue("KHMShDon").ToInt(),
             Shdon = doc.GetXmlNodeValue("SHDon").ToInt(),

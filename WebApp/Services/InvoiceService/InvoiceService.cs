@@ -1,13 +1,11 @@
-﻿using System.Diagnostics;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Xml;
 using System.Xml.Linq;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
-using Newtonsoft.Json;
+using MongoDB.Bson;
 using Spire.Xls;
-using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities;
 using WebApp.Enums;
 using WebApp.Mongo.DeserializedModel;
 using WebApp.Mongo.DocumentModel;
@@ -16,365 +14,71 @@ using WebApp.Mongo.FilterBuilder;
 using WebApp.Mongo.Mapper;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
-using WebApp.Payloads.Messages;
 using WebApp.Repositories;
+using WebApp.Services.CommonService;
 using WebApp.Services.InvoiceService.dto;
-using WebApp.Services.LoggingService;
 using WebApp.Services.NotificationService;
 using WebApp.Services.RestService;
 using WebApp.Services.RestService.Dto;
-using WebApp.Services.RestService.Dto.SoldInvoice;
 using WebApp.Services.RiskCompanyService;
 using WebApp.Services.UserService;
-using WebApp.SignalrConfig;
 using WebApp.Utils;
 
 namespace WebApp.Services.InvoiceService;
 
-public interface IInvoiceAppService
+public interface IInvoiceService
 {
-    /// <summary>
-    /// Find invoices by organization and query parameters
-    /// </summary>
-    /// <param name="taxCode"></param>
-    /// <param name="invoiceParams"></param>
-    /// <returns>The invoice list</returns>
-    Task<AppResponse> FindPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams);
+    Task<AppResponse> DeletePurchaseInvoicesAsync(List<string> ids);
+    Task<AppResponse> DeleteSoldInvoicesAsync(List<string> ids);
 
+    // Define methods for the InvoiceService here
     /// <summary>
-    /// Sync invoices from hoadondientu.gdt.gov.vn
+    /// Export current invoices list to an Excel workbook
     /// </summary>
-    /// <param name="token">The access token from hoadondientu.gdt.gov.vn</param>
+    /// <param name="taxCode">Company's taxId</param>
     /// <param name="from">Start date</param>
     /// <param name="to">End date</param>
-    /// <returns>Success result if all invoices were synced</returns>
-    Task<AppResponse> ExtractPurchaseInvoices(string token, string from, string to);
-
-
-    /// <summary>
-    /// Export invoice list to excel file
-    /// </summary>
-    /// <param name="taxCode">Organization taxcode</param>
-    /// <param name="from">Start date</param>
-    /// <param name="to">End date</param>
-    /// <returns>The byte array of created excel file to download</returns>
+    /// <returns></returns>
     Task<byte[]?> ExportExcel(string taxCode, string from, string to);
-
     /// <summary>
-    /// Recheck the saved invoices in the database and attempt to update their status if any change.
+    /// Extract invoice's detail information from the hoadondientu API
     /// </summary>
-    /// <param name="token">The access token from hoadondientu.gdt.gov.vn</param>
+    /// <param name="token">The JWT to access hoadondientu API</param>
     /// <param name="from">Start date</param>
     /// <param name="to">End date</param>
-    /// <returns>The result of checking process.</returns>
-    Task<AppResponse> RecheckPurchaseInvoice(string token, string from, string to);
+    /// <returns></returns>
+    Task<AppResponse> ExtractPurchaseInvoices(string token, string from, string to, int[]? invoiceTypes);
+    Task<AppResponse> GetSoldInvoiceFromService(string token, string from, string to);
 
-    Task<AppResponse> FindOne(string taxCode, string id);
-    Task<AppResponse> ExtractSoldInvoice(SyncInvoiceRequest request);
-    Task<AppResponse> FindSoldInvoices(string taxCode, InvoiceRequestParam invoiceParams);
-    Task<AppResponse> UploadPurchaseXml(List<IFormFile> files);
-    Task<AppResponse> UploadSoldXml(List<IFormFile> files);
+    /// <summary>
+    /// Query purchase invoices of a given company's taxId
+    /// </summary>
+    /// <param name="taxCode">The company's taxId</param>
+    /// <param name="invoiceParams">Request parameters to build the filter for query</param>
+    /// <returns></returns>
+    Task<AppResponse> QueryPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams);
+    /// <summary>
+    /// Upload purchase invoice from xml files
+    /// </summary>
+    /// <param name="files"></param>
+    /// <returns></returns>
+    Task<AppResponse> UploadPurchaseInvoices(List<IFormFile> files);
 }
 
-public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
-                                   ISoldInvoiceMongoRepository mongoSoldInvoice,
-                                   IRestAppService restService,
-                                   ILogger<InvoiceBaseAppService> logger,
-                                   IRiskCompanyAppService riskService,
-                                   IAppRepository<SyncInvoiceHistory, long> historyRepository,
-                                   ISoldInvoiceDetailRepository soldInvoiceDetailRepository,
-                                   INotificationAppService notificationService,
-                                   IUserManager userManager) : BaseAppService(userManager), IInvoiceAppService
+//TODO: refactor this service class to replace the old InvoiceAppService
+public partial class InvoiceService(IUserManager userManager,
+                                    ILogger<InvoiceService> logger,
+                                    IInvoiceMongoRepository mongoPurchaseInvoice,
+                                    ISoldInvoiceMongoRepository mongoSoldInvoice,
+                                    IRestAppService restService,
+                                    IRiskCompanyAppService riskService,
+                                    IInvoiceHistoryAppService invoiceHistoryAppService,
+                                    ISoldInvoiceDetailRepository soldInvoiceDetailRepository,
+                                    IErrorInvoiceRepository errorInvoiceRepository,
+                                    INotificationAppService notificationService)
+     : BaseAppService(userManager), IInvoiceService
 {
-    #region Sold Invoices
-
-    public async Task<AppResponse> ExtractSoldInvoice(SyncInvoiceRequest request)
-    {
-        var result = await restService.GetSoldInvoiceInRangeAsync(request.Token, request.From, request.To);
-        var total = 0;
-        var inserted = 0;
-        if (result.Data is List<SoldInvoiceModel> invoices)
-        {
-            total = invoices.Count;
-            var docs = invoices.Select(x => JsonConvert.SerializeObject(x).ToSoldInvoiceBson()).ToList();
-            inserted = await mongoSoldInvoice.InsertInvoicesAsync(docs);
-        }
-
-        return new AppResponse
-        {
-            Success = true,
-            Code = "200",
-            Data = new
-            {
-                Total = total,
-                Inserted = inserted,
-            },
-            Message = $"Inserted {inserted} of {total}",
-        };
-    }
-
-    public async Task<AppResponse> FindSoldInvoices(string taxCode, InvoiceRequestParam invoiceParams)
-    {
-        invoiceParams.Valid();
-        //filter by seller taxid
-        var filter = InvoiceFilterBuilder.StartBuilder()
-                                         .WithSeller(taxCode)
-                                         .HasNameKeyword(invoiceParams.NameKeyword)
-                                         .FromDate(invoiceParams.From)
-                                         .ToDate(invoiceParams.To)
-                                         .WithInvoiceNumber(invoiceParams.InvoiceNumber)
-                                         .WithType(invoiceParams.InvoiceType)
-                                         .Build<SoldInvoiceDetail>();
-
-        var result = await soldInvoiceDetailRepository.FindInvoiceAsync(filter,
-                                                                        invoiceParams.Page!.Value,
-                                                                        invoiceParams.Size!.Value);
-        return new AppResponse
-        {
-            Success = true,
-            Data = result.Data.Select(x => x.ToDisplayModel()).ToList(),
-            Code = "200",
-            PageCount = result.PageCount,
-            PageNumber = result.Page,
-            PageSize = result.Size,
-            TotalCount = result.Total,
-            Message = "Ok"
-        };
-    }
-
-    public async Task<AppResponse> UploadSoldXml(List<IFormFile> files)
-    {
-        try
-        {
-            List<InvoiceDetailDoc> invoices = [];
-            foreach (IFormFile file in files)
-            {
-                var invoice = await ReadInvoiceFromXml(file);
-                invoices.Add(invoice);
-            }
-
-            return AppResponse.OkResult(invoices);
-        }
-        catch (Exception ex)
-        {
-            logger.LogErrorFormatted(exception: ex);
-            return AppResponse.Error400("Failed to upload XML file: " + ex.Message);
-        }
-    }
-
-    #endregion
-
-    #region Purchase Invoice
-
-    public async Task<AppResponse> FindPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams)
-    {
-        invoiceParams.Valid();
-
-        var filter = InvoiceFilterBuilder.StartBuilder()
-                                         .FromDate(invoiceParams.From)
-                                         .ToDate(invoiceParams.To)
-                                         .WithBuyer(taxCode)
-                                         .WithInvoiceNumber(invoiceParams.InvoiceNumber)
-                                         .HasNameKeyword(invoiceParams.NameKeyword)
-                                         .WithRisk(invoiceParams.Risk)
-                                         .WithStatus(invoiceParams.Status)
-                                         .WithType(invoiceParams.InvoiceType)
-                                         .Build<InvoiceDetailDoc>();
-        var invoiceList = await mongoPurchaseInvoice.FindInvoices(filter: filter,
-                                                                  page: invoiceParams.Page!.Value,
-                                                                  size: invoiceParams.Size!.Value);
-        /*await notificationService.SendAsync(UserId,
-                                            HubName.InvoiceMessage,
-                                            $"Found {invoiceList.Total} invoice(s)");*/
-        //var data = invoiceList.Data.Select(inv => inv.ToDisplayModel()).ToList();
-        
-        var data = new List<InvoiceDisplayDto>() ;
-        // Convert each invoice to display model, catch any conversion errors and log them
-        foreach (var inv in invoiceList.Data)
-        {
-            InvoiceDisplayDto displayModel;
-            try
-            {
-                displayModel = inv.ToDisplayModel();
-            }
-            catch (Exception ex)
-            {
-                logger.LogErrorFormatted(exception: ex, message: $"Error converting invoice {inv.Id} to display model.");
-                displayModel = new  InvoiceDisplayDto
-                {
-                    InvoiceNumber = inv.Shdon?.ToString(),
-                    SellerName = "Lỗi khi chuyển đổi, kiểm tra lại dữ liệu hóa đơn",
-                    SellerTaxCode = inv.Nbmst ?? string.Empty,
-                    CreationDate = inv.Tdlap?.ToLocalTime()
-                };
-            }
-            data.Add(displayModel);
-        }
-
-        return new AppResponse
-        {
-            Data = data,
-            Message = "Ok",
-            TotalCount = invoiceList.Total,
-            PageNumber = invoiceParams.Page,
-            PageSize = invoiceParams.Size,
-            Success = true,
-            PageCount = invoiceList.PageCount
-        };
-    }
-
-    public async Task<AppResponse> RecheckPurchaseInvoice(string token, string from, string to)
-    {
-        var resultFromService = await restService.GetPurchaseInvoiceListInRange(token, from, to);
-        var total = 0L;
-        List<InvoiceDisplayDto> updateList = [];
-        if (resultFromService is { Success: true, Data: List<InvoiceModel> invoiceList })
-        {
-            foreach (var inv in invoiceList)
-            {
-                var result = await mongoPurchaseInvoice.UpdateInvoiceStatus(inv.Id!, inv.Tthai!.Value);
-                if (result <= 0) continue;
-                total += result;
-                updateList.Add(inv.ToDisplayModel());
-            }
-        }
-
-        return new AppResponse
-        {
-            Message = total > 0
-                ? $"{total:N0} hóa đơn đã được cập nhật trạng thái"
-                : "Không có hóa đơn cần cập nhật trạng thái",
-            Data = updateList,
-        };
-    }
-
-    //TODO: Refactor ExtractPurchaseInvoices method
-    public async Task<AppResponse> ExtractPurchaseInvoices(string token, string from, string to)
-    {
-        logger.LogInformation("Sync Invoices from {from} to {to} at {time}",
-                              from, to, DateTime.Now.ToLocalTime());
-        var result = await restService.GetPurchaseInvoiceListInRange(token, from, to);
-
-        if (result is not { Success: true, Data: not null })
-        {
-            logger.LogWarning("Invoice not found. {message}", result.Message);
-            return AppResponse.Error("Invoice not found");
-        }
-
-        var invoiceList = (List<InvoiceModel>)result.Data;
-        var totalFound = invoiceList.Count;
-        if (totalFound == 0)
-        {
-            await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
-                                                $"Không có hóa đơn phát sinh từ {from} dến {to}!");
-            return AppResponse.OkResult("No new invoices found");
-        }
-
-        var buyerTaxId = invoiceList.First().Nmmst;
-        List<InvoiceDetailModel> deSerializedInvoices = [];
-        List<string> unDeserializedInvoices = [];
-        var countAdd = 1;
-
-        var newInvoices = new List<InvoiceModel>();
-
-        //Keep only those which are not duplicated
-        foreach (InvoiceModel inv in invoiceList)
-        {
-            if (await IsPurchaseInvoiceDuplicate(inv)) continue;
-            newInvoices.Add(inv);
-        }
-
-        await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Bắt đầu tải chi tiết hóa đơn...");
-
-        foreach (var invoice in newInvoices)
-        {
-            var invDetail = await restService.GetPurchaseInvoiceDetail(token, invoice);
-
-            //If code 419 is hit, write anything that has already been retrieved and stop
-            if (invDetail.Code == "429")
-            {
-                logger.LogWarning("Server has reach rate limit. Writing {retrieved}/{total} invoices to database",
-                                  unDeserializedInvoices.Count + deSerializedInvoices.Count,
-                                  invoiceList.Count);
-                await notificationService
-                    .SendAsync(UserId,
-                               HubName.InvoiceMessage,
-                               "Some invoices could not be synced right now " +
-                               "because the external server has hit rate limit.");
-
-                return await WriteInvoices(deSerializedInvoices, unDeserializedInvoices, newInvoices.Count);
-            }
-
-            if (invDetail is not { Success: true })
-            {
-                logger.LogWarning("Error: {message}", invDetail.Message);
-                logger.LogInformation("Skipping...\n {data}", invoice.Shdon);
-                await notificationService
-                    .SendAsync(UserId,
-                               HubName.InvoiceMessage,
-                               $"Failed to save invoice {invoice.Shdon} of {invoice.Nbmst}, " +
-                               $"created at: {invoice.Tdlap:dd/MM/yyyy}");
-                continue;
-            }
-
-            //Handle successful deserializion
-            if (invDetail is { Success: true, Data: InvoiceDetailModel invoiceToAdd })
-            {
-                invoiceToAdd.Risk = riskService.IsInvoiceRisk(invoiceToAdd.Nbmst);
-                deSerializedInvoices.Add(invoiceToAdd);
-                logger.LogInformation(
-                    "{count}/{new} - Invoice {invNum} added to collection.",
-                    countAdd, newInvoices.Count, invoiceToAdd.Shdon
-                );
-                //var completed = decimal.Divide(countAdd, newInvoices.Count) * 100;
-                await notificationService.SendAsync(UserId,
-                                                    HubName.InvoiceStatus,
-                                                    InvoiceMessage.Create(saved: countAdd, total: newInvoices.Count));
-                /*await notificationService.SendAsync(UserId,
-                                                    HubName.InvoiceMessage,
-                                                    $"Đã tải: {countAdd}/{newInvoices.Count} - {completed:F2}% completed");*/
-            }
-
-            //Handle unsuccessful deserializion
-            if (invDetail is { Success: true, Message: not null, Data: not null } && invDetail.Message.Contains("99"))
-            {
-                unDeserializedInvoices.Add((string)invDetail.Data);
-                //var completed = decimal.Divide(countAdd, newInvoices.Count) * 100;
-                await notificationService.SendAsync(UserId,
-                                                    HubName.InvoiceStatus,
-                                                    InvoiceMessage.Create(saved: countAdd, total: newInvoices.Count));
-            }
-
-            logger.LogInformation("Undeserializable count: {Count}", unDeserializedInvoices.Count);
-            countAdd++;
-        }
-
-        return await WriteInvoices(deSerializedInvoices, unDeserializedInvoices, newInvoices.Count);
-    }
-
-    public async Task<AppResponse> UploadPurchaseXml(List<IFormFile> files)
-    {
-        try
-        {
-            List<InvoiceDetailDoc> invoices = [];
-            foreach (IFormFile file in files)
-            {
-                InvoiceDetailDoc invoice = await ReadInvoiceFromXml(file);
-                if(await IsPurchaseInvoiceDuplicate(invoice)) continue;
-                invoices.Add(invoice);
-            }
-
-            // TODO: persist the invoice to the database
-            return AppResponse.OkResult(invoices);
-        }
-        catch (Exception e)
-        {
-            logger.LogErrorFormatted(exception: e);
-            return AppResponse.Error("Failed to upload XML file: " + e.Message);
-        }
-    }
-
-    #endregion
+    private JwtSecurityTokenHandler TokenHandler => new JwtSecurityTokenHandler();
 
     public async Task<byte[]?> ExportExcel(string taxCode, string from, string to)
     {
@@ -408,16 +112,125 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         return file;
     }
 
-    public async Task<AppResponse> FindOne(string taxCode, string id)
+
+    private async Task<(bool Success, int ErrorCount, List<PurchaseInvoiceErrorDisplay> Error)> WriteDeserializableInvoices(List<InvoiceDetailModel> invoices)
     {
-        var found = await mongoPurchaseInvoice.FindOneAsync(x => x.Id == id && x.Nmmst == taxCode);
-        return found != null
-            ? AppResponse.OkResult(found.ToDisplayModel())
-            : AppResponse.Error404("No invoice was found.");
+        List<PurchaseInvoiceErrorDisplay> errorList = [];
+        if (invoices.Count == 0)
+        {
+            Console.WriteLine("No invoice to convert");
+            return (true, 0, errorList);
+        }
+        Console.WriteLine($"Found {invoices.Count} invoices.");
+        try
+        {
+            var jsonOption = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true
+            };
+            var errorCount = 0;
+            List<InvoiceDetailDoc> listToInsert = [];
+            foreach (var invoice in invoices)
+            {
+                try
+                {
+                    var invoiceDoc = invoice.ToPurchaseInvoiceDetailBson(jsonOption);
+                    listToInsert.Add(invoiceDoc);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError("Failed to convert invoice: {shdon} - {mst} - {date}",
+                                    invoice.Shdon, invoice.Nbmst, invoice.Tdlap);
+                    logger.LogInformation("Trying to serialize the invoice to string and save for further inspection.");
+                    await errorInvoiceRepository.InsertAsync(new ErrorInvoiceDoc
+                    {
+                        OrgId = WorkingOrg.ToGuid().ToString(),
+                        InvoiceNumber = invoice.Shdon,
+                        BuyerTaxId = invoice.Nmmst,
+                        SellerTaxId = invoice.Nbmst,
+                        Content = JsonSerializer.Serialize(invoice, jsonOption),
+                        InvoiceDate = invoice.Tdlap,
+                        Type = 0,
+                        Message = e.Message
+                    });
+                    errorList.Add(new PurchaseInvoiceErrorDisplay
+                    {
+                        InvoiceNumber = invoice.Shdon.ToString(),
+                        SellerTaxId = invoice.Nbmst,
+                        SellerName = invoice.Nmmst,
+                        IssueDate = invoice.Tdlap,
+                        ErrorMessage = e.Message
+                    });
+                    errorCount++;
+                }
+            }
+
+            var result = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert);
+            return (result, errorCount, errorList);
+        }
+        catch (Exception e)
+        {
+            logger.LogErrorFormatted(exception: e);
+            return (false, 0, errorList);
+        }
     }
 
-    #region Private method
+    private async Task<(bool Success, int ErrorCount, List<PurchaseInvoiceErrorDisplay> Error)> WriteUndeserializableInvoices(List<string> invoices)
+    {
+        List<PurchaseInvoiceErrorDisplay> errorList = [];
+        if (invoices.Count == 0)
+        {
+            Console.WriteLine("No invoice to convert");
+            return (true, 0, errorList);
+        }
+        Console.WriteLine($"Found {invoices.Count} invoices.");
+        try
+        {
+            List<InvoiceDetailDoc> listToInsert = [];
+            var errorCount = 0;
+            foreach (string invoice in invoices)
+            {
+                try
+                {
+                    var invoiceDoc = invoice.ToPurchaseInvoiceDetailBson();
+                    Console.WriteLine("Converted: " + invoiceDoc.Shdon);
+                    listToInsert.Add(invoiceDoc);
+                }
+                catch (Exception e)
+                {
+                    var invNumber = invoice.ExtractValueRegex(InvoiceNumberRegex())?.ToInt();
+                    var sellerTaxId = invoice.ExtractValueRegex(SellerTaxIdRegex());
+                    logger.LogError("Failed to convert invoice {number} - {seller}", invNumber, sellerTaxId);
+                    logger.LogWarning(e.Message);
+                    logger.LogWarning(e.StackTrace);
+                    await errorInvoiceRepository.InsertAsync(new ErrorInvoiceDoc
+                    {
+                        OrgId = WorkingOrg.ToGuid().ToString(),
+                        Content = invoice,
+                        Message = e.Message,
+                        InvoiceDate = invoice.ExtractValueRegex(InvoiceDateRegex())?.ToDateTime(),
+                        InvoiceNumber = invNumber,
+                        BuyerTaxId = invoice.ExtractValueRegex(BuyerTaxIdRegex()),
+                        SellerTaxId = sellerTaxId,
+                        Type = 0,
+                    });
+                    errorCount++;
+                }
+            }
 
+            var result = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert);
+            return (result, errorCount, errorList);
+        }
+        catch (Exception e)
+        {
+            logger.LogErrorFormatted(exception: e);
+            return (false, 0, errorList);
+        }
+    }
+
+
+    //TODO: separate this method into two methods: one for deserializable invoices and one for un-deserializable invoices
     private async Task<AppResponse> WriteInvoices(List<InvoiceDetailModel> deserializedInvoices,
                                                   List<string> unDeserializedInvoices, int total)
     {
@@ -446,7 +259,6 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                                                         HubName.InvoiceMessage,
                                                         "Failed to process some invoices due to conversion error.");
                     errorList.Add(invoice.Shdon?.ToString());
-                    ;
                 }
             }
 
@@ -458,7 +270,7 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                 {
                     try
                     {
-                        var doc = unDeserializedInvoice.ToPurchaseInvoiceDetailBson(jsonOption);
+                        var doc = unDeserializedInvoice.ToPurchaseInvoiceDetailBson();
                         listToInsert.Add(doc);
                     }
                     catch (Exception ex)
@@ -493,6 +305,7 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             {
                 Success = isInserted,
                 Code = totalSync == total ? "200" : "207",
+                TotalCount = totalSync,
                 Message = totalSync == total
                     ? $"{totalSync}/{total} hóa đơn đã được lưu."
                     : $"{totalSync}/{total} hóa đơn đã được lưu.\n" +
@@ -524,8 +337,8 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
     }
 
     private byte[]? GenerateExcelFile(List<InvoiceDisplayDto> purchaseList,
-                                             List<InvoiceDisplayDto> soldList,
-                                             string from, string to)
+                                      List<InvoiceDisplayDto> soldList,
+                                      string from, string to)
     {
         if (purchaseList.Count == 0 && soldList.Count == 0)
         {
@@ -654,7 +467,9 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             "Thành tiền", //12
             "Trạng thái", //13
             "Loại hóa đơn", //14
-            "Cảnh báo nhà cung cấp" //15
+            "Cảnh báo nhà cung cấp", //15,
+            "Link tra cứu", //16
+            "Mã tra cứu" //17
         ];
 
         for (var i = 0; i < purchaseDetailTitles.Count; i++)
@@ -695,6 +510,7 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         foreach (var inv in purchaseList)
         {
             #region Summary
+
             shPurchaseSummary.Range[purchaseSummaryRow, 1].Value2 = inv.InvoiceNumber;
             shPurchaseSummary.Range[purchaseSummaryRow, 2].Value2 = inv.InvoiceNotation;
             shPurchaseSummary.Range[purchaseSummaryRow, 3].Text = inv.SellerTaxCode;
@@ -723,13 +539,15 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
             shPurchaseSummary.Range[purchaseSummaryRow, 13].Value2 = inv.Status;
             shPurchaseSummary.Range[purchaseSummaryRow, 14].Value2 = inv.InvoiceType;
             shPurchaseSummary.Range[purchaseSummaryRow, 15].Value2 = inv.Risk is null or false ? "OK" : "Rủi ro";
+            shPurchaseSummary.Range[purchaseSummaryRow, 16].Value2 = inv.LookUpUrl;
+            shPurchaseSummary.Range[purchaseSummaryRow, 17].Value2 = inv.LookUpCode;
 
             #endregion
 
             if (inv.GoodsDetail.IsNullOrEmpty())
             {
                 purchaseSummaryRow++;
-                
+
                 shPurchaseDetail.Range[detailRow, 1].Value2 = inv.InvoiceNumber;
                 shPurchaseDetail.Range[detailRow, 2].Value2 = inv.InvoiceNotation;
                 shPurchaseDetail.Range[detailRow, 3].Text = inv.SellerTaxCode;
@@ -768,7 +586,7 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
                 detailRow++;
                 continue;
             }
-            
+
             foreach (var item in inv.GoodsDetail)
             {
                 #region Detail
@@ -825,6 +643,7 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
 
                 detailRow++;
             }
+
             purchaseSummaryRow++;
         }
 
@@ -1004,25 +823,28 @@ public class InvoiceBaseAppService(IInvoiceMongoRepository mongoPurchaseInvoice,
         return stream.ToArray();
     }
 
-    private async Task<bool> IsPurchaseInvoiceDuplicate(InvoiceModel invoice)
-    {
-        var filter = InvoiceFilterBuilder.StartBuilder()
-                                         .WithId(invoice.Id)
-                                         .Build<InvoiceDetailDoc>();
+    [GeneratedRegex("""
+                    "shdon"\s*:\s*(?:"(?<value>[^"]*)"|(?<value>[^,\}\s]+))
+                    """)]
+    private static partial Regex InvoiceNumberRegex();
 
-        return await mongoPurchaseInvoice.InvoiceExist(filter);
-    }
+    [GeneratedRegex("""
+                    "nmmst"\s*:\s*(?:"(?<value>[^"]*)"|(?<value>[^,\}\s]+))
+                    """)]
+    private static partial Regex BuyerTaxIdRegex();
 
-    private async Task<bool> IsPurchaseInvoiceDuplicate(InvoiceDetailDoc i)
-    {
-        var filter = InvoiceFilterBuilder.StartBuilder()
-                                         .WithBuyer(i.Nbmst)
-                                         .WithInvoiceNumber(i.Shdon)
-                                         .WithKhhdon(i.Khhdon)
-                                         .WithKhMshDon(i.Khmshdon)
-                                         .Build<InvoiceDetailDoc>();
-        return await mongoPurchaseInvoice.InvoiceExist(filter);
-    }
+    [GeneratedRegex("""
+                    "nbmst"\s*:\s*(?:"(?<value>[^"]*)"|(?<value>[^,\}\s]+))
+                    """)]
+    private static partial Regex SellerTaxIdRegex();
 
-    #endregion
+    [GeneratedRegex("""
+                    "nbten"\s*:\s*(?:"(?<value>[^"]*)"|(?<value>[^,\}\s]+))
+                    """)]
+    private static partial Regex SellerNameRegex();
+
+    [GeneratedRegex("""
+                    "tdlap"\s*:\s*(?:"(?<value>[^"]*)"|(?<value>[^,\}\s]+))
+                    """)]
+    private static partial Regex InvoiceDateRegex();
 }

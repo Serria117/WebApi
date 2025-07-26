@@ -4,10 +4,12 @@ using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities.Payroll;
 using WebApp.Repositories;
 using WebApp.Services.BalanceSheetService.Dto;
 using WebApp.Services.CommonService;
 using WebApp.Services.OrganizationService.Dto;
+using WebApp.Services.PayrollService.Dto;
 using WebApp.Services.RegionService.Dto;
 using WebApp.Services.UserService.Dto;
 using X.PagedList;
@@ -563,4 +565,129 @@ public static class DataObjectMapExtension
 
     #endregion
 
+    #region PayrollPeriod
+
+    public static PayrollPeriodDisplay ToDisplayDto(this PayrollPeriod p)
+    {
+        return new PayrollPeriodDisplay
+        {
+            Id = p.Id,
+            Year = p.Year,
+            OrganizationId = p.OrganizationId,
+            Version = p.Version,
+            StartDate = p.StartDate,
+            EndDate = p.EndDate,
+            Weekend = p.Weekend,
+            TotalWorkDay = p.TotalWorkDay,
+            Name = p.Name,
+        };
+    }
+
+    #endregion
+
+    #region Employee
+
+    public static EmployeeDisplay ToDisplayDto(this Employee e)
+    {
+        return new EmployeeDisplay
+        {
+            Id = e.Id,
+            Name = e.Name,
+            Code = e.Code,
+            JoinDate = e.JoinDate,
+            EndDate = e.EndDate,
+            PersonalId = e.PersonalId,
+            TaxId = e.TaxId,
+            Dependents = [.. e.Dependents.Select(d => d.ToDisplayDto())],
+            Salaries = [.. e.Salaries.Select(s => s.ToDisplayDto())]
+        };
+    }
+
+    public static Employee ToEntity(this EmployeeCreateDto d, Organization org)
+    {
+        return new Employee
+        {
+            Name = d.Name,
+            Code = d.Code,
+            TaxId = d.TaxId,
+            PersonalId = d.PersonalId,
+            JoinDate = d.JoinDate,
+            EndDate = d.EndDate,
+            Organization = org,
+            OtherDocument = d.OtherDocument,
+            OtherDocumentId = d.OtherDocumentId
+        };
+    }
+
+    public static DependentDisplay ToDisplayDto(this Dependents d)
+    {
+        return new DependentDisplay
+        {
+            Id = d.Id, Name = d.Name,
+            EffectiveDate = d.EffectiveDate, EndDate = d.EndDate,
+            DateOfBirth = d.DateOfBirth,
+            EmployeeId = d.EmployeeId,
+            PersonalId = d.PersonalId,
+            TaxId = d.TaxId,
+            Relationship = d.Relationship,
+            OtherDocument = d.OtherDocument,
+            OtherDocumentId = d.OtherDocumentId
+        };
+    }
+
+    public static Dependents ToEntity(this DependentCreateDto d)
+    {
+        return new Dependents
+        {
+            Name = d.Name,
+            PersonalId = d.PersonalId, TaxId = d.TaxId,
+            DateOfBirth = d.DateOfBirth,
+            EffectiveDate = d.EffectiveDate,
+            EndDate = d.EndDate,
+            Relationship = d.Relationship,
+            OtherDocument = d.OtherDocument,
+            OtherDocumentId = d.OtherDocumentId
+        };
+    }
+
+    public static SalaryDisplay ToDisplayDto(this Salary s)
+    {
+        return new SalaryDisplay
+        {
+            EffectiveDate = s.EffectiveDate,
+            EndDate = s.EndDate,
+            Id = s.Id,
+            InsuranceSalaryValue = s.InsuranceSalaryValue,
+            SalaryValue = s.SalaryValue,
+        };
+    }
+
+    public static Allowance ToEntity(this AllowanceCreate a)
+    {
+        return new Allowance
+        {
+            Amount = a.Amount,
+            AllowanceTypeId = a.AllowanceTypeId,
+            EffectiveDate = a.EffectiveDate,
+            EndDate = a.EndDate,
+        };
+    }
+
+    public static AllowanceType ToEntity(this AllowanceTypeCreate a, Guid? orgId)
+    {
+        return new AllowanceType
+        {
+            Name = a.Name,
+            Code = a.Code,
+            IsInsurance = a.IsInsurance,
+            IsTaxable = a.IsTaxable,
+            OrganizationId = a.IsOrganization ? orgId : null,
+            MaxAmount = a.MaxAmount,
+            DefaultAmount = a.DefaultAmount,
+            Unit = a.Unit?.RemoveSpace() ?? string.Empty,
+        };
+    }
+
+    
+    #endregion
 }

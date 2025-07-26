@@ -18,14 +18,15 @@ public static class JobConfigurator
             // Add job keys:
             var clearTokenJob = new JobKey("ClearOldRefreshTokenJob");
             var clearOldLogJob = new JobKey("CleanOldUserLogJob");
+            var invoiceEmailAttachmentJob = new JobKey("InvoiceEmailAttachmentJob");
             
             // Add jobs and triggers:
             quartzConfig.AddJob<ClearOldRefreshTokenJob>(opts => opts.WithIdentity(clearTokenJob));
             quartzConfig.AddTrigger(opts => opts
                                  .ForJob(clearTokenJob)
                                  .WithIdentity("ClearOldRefreshTokenJob-trigger#1")
-                                 .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(0, 0)
-                                                                  .InTimeZone(vnTimeZone)) // Thực hiện hàng ngày lúc 0h0m
+                                 .WithSchedule(CronScheduleBuilder.CronSchedule(CronExp.LastDayOfMonthAtNoon)
+                                                                  .InTimeZone(vnTimeZone))
                                  .StartNow()
             );
 
@@ -38,6 +39,14 @@ public static class JobConfigurator
                                  .StartNow()
             );
 
+            quartzConfig.AddJob<DownloadInvoiceAttachmentJob>(op => op.WithIdentity(invoiceEmailAttachmentJob));
+            quartzConfig.AddTrigger(opts => opts
+                                 .ForJob(invoiceEmailAttachmentJob)
+                                 .WithIdentity("InvoiceEmailAttachmentJob-trigger#1")
+                                 .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(0, 0)
+                                                                  .InTimeZone(vnTimeZone))
+                                 
+            );
             // Đăng ký các job khác ở đây...
         });
 

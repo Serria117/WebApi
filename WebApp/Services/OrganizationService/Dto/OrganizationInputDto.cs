@@ -29,7 +29,6 @@ public class OrganizationInputDto
     [MaxLength(1000)]
     public string? ContactAddress { get; set; }
 
-    [Required(ErrorMessage = "District is required")]
     public int? DistrictId { get; set; }
 
     [Required(ErrorMessage = "TaxOffice is required")]
