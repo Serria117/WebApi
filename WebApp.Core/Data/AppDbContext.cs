@@ -62,6 +62,8 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
 
     public DbSet<Contract> Contracts { get; set; }
 
+    public DbSet<PurchaseInvoiceReference> PurchaseInvoiceReferences { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasSequence<int>(name: "CommonSeq", schema: "dbo")

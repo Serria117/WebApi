@@ -58,14 +58,42 @@ public partial class InvoiceService
                 Success = false
             };
         }
+
         var duplicateCount = 0;
         var downloadCount = 0;
         var insertedCount = 0;
         var errorCount = 0;
+
         var errorMessages = new List<string>();
         var errorInvoiceList = new List<SoldInvoiceErrorDisplay>();
 
         var responseInvoiceList = (List<InvoiceModel>)result.Data;
+        var invoiceRefList = new List<PurchaseInvoiceReference>();
+        foreach(var inv in responseInvoiceList)
+        {
+            var refExist = await purchaseReferenceRepo.ExistAsync(x => x.Id == $"{inv.Nbmst}-{inv.Khmshdon}{inv.Khhdon}-{inv.Shdon}");
+            if (refExist)
+            {
+                continue;
+            }
+            invoiceRefList.Add(new PurchaseInvoiceReference
+            {
+                Id = $"{inv.Nbmst}-{inv.Khmshdon}{inv.Khhdon}-{inv.Shdon}",
+                Shdon = inv.Shdon,
+                Khmshdon = inv.Khmshdon,
+                Khhdon = inv.Khhdon,
+                Tdlap = inv.Tdlap,
+                Nmmst = inv.Nmmst,
+                Nbmst = inv.Nbmst,
+                Nbten = inv.Nbten,
+                InvoiceId = inv.Id
+            });
+        }
+
+        if(invoiceRefList.Count > 0)
+        {
+            await purchaseReferenceRepo.CreateManyAsync(invoiceRefList);
+        }
 
         List<InvoiceDetailModel> deSerializableInvoices = [];
 
@@ -80,7 +108,6 @@ public partial class InvoiceService
         {
             if (await IsPurchaseInvoiceExist(invoice)) continue;
             invoicesToSaveList.Add(invoice); //if not exist, add to the list
-
         }
 
         if (invoicesToSaveList.Count == 0)
