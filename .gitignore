@@ -18,7 +18,10 @@
 /WebApp.Mongo/obj/Debug/net8.0/WebApp.Mongo.AssemblyInfoInputs.cache
 /WebApp.Enums/obj/project.assets.json
 /WebApp.Enums/obj/WebApp.Enums.csproj.nuget.dgspec.json
-/WebApp.Enums/obj/project.nuget.cache
-/WebApp.Mongo/obj/project.assets.json
-/WebApp.Mongo/obj/project.nuget.cache
-/WebApp.Mongo/obj/WebApp.Mongo.csproj.nuget.dgspec.json
+/WebApp/appsettings.json
+/WebApp.Core/obj/
+/WebApp.Core/bin/
+/WebApp.Enums/obj/
+/WebApp.Enums/bin/
+/WebApp.Mongo/obj/
+/WebApp.Mongo/bin/
