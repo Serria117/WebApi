@@ -3,6 +3,13 @@
 ################################################################################
 
 /WebApp/appsettings.json
+/WebApp.Core/obj/
+/WebApp.Core/bin/
+/WebApp.Enums/obj/
+/WebApp.Enums/bin/
+/WebApp.Mongo/obj/
+/WebApp.Mongo/bin/
+
 /WebApp.Core/obj/Debug/net8.0/WebApp.Core.AssemblyInfo.cs
 /WebApp.Core/obj/Debug/net8.0/WebApp.Core.AssemblyInfoInputs.cache
 /WebApp.Enums/obj/Debug/net8.0/WebApp.Enums.AssemblyInfo.cs
