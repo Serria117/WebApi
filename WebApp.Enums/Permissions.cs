@@ -47,4 +47,9 @@ public struct Permissions
     public const string PayrollView = "PAYROLL.VIEW";
     public const string PayrollUpdate = "PAYROLL.UPDATE";
     public const string PayrollDelete = "PAYROLL.DELETE";
+
+    public const string TaxProcedureCreate = "TAX_PROCEDURE.CREATE";
+    public const string TaxProcedureView = "TAX_PROCEDURE.VIEW";
+    public const string TaxProcedureUpdate = "TAX_PROCEDURE.UPDATE";
+    public const string TaxProcedureDelete = "TAX_PROCEDURE.DELETE";
 }

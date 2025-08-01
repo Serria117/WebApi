@@ -30,6 +30,8 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<OrganizationLoginInfo> OrganizationLoginInfos { get; set; }
     public DbSet<OrganizationInfo> OrganizationInfos { get; set; }
 
+    public DbSet<TaxProcedure> TaxProcedures { get; set; }
+
     public DbSet<JobSetting> JobSettings { get; set; }
 
     public DbSet<UserLog> UserLogs { get; set; }

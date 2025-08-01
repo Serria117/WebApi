@@ -17,6 +17,7 @@ using WebApp.Services.PayrollService;
 using WebApp.Services.RegionService;
 using WebApp.Services.RestService;
 using WebApp.Services.RiskCompanyService;
+using WebApp.Services.TaxProcedureService;
 using WebApp.Services.UserService;
 using WebApp.Services.UserService.AdminService;
 
@@ -108,5 +109,6 @@ public static class DependencyInjector
         s.AddScoped<IPayrollAppService, PayrollAppService>();
         s.AddScoped<IInvoiceHistoryAppService, InvoiceHistoryAppService>();
         s.AddScoped<IEmailAppService, EmailAppService>();
+        s.AddScoped<ITaxProcedureAppService, TaxProcedureAppService>();
     }
 }

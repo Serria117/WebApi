@@ -457,6 +457,60 @@ namespace WebApp.Core.Migrations
                     b.ToTable("INV_InvoiceHistory");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Contract", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ContractNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ContractType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractNumber")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("Contracts");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.District", b =>
                 {
                     b.Property<int>("Id")
@@ -1615,6 +1669,48 @@ namespace WebApp.Core.Migrations
                     b.ToTable("TaxOffices");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxProcedure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("NVARCHAR(MAX)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UnsignName")
+                        .IsRequired()
+                        .HasMaxLength(550)
+                        .HasColumnType("nvarchar(550)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("UnsignName");
+
+                    b.ToTable("TaxProcedures");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1840,6 +1936,17 @@ namespace WebApp.Core.Migrations
                         .IsRequired();
 
                     b.Navigation("ImportedBalanceSheet");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Contract", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany("Contracts")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.District", b =>
@@ -2091,6 +2198,8 @@ namespace WebApp.Core.Migrations
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Organization", b =>
                 {
+                    b.Navigation("Contracts");
+
                     b.Navigation("OrganizationLoginInfos");
                 });
 

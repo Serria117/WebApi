@@ -15,8 +15,8 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
     public async Task SeedAsync()
     {
         Console.WriteLine("Performing database seeding...");
-        //await SeedPermissions();
-        //await SeedAdminRole();
+        await SeedPermissions();
+        await SeedAdminRole();
         await PreLoadCachingRoles();
         //await SeedPayrollComponentCategory();
         //await SeedGeneralPayrollInputType();
