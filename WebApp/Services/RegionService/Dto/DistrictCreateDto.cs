@@ -15,3 +15,19 @@ public class DistrictCreateDto
 
     public int ProvinceId { get; set; }
 }
+
+public class DistrictUpdateDto
+{
+    public int Id { get; set; }
+
+    [MaxLength(255)]
+    public string? Name { get; set; }
+
+    [MaxLength(255)]
+    public string? AlterName { get; set; }
+
+    [MaxLength(10)]
+    public string? Code { get; set; }
+
+    public int? ProvinceId { get; set; }
+}

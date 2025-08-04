@@ -1,13 +1,16 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebApp.Core.DomainEntities;
 using WebApp.Payloads;
+using WebApp.Repositories;
 using WebApp.Services.RegionService;
 using WebApp.Services.RegionService.Dto;
 
 namespace WebApp.Controllers;
 
 [ApiController] [Route("/api/region")] [Authorize]
-public class RegionController(IRegionAppService regionService) : ControllerBase
+public class RegionController(IRegionAppService regionService, 
+    IAppRepository<District, int> districtRepo) : ControllerBase
 {
     /// <summary>
     /// Retrieves a paginated and sorted list of provinces based on the specified request parameters.
@@ -80,11 +83,28 @@ public class RegionController(IRegionAppService regionService) : ControllerBase
     }
 
     /// <summary>
+    /// Gets a list of districts associated with a specific province by its ID.
+    /// </summary>
+    /// <param name="pid">The identifier of the province</param>
+    /// <returns>A collection of districts in the provided province.</returns>
+    [HttpGet("districts/by-province/{pid:int}")]
+    public async Task<IActionResult> GetDistrictsByProvinceId(int pid)
+    {
+        var result = await regionService.GetDistrictsInProvinceAsync(pid);
+        return result.Code switch
+        {
+            "200" => Ok(result),
+            "404" => NotFound(result),
+            _ => BadRequest(result)
+        };
+    }
+
+    /// <summary>
     /// Creates a new district based on the provided data.
     /// </summary>
     /// <param name="input">The data used to create the district, including name, alternate name, code, and associated province ID.</param>
     /// <returns>A task representing the asynchronous operation, with an <see cref="IActionResult"/> containing the result of the district creation.</returns>
-    [HttpPost("district")]
+    [HttpPost("districts")]
     public async Task<IActionResult> CreateDistrict(DistrictCreateDto input)
     {
         return Ok(await regionService.CreateDistrictAsync(input));
@@ -193,4 +213,28 @@ public class RegionController(IRegionAppService regionService) : ControllerBase
         var result = await regionService.TaxOfficeCodeExists(code);
         return Ok(result);
     }
+
+    //TODO: Remove after use
+    [HttpPut("force-update/district")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UpdateDistrictCode(ICollection<DistrictUpdateDto> input)
+    {
+        var count = 0;
+        foreach(var district in input)
+        {
+            var existingDistrict = await districtRepo.FindByIdAsync(district.Id);
+            if (existingDistrict == null)
+            {
+                Console.WriteLine($"District with ID {district.Id} not found.");
+                continue;
+            } 
+            existingDistrict.Code = district.Code ?? string.Empty;
+            //existingDistrict.Name = district.Name;
+            //existingDistrict.AlterName = district.AlterName;
+            await districtRepo.UpdateAsync(existingDistrict);
+            count++;
+        }
+        return Ok(new { Message = $"{count}/{input.Count} District codes updated successfully." });
+    }
+
 }

@@ -1,9 +1,11 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Core.DomainEntities;
 
 [Table("RegionProvince")]
+[Index(nameof(Code))]
 public class Province : BaseEntity<int>
 {
     [MaxLength(10)]
