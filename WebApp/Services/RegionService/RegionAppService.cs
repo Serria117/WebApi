@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Runtime.CompilerServices;
+using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
@@ -30,11 +32,15 @@ public interface IRegionAppService
     Task<AppResponse> UpdateTaxOfficeAsync(int id, TaxOfficeCreateDto input);
     Task<bool> TaxOfficeCodeExists(string code);
     Task<AppResponse> GetDistrictById(int id);
+    Task<AppResponse> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos);
+    Task<AppResponse> GetTaxOffice2ByProvince(int provinceId);
+    Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode);
 }
 
 public class RegionAppService(ILogger<RegionAppService> logger,
                               IAppRepository<Province, int> provinceRepo,
                               IAppRepository<District, int> districtRepo,
+                              IAppRepository<TaxOffice2, int> taxRepo2,
                               IAppRepository<TaxOffice, int> taxRepo) : IRegionAppService
 {
     public async Task<AppResponse> CreateProvinceAsync(ProvinceCreateDto input)
@@ -296,7 +302,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         var districts = await districtRepo.Find(filter: d => d.Province!.Id == provinceId && !d.Deleted,
                                                 sortBy: "Code", order: "ASC")
                                           .ToListAsync();
-        if(districts.Count == 0) return AppResponse.Error404("No districts found for the given province ID");
+        if (districts.Count == 0) return AppResponse.Error404("No districts found for the given province ID");
         return AppResponse.OkResult(districts.MapCollection(x => x.ToDisplayDto()));
     }
 
@@ -317,4 +323,76 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                                       .ToListAsync();
         return AppResponse.OkResult(taxOffices.MapCollection(x => x.ToDisplayDto()));
     }
+
+    #region New Tax Offices
+
+    public async Task<AppResponse> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos)
+    {
+        List<TaxOffice2CreateDto> validDtos = [];
+        foreach (var dto in dtos)
+        {
+            bool isValid = Validator.TryValidateObject(dto, new ValidationContext(dto), [], true);
+            if (isValid)
+            {
+                validDtos.Add(dto);
+            }
+        }
+        if(validDtos.Count == 0)
+        {
+            return AppResponse.Error400("No valid tax office data");
+        }
+        var newTaxOffices = validDtos.Select(d => new TaxOffice2
+        {
+            FullName = d.FullName,
+            ShortName = d.ShortName,
+            Code = d.Code,
+            ProvinceId = d.ProvinceId,
+        }).ToList();
+        await taxRepo2.CreateManyAsync(newTaxOffices);
+        return new AppResponse
+        {
+            Code = "200",
+            Success = true,
+            Data = new
+            {
+                SuccessCount = newTaxOffices.Count,
+                FailedCount = dtos.Count - newTaxOffices.Count,
+            },
+            Message = $"{newTaxOffices.Count}/{dtos.Count} tax offices created successfully."
+        };
+    }
+
+    public async Task<AppResponse> GetTaxOffice2ByProvince(int provinceId)
+    {
+        var taxOffices = await taxRepo2.Find(x => x.ProvinceId == provinceId && !x.Deleted)
+                                       .ToListAsync();
+        return AppResponse.OkResult(taxOffices.Select(x => new TaxOffice2DiplayDto
+        {
+            Id = x.Id,
+            FullName = x.FullName,
+            ShortName = x.ShortName,
+            Code = x.Code,
+            ProvinceId = x.ProvinceId,
+            ProvinceName = x.Province?.Name
+        }).ToList());
+    }
+
+    public async Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode)
+    {
+        var provinceCode = districtCode[..3] + "00";
+        var taxOffices = await taxRepo2.Find(x => (x.Code == districtCode || x.Code == provinceCode) && !x.Deleted)
+                                       .ToListAsync();
+        return AppResponse.OkResult(taxOffices.Select(x => new TaxOffice2DiplayDto
+        {
+            Id = x.Id,
+            FullName = x.FullName,
+            ShortName = x.ShortName,
+            Code = x.Code,
+            ProvinceId = x.ProvinceId,
+            ProvinceName = x.Province?.Name
+        }).ToList());
+    }
+
+    #endregion
+
 }

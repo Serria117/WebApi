@@ -20,4 +20,6 @@ public class Province : BaseEntity<int>
     public HashSet<District> Districts { get; set; } = [];
 
     public HashSet<TaxOffice> TaxOffices { get; set; } = [];
+
+    public ICollection<TaxOffice2> TaxOffices2 { get; set; } = [];
 }

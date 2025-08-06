@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<Permission> Permissions { get; set; }
     
     public DbSet<TaxOffice> TaxOffices { get; set; }
+    public DbSet<TaxOffice2> TaxOffices2 { get; set; }
     public DbSet<District> Districts { get; set; }
     public DbSet<Province> Provinces { get; set; }
 

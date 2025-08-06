@@ -8,8 +8,10 @@ using WebApp.Services.RegionService.Dto;
 
 namespace WebApp.Controllers;
 
-[ApiController] [Route("/api/region")] [Authorize]
-public class RegionController(IRegionAppService regionService, 
+[ApiController]
+[Route("/api/region")]
+[Authorize]
+public class RegionController(IRegionAppService regionService,
     IAppRepository<District, int> districtRepo) : ControllerBase
 {
     /// <summary>
@@ -220,14 +222,14 @@ public class RegionController(IRegionAppService regionService,
     public async Task<IActionResult> UpdateDistrictCode(ICollection<DistrictUpdateDto> input)
     {
         var count = 0;
-        foreach(var district in input)
+        foreach (var district in input)
         {
             var existingDistrict = await districtRepo.FindByIdAsync(district.Id);
             if (existingDistrict == null)
             {
                 Console.WriteLine($"District with ID {district.Id} not found.");
                 continue;
-            } 
+            }
             existingDistrict.Code = district.Code ?? string.Empty;
             //existingDistrict.Name = district.Name;
             //existingDistrict.AlterName = district.AlterName;
@@ -237,4 +239,26 @@ public class RegionController(IRegionAppService regionService,
         return Ok(new { Message = $"{count}/{input.Count} District codes updated successfully." });
     }
 
+    #region
+
+    [HttpPost("taxOffices2/create")]
+    public async Task<IActionResult> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos)
+    {
+        var res = await regionService.CreateTaxOffice2(dtos);
+        return res.Success ? Ok(res) : BadRequest(res);
+    }
+
+    [HttpGet("taxOffices2/by-district/{dCode}")]
+    public async Task<IActionResult> GetTaxOfice2ByDistrict(string dCode)
+    {
+        var res = await regionService.GetTaxOffice2ByDistrict(dCode);
+        return res.Code switch
+        {
+            "200" => Ok(res),
+            "404" => NotFound(res),
+            _ => BadRequest(res)
+        };
+    }
+
+    #endregion
 }

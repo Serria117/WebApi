@@ -1555,6 +1555,8 @@ namespace WebApp.Core.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Code");
+
                     b.ToTable("RegionProvince");
                 });
 
@@ -1667,6 +1669,43 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("ProvinceId");
 
                     b.ToTable("TaxOffices");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice2", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("ProvinceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShortName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code");
+
+                    b.HasIndex("ProvinceId");
+
+                    b.ToTable("TaxOffices_2");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxProcedure", b =>
@@ -2156,6 +2195,15 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice2", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Province", "Province")
+                        .WithMany("TaxOffices2")
+                        .HasForeignKey("ProvinceId");
+
+                    b.Navigation("Province");
+                });
+
             modelBuilder.Entity("WebApp.Core.MenuPermission", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.MenuItem", "MenuItem")
@@ -2246,6 +2294,8 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Districts");
 
                     b.Navigation("TaxOffices");
+
+                    b.Navigation("TaxOffices2");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
