@@ -39,6 +39,7 @@ public class InvoiceDisplayDto
 
     public string? LookUpUrl { get; set; }
     public string? LookUpCode { get; set; }
+    public decimal? TotalOtherFee { get; set; }
 }
 
 public class Goods

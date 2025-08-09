@@ -892,6 +892,9 @@ namespace WebApp.Core.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("TaxOffice2Id")
+                        .HasColumnType("int");
+
                     b.Property<int?>("TaxOfficeId")
                         .HasColumnType("int");
 
@@ -909,6 +912,8 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("DistrictId");
 
                     b.HasIndex("TaxId");
+
+                    b.HasIndex("TaxOffice2Id");
 
                     b.HasIndex("TaxOfficeId");
 
@@ -2023,6 +2028,10 @@ namespace WebApp.Core.Migrations
                         .WithMany()
                         .HasForeignKey("DistrictId");
 
+                    b.HasOne("WebApp.Core.DomainEntities.TaxOffice2", "TaxOffice2")
+                        .WithMany()
+                        .HasForeignKey("TaxOffice2Id");
+
                     b.HasOne("WebApp.Core.DomainEntities.TaxOffice", "TaxOffice")
                         .WithMany()
                         .HasForeignKey("TaxOfficeId");
@@ -2030,6 +2039,8 @@ namespace WebApp.Core.Migrations
                     b.Navigation("District");
 
                     b.Navigation("TaxOffice");
+
+                    b.Navigation("TaxOffice2");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.OrganizationLoginInfo", b =>

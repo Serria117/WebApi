@@ -34,6 +34,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                     IAppRepository<Province, int> provinceRepo,
                                     IAppRepository<District, int> districtRepo,
                                     IAppRepository<TaxOffice, int> taxOfficeRepo,
+                                    IAppRepository<TaxOffice2, int> taxOffice2Repo,
                                     IAppRepository<User, Guid> userRepo,
                                     IAppRepository<OrganizationLoginInfo, int> loginInfoRepo,
                                     IOrgMongoRepository orgMongoRepository,
@@ -51,8 +52,8 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         // Attach location:
         newOrg.District = districtRepo.Attach(dto.DistrictId!.Value);
-        newOrg.TaxOffice = taxOfficeRepo.Attach(dto.TaxOfficeId!.Value);
-
+        //newOrg.TaxOffice = taxOfficeRepo.Attach(dto.TaxOfficeId!.Value);
+        newOrg.TaxOffice2 = taxOffice2Repo.Attach(dto.TaxOfficeId!.Value);
         // Add the user who create the new organization to its users list:
         if (UserId is not null && Guid.TryParse(UserId, out var uId))
         {
@@ -102,7 +103,10 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                     insertedItems = 0,
                     invalidItems = new
                     {
-                        duplicateTaxIds, existingTaxIds, invalidTaxOfficeIds, invalidDistrictIds
+                        duplicateTaxIds,
+                        existingTaxIds,
+                        invalidTaxOfficeIds,
+                        invalidDistrictIds
                     }
                 }
             };
@@ -129,7 +133,10 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                 insertedItems = entitiesToSave.Count,
                 invalidItems = new
                 {
-                    duplicateTaxIds, existingTaxIds, invalidTaxOfficeIds, invalidDistrictIds
+                    duplicateTaxIds,
+                    existingTaxIds,
+                    invalidTaxOfficeIds,
+                    invalidDistrictIds
                 }
             }
         };
@@ -160,12 +167,12 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                         ])
                                   .AsSplitQuery()
                                   .AsNoTracking()
-                                  .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto());;
+                                  .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto()); ;
         return req.Fields.Length == 0
             ? AppResponse.OkResult(result) //If no fields are specified, return all fields
             : AppResponse.OkResult(result.ProjectPagedList(req.Fields)); //return only specified fields
     }
-    
+
     public async Task<AppResponse> GetAllOrgByCurrentUserAsync(PageRequest req)
     {
         var userId = UserId;
@@ -180,7 +187,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                         sortBy: req.SortBy, order: req.OrderBy,
                                         include:
                                         [
-                                            nameof(Organization.TaxOffice),
+                                            nameof(Organization.TaxOffice2),
                                             nameof(Organization.District),
                                             nameof(Organization.Users)
                                         ])
@@ -218,7 +225,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         updateDto.UpdateEntity(foundOrg);
 
         foundOrg.District = districtRepo.Attach(updateDto.DistrictId!.Value);
-        foundOrg.TaxOffice = taxOfficeRepo.Attach(updateDto.TaxOfficeId!.Value);
+        foundOrg.TaxOffice2 = taxOffice2Repo.Attach(updateDto.TaxOfficeId!.Value);
 
         //update login info:
         List<OrganizationLoginInfo> updateList = [];
@@ -273,12 +280,9 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
     public async Task<AppResponse> GetOneById(Guid id)
     {
         var org = await orgRepo.Find(filter: x => x.Id == id,
-                                     include:
-                                     [
-                                         nameof(Organization.TaxOffice),
-                                         nameof(Organization.District),
-                                         nameof(Organization.OrganizationLoginInfos)
-                                     ])
+                                     include: [nameof(Organization.OrganizationLoginInfos)])
+                               .Include(x => x.District).Where(d => !d.Deleted)
+                               .Include(x => x.TaxOffice2).Where(t => !t.Deleted)
                                .FirstOrDefaultAsync();
         return org == null
             ? AppResponse.Error(ResponseMessage.NotFound)
@@ -294,7 +298,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
     {
         var errors = new List<string>();
 
-        if (dto.TaxOfficeId is null || !await taxOfficeRepo.ExistAsync(x => x.Id == dto.TaxOfficeId))
+        if (dto.TaxOfficeId is null || !await taxOffice2Repo.ExistAsync(x => x.Id == dto.TaxOfficeId))
         {
             errors.Add("Invalid tax office or tax office not found");
         }

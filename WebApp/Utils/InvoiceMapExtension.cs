@@ -74,6 +74,7 @@ public static class InvoiceMapExtension
             SellerSignature = doc.Nbcks,
             LookUpUrl = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "PortalLink")?.Dlieu,
             LookUpCode = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "Fkey")?.Dlieu,
+            TotalOtherFee = doc.Ttttkhac?.FirstOrDefault(x => x.Ttruong == "TotalOtherFee")?.Dlieu.ToDecimal()
         };
     }
 
@@ -134,6 +135,7 @@ public static class InvoiceMapExtension
             SellerAddress = doc.Nbdchi,
             LookUpUrl = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "PortalLink")?.Dlieu,
             LookUpCode = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "Fkey")?.Dlieu,
+            TotalOtherFee = doc.Ttttkhac?.FirstOrDefault(x => x.Ttruong == "TotalOtherFee")?.Dlieu.ToDecimal()
         };
     }
 

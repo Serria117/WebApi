@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Payloads;
 using WebApp.Repositories;
@@ -216,6 +217,7 @@ public class RegionController(IRegionAppService regionService,
         return Ok(result);
     }
 
+    #region TEMPORARY UPDATE
     //TODO: Remove after use
     [HttpPut("force-update/district")]
     [AllowAnonymous]
@@ -239,7 +241,39 @@ public class RegionController(IRegionAppService regionService,
         return Ok(new { Message = $"{count}/{input.Count} District codes updated successfully." });
     }
 
-    #region
+    [HttpPut("force-update/district-fix-name")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UpdateDistrictName()
+    {
+        var districts = await districtRepo.Find(d => !d.Deleted &&
+                                                    (d.Name.StartsWith("Xã") || d.Name.StartsWith("Phường") || d.Name.StartsWith("Đặc khu")))
+                                          .ToListAsync();
+        var updateList = new List<District>();
+        foreach (var district in districts)
+        {
+            if (district.Name.StartsWith("Xã "))
+            {
+                district.Name = district.Name["Xã ".Length..];
+                updateList.Add(district);
+            }
+            if (district.Name.StartsWith("Phường "))
+            {
+                district.Name = district.Name["Phường ".Length..];
+                updateList.Add(district);
+            }
+            if (district.Name.StartsWith("Đặc khu "))
+            {
+                district.Name = district.Name["Đặc khu ".Length..];
+                updateList.Add(district);
+            }
+
+            await districtRepo.UpdateManyAsync(updateList);
+        }
+        return Ok(new { Message = $"{updateList.Count} district names updated successfully." });
+    }
+    #endregion
+
+    #region NEW TAX OFFICE
 
     [HttpPost("taxOffices2/create")]
     public async Task<IActionResult> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos)
@@ -248,10 +282,11 @@ public class RegionController(IRegionAppService regionService,
         return res.Success ? Ok(res) : BadRequest(res);
     }
 
-    [HttpGet("taxOffices2/by-district/{dCode}")]
-    public async Task<IActionResult> GetTaxOfice2ByDistrict(string dCode)
+    [HttpGet("taxOffices2/by-district/")]
+    public async Task<IActionResult> GetTaxOfice2ByDistrict([FromQuery] string dCode,
+                                                            [FromQuery] int pId)
     {
-        var res = await regionService.GetTaxOffice2ByDistrict(dCode);
+        var res = await regionService.GetTaxOffice2ByDistrict(dCode, pId);
         return res.Code switch
         {
             "200" => Ok(res),

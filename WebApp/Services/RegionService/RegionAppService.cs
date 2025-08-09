@@ -34,7 +34,7 @@ public interface IRegionAppService
     Task<AppResponse> GetDistrictById(int id);
     Task<AppResponse> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos);
     Task<AppResponse> GetTaxOffice2ByProvince(int provinceId);
-    Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode);
+    Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode, int provinceId);
 }
 
 public class RegionAppService(ILogger<RegionAppService> logger,
@@ -277,10 +277,9 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                                                   && (string.IsNullOrWhiteSpace(page.Keyword) ||
                                                       x.Name.Contains(page.Keyword)),
                                              sortBy: page.SortBy, order: page.OrderBy)
-                                       .Include(p => p.Districts.Where(d => !d.Deleted))
-                                       .Include(p => p.TaxOffices.Where(t => !t.Deleted))
+                                       //.Include(p => p.Districts.Where(d => !d.Deleted))
+                                       //.Include(p => p.TaxOffices.Where(t => !t.Deleted))
                                        .AsSplitQuery()
-                                       .AsNoTracking()
                                        .ToPagedListAsync(page.Page, page.Size);
 
         return AppResponse.OkResult(result.MapPagedList(x => x.ToDisplayDto()));
@@ -290,7 +289,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
     {
         var province = await provinceRepo.Find(filter: x => x.Id == id && x.Deleted == false)
                                          .Include(p => p.Districts.Where(d => !d.Deleted))
-                                         .Include(p => p.TaxOffices.Where(t => !t.Deleted))
+                                         //.Include(p => p.TaxOffices.Where(t => !t.Deleted))
                                          .FirstOrDefaultAsync();
         return province == null
             ? AppResponse.Error404("Province could not be found")
@@ -303,7 +302,15 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                                                 sortBy: "Code", order: "ASC")
                                           .ToListAsync();
         if (districts.Count == 0) return AppResponse.Error404("No districts found for the given province ID");
-        return AppResponse.OkResult(districts.MapCollection(x => x.ToDisplayDto()));
+        return new AppResponse
+        {
+            Data = districts.MapCollection(x => x.ToDisplayDto()).ToList(),
+            Message = "OK",
+            Code = "200",
+            Success = true,
+            TotalCount = districts.Count
+        };
+       
     }
 
     public async Task<AppResponse> GetTaxOfficesInProvinceAsync(int provinceId)
@@ -377,10 +384,13 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         }).ToList());
     }
 
-    public async Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode)
+    public async Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode, int provinceId)
     {
-        var provinceCode = districtCode[..3] + "00";
-        var taxOffices = await taxRepo2.Find(x => (x.Code == districtCode || x.Code == provinceCode) && !x.Deleted)
+        var provinceTaxCode = districtCode[..3] + "00";
+        var taxOffices = await taxRepo2.Find(x => (((x.Code == districtCode || x.Code == provinceTaxCode) 
+                                             && (x.ProvinceId == provinceId)) || x.ProvinceId == null) 
+                                             && !x.Deleted)
+                                       .OrderBy(x => x.Code)
                                        .ToListAsync();
         return AppResponse.OkResult(taxOffices.Select(x => new TaxOffice2DiplayDto
         {

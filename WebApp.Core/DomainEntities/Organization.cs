@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Core.DomainEntities;
@@ -38,6 +39,11 @@ public class Organization : BaseEntityAuditable<Guid>
     public string? PinCode { get; set; }
 
     public TaxOffice? TaxOffice { get; set; }
+
+    public int? TaxOffice2Id { get; set; }
+
+    [ForeignKey(nameof(TaxOffice2Id))]
+    public TaxOffice2? TaxOffice2 { get; set; }
 
     public District? District { get; set; }
 

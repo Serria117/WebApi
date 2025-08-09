@@ -402,9 +402,10 @@ public partial class InvoiceService(IUserManager userManager,
             "Ngày ký", //6
             "Ngày cấp mã", //7
             "Giá mua trước thuế", //8
-            "Thuế GTGT", //9
-            "Thành tiền", //10
-            "Trạng thái", //11
+            "Thuế GTGT", //9,
+            "Phí khác", //10
+            "Thành tiền", //11,
+            "Trạng thái", //12
         ];
 
         List<string> soldDetailTitles =
@@ -670,9 +671,12 @@ public partial class InvoiceService(IUserManager userManager,
                 shSoldSummary.Range[soldSummaryRow, 8].NumberFormat = "#,##0";
                 shSoldSummary.Range[soldSummaryRow, 9].Value2 = inv.Vat;
                 shSoldSummary.Range[soldSummaryRow, 9].NumberFormat = "#,##0";
-                shSoldSummary.Range[soldSummaryRow, 10].Value2 = inv.TotalPriceVat;
+                shSoldSummary.Range[soldSummaryRow, 10].Value2 = inv.TotalOtherFee ?? 0;
                 shSoldSummary.Range[soldSummaryRow, 10].NumberFormat = "#,##0";
-                shSoldSummary.Range[soldSummaryRow, 11].Value2 = inv.Status;
+                shSoldSummary.Range[soldSummaryRow, 11].Value2 = inv.TotalPriceVat;
+                shSoldSummary.Range[soldSummaryRow, 11].NumberFormat = "#,##0";
+                
+                shSoldSummary.Range[soldSummaryRow, 12].Value2 = inv.Status;
 
                 soldSummaryRow++;
             }
@@ -738,10 +742,7 @@ public partial class InvoiceService(IUserManager userManager,
             shSoldSummary.AutoFilters.Range = shSoldSummary.Range[$"A{titleRow}:X{soldSummaryRow - 1}"];
             shSoldSummary.Range[3, 1].FormulaR1C1 =
                 $"\"Tổng số hóa đơn: \"&COUNT(A{titleRow + 1}:A{soldSummaryRow - 1})";
-            foreach (var cell in shSoldSummary.Range[4, 1, soldSummaryRow - 1, 11])
-            {
-                cell.BorderAround(LineStyleType.Thin);
-            }
+            
 
             shSoldDetail.Range[4, 1, soldDetailRow - 1, 3].AutoFitColumns();
             shSoldDetail.Range[4, 6, soldDetailRow - 1, 16].AutoFitColumns();
@@ -762,7 +763,7 @@ public partial class InvoiceService(IUserManager userManager,
         shPurchaseSummary.Range[4, 5, purchaseSummaryRow - 1, 13].AutoFitColumns();
 
 
-        #region Formula and filter
+        #region Formula, filter and formatting
 
         shPurchaseSummary.AutoFilters.Range = shPurchaseSummary.Range[$"A{titleRow}:X{detailRow - 1}"];
         shPurchaseDetail.AutoFilters.Range = shPurchaseDetail.Range[$"A{titleRow}:X{detailRow - 1}"];
@@ -800,22 +801,30 @@ public partial class InvoiceService(IUserManager userManager,
             shSoldDetail.Range[titleRow - 1, i].Style.Font.IsBold = true;
         }
 
+        //Bordering the tables:
+        foreach (var cell in shPurchaseDetail.Range[4, 1, detailRow - 1, purchaseDetailTitles.Count])
+        {
+            cell.BorderAround(LineStyleType.Thin);
+        }
+
+        foreach (var cell in shSoldDetail.Range[4, 1, soldDetailRow - 1, soldDetailTitles.Count])
+        {
+            cell.BorderAround(LineStyleType.Thin);
+        }
+
+        foreach (var cell in shPurchaseSummary.Range[4, 1, purchaseSummaryRow - 1, purchaseSummaryTitles.Count])
+        {
+            cell.BorderAround(LineStyleType.Thin);
+        }
+
+        foreach (var cell in shSoldSummary.Range[4, 1, soldSummaryRow - 1, soldSummaryTitles.Count])
+        {
+            cell.BorderAround(LineStyleType.Thin);
+        }
+
         #endregion
 
-        foreach (var cell in shPurchaseDetail.Range[4, 1, detailRow - 1, 18])
-        {
-            cell.BorderAround(LineStyleType.Thin);
-        }
 
-        foreach (var cell in shSoldDetail.Range[4, 1, soldDetailRow - 1, 18])
-        {
-            cell.BorderAround(LineStyleType.Thin);
-        }
-
-        foreach (var cell in shPurchaseSummary.Range[4, 1, purchaseSummaryRow - 1, 15])
-        {
-            cell.BorderAround(LineStyleType.Thin);
-        }
 
 
         using var stream = new MemoryStream();

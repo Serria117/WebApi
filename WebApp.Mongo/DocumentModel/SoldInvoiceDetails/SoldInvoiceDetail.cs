@@ -170,7 +170,6 @@ public class SoldInvoiceDetail
     public int? Tttbao { get; set; }
 
     [BsonElement("ttttkhac")]
-    [JsonIgnore]
     public List<Cttkhac>? Ttttkhac { get; set; }
 
     [BsonElement("ttxly")]

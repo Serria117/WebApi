@@ -182,6 +182,7 @@ public static class DataObjectMapExtension
                 {
                     Id = o.District.Id,
                     Name = o.District.Name,
+                    Code = o.District.Code,
                     AlterName = o.District.AlterName,
                     ProvinceId = o.District.Province?.Id,
                     ProvinceName = o.District.Province?.Name,
@@ -190,15 +191,15 @@ public static class DataObjectMapExtension
             Phones = o.Phones,
             ContactAddress = o.ContactAddress,
             TaxId = o.TaxId,
-            TaxOffice = o.TaxOffice is null
+            TaxOffice = o.TaxOffice2 is null
                 ? null
                 : new TaxOfficeDisplayDto
                 {
-                    Id = o.TaxOffice.Id,
-                    FullName = o.TaxOffice.FullName,
-                    ShortName = o.TaxOffice.ShortName,
-                    Code = o.TaxOffice.Code,
-                    ParentId = o.TaxOffice.ParentId,
+                    Id = o.TaxOffice2.Id,
+                    FullName = o.TaxOffice2.FullName,
+                    ShortName = o.TaxOffice2.ShortName,
+                    Code = o.TaxOffice2.Code,
+                    //ParentId = o.TaxOffice.ParentId,
                 },
             ShortName = o.ShortName,
             InvoicePwd = o.InvoicePwd,
@@ -239,7 +240,7 @@ public static class DataObjectMapExtension
             UnsignName = i.FullName.RemoveSpace()!.UnSign(),
             TaxIdPwd = string.IsNullOrEmpty(i.TaxIdPwd) ? null : i.TaxIdPwd,
             TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace() ?? "Q",
-            OrganizationLoginInfos = i.OrganizationLoginInfos
+            OrganizationLoginInfos = [.. i.OrganizationLoginInfos
                                       .Select(x => new OrganizationLoginInfo
                                       {
                                           AccountName = x.AccountName,
@@ -247,8 +248,7 @@ public static class DataObjectMapExtension
                                           Provider = x.Provider,
                                           Url = x.Url,
                                           Username = x.Username
-                                      })
-                                      .ToHashSet()
+                                      })]
         };
     }
 
