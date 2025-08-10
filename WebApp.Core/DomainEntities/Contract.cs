@@ -13,7 +13,7 @@ namespace WebApp.Core.DomainEntities;
 public class Contract : BaseEntityAuditable<long>
 {
     [MaxLength(30)]
-    [Required] 
+    [Required]
     public string ContractNumber { get; set; } = string.Empty;
 
     public DateTime EffectiveDate { get; set; }

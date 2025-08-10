@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
@@ -35,6 +36,9 @@ public interface IRegionAppService
     Task<AppResponse> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos);
     Task<AppResponse> GetTaxOffice2ByProvince(int provinceId);
     Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode, int provinceId);
+    Task<AppResponse> GetAllTaxOffice2(PageRequest req);
+    Task<AppResponse> GetTaxOffice2ById(int id);
+    Task<AppResponse> UpdateTaxOffice2(int id, TaxOffice2CreateDto input);
 }
 
 public class RegionAppService(ILogger<RegionAppService> logger,
@@ -310,7 +314,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             Success = true,
             TotalCount = districts.Count
         };
-       
+
     }
 
     public async Task<AppResponse> GetTaxOfficesInProvinceAsync(int provinceId)
@@ -344,7 +348,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                 validDtos.Add(dto);
             }
         }
-        if(validDtos.Count == 0)
+        if (validDtos.Count == 0)
         {
             return AppResponse.Error400("No valid tax office data");
         }
@@ -387,8 +391,8 @@ public class RegionAppService(ILogger<RegionAppService> logger,
     public async Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode, int provinceId)
     {
         var provinceTaxCode = districtCode[..3] + "00";
-        var taxOffices = await taxRepo2.Find(x => (((x.Code == districtCode || x.Code == provinceTaxCode) 
-                                             && (x.ProvinceId == provinceId)) || x.ProvinceId == null) 
+        var taxOffices = await taxRepo2.Find(x => (((x.Code == districtCode || x.Code == provinceTaxCode)
+                                             && (x.ProvinceId == provinceId)) || x.ProvinceId == null)
                                              && !x.Deleted)
                                        .OrderBy(x => x.Code)
                                        .ToListAsync();
@@ -402,7 +406,75 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             ProvinceName = x.Province?.Name
         }).ToList());
     }
+    public async Task<AppResponse> GetAllTaxOffice2(PageRequest req)
+    {
 
+        var query = taxRepo2.Find(x => !x.Deleted, sortBy: req.SortBy, order: req.OrderBy);
+
+        if (!string.IsNullOrEmpty(req.Keyword))
+        {
+            query = query.Where(x => x.FullName.Contains(req.Keyword)
+                                    || x.ShortName!.Contains(req.Keyword)
+                                    || x.Code.Contains(req.Keyword));
+        }
+        var taxOffices = await query.AsNoTracking()
+                                    .ToPagedListAsync(req.Page, req.Size);
+
+        return AppResponse.OkResult(taxOffices.MapPagedList(x => new TaxOffice2DiplayDto
+        {
+            Id = x.Id,
+            FullName = x.FullName,
+            ShortName = x.ShortName,
+            Code = x.Code,
+            ProvinceId = x.ProvinceId,
+            ProvinceName = x.Province?.Name
+        }));
+    }
+
+    public async Task<AppResponse> GetTaxOffice2ById(int id)
+    {
+        var found = await taxRepo2.Find(x => x.Id == id && !x.Deleted)
+                                  .FirstOrDefaultAsync();
+        if (found is null)
+        {
+            return AppResponse.Error404("Not found");
+        }
+        return AppResponse.OkResult(new TaxOffice2DiplayDto
+        {
+            Id = found.Id,
+            FullName = found.FullName,
+            ShortName = found.ShortName,
+            Code = found.Code,
+            ProvinceId = found.ProvinceId,
+            ProvinceName = found.Province?.Name
+        });
+    }
+
+    public async Task<AppResponse> UpdateTaxOffice2(int id, TaxOffice2CreateDto input)
+    {
+        try
+        {
+            var found = await taxRepo2.FindByIdAsync(id) ?? throw new NotFoundException("Invalid tax office's ID");
+            if (input.ProvinceId is not null && !await provinceRepo.ExistAsync(x => x.Id == input.ProvinceId && !x.Deleted))
+                return AppResponse.Error400("Province could not be found");
+
+            found.FullName= input.FullName;
+            found.ShortName = input.ShortName;
+            found.Code = input.Code;
+            found.ProvinceId = input.ProvinceId;
+
+            await taxRepo2.UpdateAsync(found);
+            return AppResponse.Ok();
+        }
+        catch (NotFoundException e)
+        {
+            return AppResponse.Error404(e.Message);
+        }
+        catch (Exception e)
+        {
+            return AppResponse.Error500(e.Message);
+        }
+    }
     #endregion
 
 }
