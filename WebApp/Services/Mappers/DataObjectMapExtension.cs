@@ -223,6 +223,7 @@ public static class DataObjectMapExtension
             LastUpdateAt = o.LastUpdateAt,
             FiscalYearFirstDate = o.FiscalYearFistDate,
             TypeOfVatPeriod = o.TypeOfVatPeriod,
+            Representative = o.Representative,
             OrganizationLoginInfos = o.OrganizationLoginInfos
                                       .Select(x => new OrganizationLoginInfoDto
                                       {
@@ -254,6 +255,7 @@ public static class DataObjectMapExtension
             TaxIdPwd = string.IsNullOrEmpty(i.TaxIdPwd) ? null : i.TaxIdPwd,
             TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace() ?? "Q",
             CapitalOwnershipType = (CapitalOwnershipType?)i.CapitalOwnershipType,
+            Representative = i.Representative.RemoveSpace(),
             OrganizationLoginInfos = [.. i.OrganizationLoginInfos
                                       .Select(x => new OrganizationLoginInfo
                                       {
@@ -280,6 +282,7 @@ public static class DataObjectMapExtension
         o.PinCode = i.PinCode.RemoveSpace();
         //o.TaxId = i.TaxId.RemoveSpace();
         o.TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace();
+        o.Representative = i.Representative.RemoveSpace();
         o.CapitalOwnershipType = (CapitalOwnershipType?)i.CapitalOwnershipType;
         /*o.OrganizationLoginInfos = i.OrganizationLoginInfos
                                     .Select(x => new OrganizationLoginInfo

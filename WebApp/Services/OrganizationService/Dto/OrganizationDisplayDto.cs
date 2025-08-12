@@ -1,4 +1,5 @@
-﻿using WebApp.Core.DomainEntities;
+﻿using System.ComponentModel.DataAnnotations;
+using WebApp.Core.DomainEntities;
 using WebApp.Services.RegionService.Dto;
 
 namespace WebApp.Services.OrganizationService.Dto;
@@ -24,6 +25,7 @@ public class OrganizationDisplayDto
     public string? FiscalYearFirstDate { get; set; }
     public string? TypeOfVatPeriod { get; set; }
     public string? CapitalOwnershipType { get; set; }
+    public string? Representative { get; set; }
     public HashSet<OrganizationLoginInfoDto> OrganizationLoginInfos { get; set; } = [];
 }
 

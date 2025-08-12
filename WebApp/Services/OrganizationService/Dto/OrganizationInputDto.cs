@@ -43,5 +43,8 @@ public class OrganizationInputDto
 
     public int? CapitalOwnershipType { get; set; }
 
+    [MaxLength(255)]
+    public string? Representative { get; set; }
+
     public HashSet<OrganizationLoginInfoDto> OrganizationLoginInfos { get; set; } = [];
 }

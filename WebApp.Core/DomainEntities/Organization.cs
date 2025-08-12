@@ -45,6 +45,9 @@ public class Organization : BaseEntityAuditable<Guid>
 
     public int? TaxOffice2Id { get; set; }
 
+    [MaxLength(255)]
+    public string? Representative { get; set; }
+
     [ForeignKey(nameof(TaxOffice2Id))]
     public TaxOffice2? TaxOffice2 { get; set; }
 

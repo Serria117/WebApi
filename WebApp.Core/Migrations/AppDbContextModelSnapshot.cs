@@ -882,6 +882,10 @@ namespace WebApp.Core.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("Representative")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("ShortName")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
