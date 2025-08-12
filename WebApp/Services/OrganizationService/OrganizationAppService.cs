@@ -224,6 +224,8 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         updateDto.UpdateEntity(foundOrg);
 
+        Console.WriteLine($"OWNER TYPE = {updateDto.CapitalOwnershipType}");
+
         foundOrg.District = districtRepo.Attach(updateDto.DistrictId!.Value);
         foundOrg.TaxOffice2 = taxOffice2Repo.Attach(updateDto.TaxOfficeId!.Value);
 

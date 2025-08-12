@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Core.DomainEntities.Payroll;
+using WebApp.Enums;
 using WebApp.Repositories;
 using WebApp.Services.BalanceSheetService.Dto;
 using WebApp.Services.CommonService;
@@ -187,6 +188,18 @@ public static class DataObjectMapExtension
                     ProvinceId = o.District.Province?.Id,
                     ProvinceName = o.District.Province?.Name,
                 },
+            CapitalOwnershipType = o.CapitalOwnershipType switch
+            {
+                CapitalOwnershipType.PrivateCompany => CapitalOwner.PrivateCompany,
+                CapitalOwnershipType.LimitedCompany => CapitalOwner.LimitedCompany,
+                CapitalOwnershipType.LimitedCompanySingleOwner => CapitalOwner.LimitedCompanySingleOwner,
+                CapitalOwnershipType.JointStockCompany => CapitalOwner.JointStockCompany,
+                CapitalOwnershipType.HouseholdBusiness => CapitalOwner.HouseholdBusiness,
+                CapitalOwnershipType.Cooperative => CapitalOwner.Cooperative,
+                CapitalOwnershipType.Fdi => CapitalOwner.Fdi,
+                CapitalOwnershipType.Other => CapitalOwner.Other,
+                _ => null
+            },
             Emails = o.Emails,
             Phones = o.Phones,
             ContactAddress = o.ContactAddress,
@@ -232,14 +245,15 @@ public static class DataObjectMapExtension
             ShortName = i.ShortName.RemoveSpace(),
             Address = i.Address.RemoveSpace(),
             ContactAddress = i.ContactAddress.RemoveSpace(),
-            Emails = i.Emails.Select(x => x.RemoveSpace()!).ToList(),
-            Phones = i.Phones.Select(x => x.RemoveSpace()!).ToList(),
+            Emails = [.. i.Emails.Select(x => x.RemoveSpace()!)],
+            Phones = [.. i.Phones.Select(x => x.RemoveSpace()!)],
             InvoicePwd = string.IsNullOrEmpty(i.InvoicePwd) ? null : i.InvoicePwd,
             PinCode = string.IsNullOrEmpty(i.PinCode) ? null : i.PinCode,
             TaxId = i.TaxId.RemoveSpace()!,
             UnsignName = i.FullName.RemoveSpace()!.UnSign(),
             TaxIdPwd = string.IsNullOrEmpty(i.TaxIdPwd) ? null : i.TaxIdPwd,
             TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace() ?? "Q",
+            CapitalOwnershipType = (CapitalOwnershipType?)i.CapitalOwnershipType,
             OrganizationLoginInfos = [.. i.OrganizationLoginInfos
                                       .Select(x => new OrganizationLoginInfo
                                       {
@@ -266,6 +280,7 @@ public static class DataObjectMapExtension
         o.PinCode = i.PinCode.RemoveSpace();
         //o.TaxId = i.TaxId.RemoveSpace();
         o.TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace();
+        o.CapitalOwnershipType = (CapitalOwnershipType?)i.CapitalOwnershipType;
         /*o.OrganizationLoginInfos = i.OrganizationLoginInfos
                                     .Select(x => new OrganizationLoginInfo
                                     {
@@ -363,7 +378,8 @@ public static class DataObjectMapExtension
                 ? null
                 : new TaxOfficeDisplayDto
                 {
-                    Id = o.Parent.Id, FullName = o.Parent.FullName
+                    Id = o.Parent.Id,
+                    FullName = o.Parent.FullName
                 },
             Children = o.Children?.MapCollection(x => new TaxOfficeDisplayDto
             {
@@ -419,7 +435,9 @@ public static class DataObjectMapExtension
             }).ToHashSet(),
             Organizations = u.Organizations.Select(o => new OrganizationInUserDto()
             {
-                Id = o.Id, FullName = o.FullName, TaxId = o.TaxId
+                Id = o.Id,
+                FullName = o.FullName,
+                TaxId = o.TaxId
             }).ToList(),
             Locked = u.Locked,
         };
@@ -623,8 +641,10 @@ public static class DataObjectMapExtension
     {
         return new DependentDisplay
         {
-            Id = d.Id, Name = d.Name,
-            EffectiveDate = d.EffectiveDate, EndDate = d.EndDate,
+            Id = d.Id,
+            Name = d.Name,
+            EffectiveDate = d.EffectiveDate,
+            EndDate = d.EndDate,
             DateOfBirth = d.DateOfBirth,
             EmployeeId = d.EmployeeId,
             PersonalId = d.PersonalId,
@@ -640,7 +660,8 @@ public static class DataObjectMapExtension
         return new Dependents
         {
             Name = d.Name,
-            PersonalId = d.PersonalId, TaxId = d.TaxId,
+            PersonalId = d.PersonalId,
+            TaxId = d.TaxId,
             DateOfBirth = d.DateOfBirth,
             EffectiveDate = d.EffectiveDate,
             EndDate = d.EndDate,
@@ -688,6 +709,6 @@ public static class DataObjectMapExtension
         };
     }
 
-    
+
     #endregion
 }

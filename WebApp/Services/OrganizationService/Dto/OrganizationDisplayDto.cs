@@ -23,7 +23,7 @@ public class OrganizationDisplayDto
     public DistrictDisplayDto? District { get; set; }
     public string? FiscalYearFirstDate { get; set; }
     public string? TypeOfVatPeriod { get; set; }
-    
+    public string? CapitalOwnershipType { get; set; }
     public HashSet<OrganizationLoginInfoDto> OrganizationLoginInfos { get; set; } = [];
 }
 

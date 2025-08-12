@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using WebApp.Enums;
 
 namespace WebApp.Core.DomainEntities;
 
@@ -16,6 +17,8 @@ public class Organization : BaseEntityAuditable<Guid>
     [MaxLength(50)] [MinLength(3)] 
     public string? ShortName { get; set; }
 
+    public CapitalOwnershipType? CapitalOwnershipType { get; set; }
+
     [MaxLength(1000)]
     public string? Address { get; set; }
 
@@ -28,7 +31,7 @@ public class Organization : BaseEntityAuditable<Guid>
     public List<string> Emails { get; set; } = [];
     
     public List<string> Phones { get; set; } = [];
-        
+
     [MaxLength(50)]
     public string? TaxIdPwd { get; set; }
         

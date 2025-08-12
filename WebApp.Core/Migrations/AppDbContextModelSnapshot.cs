@@ -835,6 +835,9 @@ namespace WebApp.Core.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int?>("CapitalOwnershipType")
+                        .HasColumnType("int");
+
                     b.Property<string>("ContactAddress")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");

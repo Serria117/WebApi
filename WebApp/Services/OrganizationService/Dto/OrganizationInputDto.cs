@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using WebApp.Core.DomainEntities;
+using WebApp.Enums;
 
 namespace WebApp.Services.OrganizationService.Dto;
 
@@ -39,6 +40,8 @@ public class OrganizationInputDto
     //public DateTime LastUpdateAt { get; set; } = DateTime.UtcNow.ToLocalTime();
     [RegularExpression("(?i)^[QM]$")]
     public string? TypeOfVatPeriod { get; set; }
-    
+
+    public int? CapitalOwnershipType { get; set; }
+
     public HashSet<OrganizationLoginInfoDto> OrganizationLoginInfos { get; set; } = [];
 }
