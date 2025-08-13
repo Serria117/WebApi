@@ -5,6 +5,11 @@ using WebApp.Enums;
 
 namespace WebApp.Core.DomainEntities;
 
+/// <summary>
+/// Represents an organization entity in the system.
+/// This class contains properties that define the organization, such as its name, tax information,
+/// contact details, and relationships with other entities like users and tax offices.
+/// </summary>
 [Index(nameof(UnsignName))][Index(nameof(TaxId))]
 public class Organization : BaseEntityAuditable<Guid>
 {

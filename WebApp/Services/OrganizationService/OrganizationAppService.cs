@@ -283,8 +283,8 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
     {
         var org = await orgRepo.Find(filter: x => x.Id == id,
                                      include: [nameof(Organization.OrganizationLoginInfos)])
-                               .Include(x => x.District).Where(d => !d.Deleted)
-                               .Include(x => x.TaxOffice2).Where(t => !t.Deleted)
+                               .Include(x => x.District)
+                               .Include(x => x.TaxOffice2)
                                .FirstOrDefaultAsync();
         return org == null
             ? AppResponse.Error(ResponseMessage.NotFound)

@@ -142,6 +142,19 @@ public class UserController(IUserAppService userAppService) : ControllerBase
     }
 
     /// <summary>
+    /// Update the basic info of an user account
+    /// </summary>
+    /// <param name="id">The user's id</param>
+    /// <param name="input">Object contains user basic informations such as: full-name, email, etc...</param>
+    /// <returns></returns>
+    [HttpPut("info-update/{id:guid}")]
+    public async Task<IActionResult> UpdateInfo(Guid id, UserBasicInfoDto input)
+    {
+        var response = await userAppService.UpdateBasicUserInfo(id, input);
+        return response.Success ? Ok(response) : BadRequest(response);
+    }
+
+    /// <summary>
     /// Updates the roles that a user belongs to.
     /// </summary>
     /// <param name="userId">The ID of the user to update.</param>

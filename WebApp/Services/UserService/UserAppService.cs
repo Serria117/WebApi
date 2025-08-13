@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq.Dynamic.Core;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Spire.Xls;
 using WebApp.Core.DomainEntities;
 using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.MongoRepositories;
@@ -104,29 +105,30 @@ namespace WebApp.Services.UserService
         /// </summary>
         /// <returns>An <see cref="AppResponse"/> containing the list of users.</returns>
         Task<AppResponse> GetAllUserForOtherService();
-
         Task<AppResponse> FindUserById(Guid id);
         Task<AppResponse> ResetPassword(Guid id, string newPassword);
+        Task<AppResponse> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input);
     }
 
     public class UserBaseAppBaseAppService(IAppRepository<User, Guid> userRepository,
-                                   IUserMongoRepository userMongoRepository,
-                                   ILockedUserMongoRepository lockRepository,
-                                   IAppRepository<Organization, Guid> organizationRepository,
-                                   IBlacklistedTokenMongoRepository blacklistedTokenRepository,
-                                   JwtService jwtService,
-                                   IConfiguration configuration,
-                                   IAppRepository<Role, int> roleRepository,
-                                   IHttpContextAccessor http,
-                                   ILogger<UserBaseAppBaseAppService> logger,
-                                   IUserManager userManager) : BaseAppService(userManager), IUserAppService
+                                           IUserMongoRepository userMongoRepository,
+                                           ILockedUserMongoRepository lockRepository,
+                                           IAppRepository<Organization, Guid> organizationRepository,
+                                           IBlacklistedTokenMongoRepository blacklistedTokenRepository,
+                                           JwtService jwtService,
+                                           IConfiguration configuration,
+                                           IAppRepository<Role, int> roleRepository,
+                                           IHttpContextAccessor http,
+                                           ILogger<UserBaseAppBaseAppService> logger,
+                                           IUserManager userManager) : BaseAppService(userManager), IUserAppService
     {
         public async Task<AppResponse> GetAllUsers(PageRequest page)
         {
             try
             {
-                var query = userRepository.Find(filter: u => !u.Deleted,
-                                                include: [nameof(User.Roles), nameof(User.Organizations)]);
+                var query = userRepository.Find(filter: u => !u.Deleted)
+                                          .Include(x => x.Roles.Where(r => !r.Deleted))
+                                          .Include(x => x.Organizations.Where(o => !o.Deleted));
 
                 var pagedResult = await query
                                         .OrderBy(page.Sort)
@@ -149,7 +151,8 @@ namespace WebApp.Services.UserService
         {
             var foundUser = await userRepository.Find(u => u.Id == id && !u.Deleted)
                                                 .Include(u => u.Roles)
-                                                .Include(u => u.Organizations)
+                                                .Include(u => u.Organizations.Where(o => !o.Deleted))
+                                                .AsSplitQuery()
                                                 .FirstOrDefaultAsync();
             return foundUser is null
                 ? AppResponse.Error404("User not found")
@@ -163,7 +166,8 @@ namespace WebApp.Services.UserService
                 var users = await userRepository.Find(filter: u => !u.Deleted)
                                                 .Select(x => new UserInfoDto
                                                 {
-                                                    Id = x.Id, Username = x.Username
+                                                    Id = x.Id,
+                                                    Username = x.Username
                                                 })
                                                 .OrderBy(x => x.Id)
                                                 .ToListAsync();
@@ -191,6 +195,12 @@ namespace WebApp.Services.UserService
             if (roles.Count > 0)
             {
                 user.Roles.UnionWith(roles);
+            }
+
+            if (userDto.Organizations != null && userDto.Organizations.Count > 0)
+            {
+                var org = await organizationRepository.Find(o => userDto.Organizations.Contains(o.Id)).ToListAsync();
+                user.Organizations = org.ToHashSet();
             }
 
             var createdUser = await userRepository.CreateAsync(user);
@@ -364,6 +374,16 @@ namespace WebApp.Services.UserService
             }
         }
 
+        public async Task<AppResponse> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input)
+        {
+            var found = await userRepository.Find(u => !u.Deleted && u.Id == userId).FirstOrDefaultAsync();
+            if(found is null) return AppResponse.Error404("User not found");
+            found.FullName = input.FullName;
+            found.Email = input.Email;
+            await userRepository.UpdateAsync(found);
+            return AppResponse.Ok();
+        }
+
         public async Task<AppResponse> ResetPassword(Guid id, string newPassword)
         {
             try
@@ -388,7 +408,9 @@ namespace WebApp.Services.UserService
 
         public async Task<AppResponse> ChangeUserRoles(Guid id, List<int> roleIds)
         {
-            var user = await userRepository.Find(u => u.Id == id, ClaimTypes.Role).FirstOrDefaultAsync();
+            var user = await userRepository.Find(u => u.Id == id)
+                                           .Include(u => u.Roles)
+                                           .FirstOrDefaultAsync();
             if (user is null) return new AppResponse() { Success = false, Message = "User not found" };
             var roles = await roleRepository.Find(r => roleIds.Contains(r.Id)).ToListAsync();
             if (roles.Count == 0) return new AppResponse { Success = false, Message = "Role not found" };
