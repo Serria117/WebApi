@@ -96,10 +96,10 @@ public interface IDocumentAppService
 }
 
 public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docRepository,
-                                IAppRepository<Organization, Guid> orgRepository,
-                                ILogger<DocumentBaseAppService> logger,
-                                IUserManager userManager,
-                                IHostEnvironment env) : BaseAppService(userManager), IDocumentAppService
+                                    IAppRepository<Organization, Guid> orgRepository,
+                                    ILogger<DocumentBaseAppService> logger,
+                                    IUserManager userManager,
+                                    IHostEnvironment env) : BaseAppService(userManager), IDocumentAppService
 {
     public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {

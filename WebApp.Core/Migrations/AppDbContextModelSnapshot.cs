@@ -1762,6 +1762,73 @@ namespace WebApp.Core.Migrations
                     b.ToTable("TaxProcedures");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Template", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Templates");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TemplateFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(255)");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(255)");
+
+                    b.Property<int?>("TemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UploadTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(20)");
+
+                    b.Property<string>("VersionNote")
+                        .HasColumnType("NVARCHAR(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TemplateId");
+
+                    b.ToTable("TemplateFiles");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2222,6 +2289,13 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TemplateFile", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Template", null)
+                        .WithMany("TemplateFiles")
+                        .HasForeignKey("TemplateId");
+                });
+
             modelBuilder.Entity("WebApp.Core.MenuPermission", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.MenuItem", "MenuItem")
@@ -2319,6 +2393,11 @@ namespace WebApp.Core.Migrations
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
                 {
                     b.Navigation("Children");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Template", b =>
+                {
+                    b.Navigation("TemplateFiles");
                 });
 #pragma warning restore 612, 618
         }

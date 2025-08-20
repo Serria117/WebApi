@@ -26,7 +26,10 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<RiskCompany> RiskCompanies { get; set; }
     public DbSet<InvoiceHistory> SyncInvoiceHistories { get; set; }
 
+    public DbSet<Template> Templates { get; set; }
+    public DbSet<TemplateFile> TemplateFiles { get; set; }
     public DbSet<OrgDocument> Documents { get; set; }
+
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationLoginInfo> OrganizationLoginInfos { get; set; }
     public DbSet<OrganizationInfo> OrganizationInfos { get; set; }

@@ -177,7 +177,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
     {
         var userId = UserId;
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
-        var query = (await orgRepo.Find(filter: o => !o.Deleted &&
+        var query = await orgRepo.Find(filter: o => !o.Deleted &&
                                                      o.Users.Any(u => u.Id.ToString() == userId) &&
                                                      (string.IsNullOrEmpty(keyword) ||
                                                       o.UnsignName.Contains(keyword) ||
@@ -188,12 +188,12 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                         include:
                                         [
                                             nameof(Organization.TaxOffice2),
-                                            nameof(Organization.District),
-                                            nameof(Organization.Users)
+                                            nameof(Organization.District)
                                         ])
+                                  .Include(o => o.Users.Where(u => !u.Deleted))
                                   .AsSplitQuery()
                                   .AsNoTracking()
-                                  .ToPagedListAsync(req.Page, req.Size));
+                                  .ToPagedListAsync(req.Page, req.Size);
 
         return req.Fields.Length == 0
             ? AppResponse.OkResult(query.MapPagedList(x => x.ToDisplayDto()))
@@ -206,10 +206,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         if (!invalidMessage.IsNullOrEmpty()) return AppResponse.Error("Invalid input", invalidMessage);
 
         var foundOrg = await orgRepo.Find(o => o.Id == orgId && !o.Deleted,
-                                          include:
-                                          [
-                                              nameof(Organization.OrganizationLoginInfos)
-                                          ])
+                                          include: nameof(Organization.OrganizationLoginInfos))
                                     .FirstOrDefaultAsync();
 
         if (foundOrg is null)

@@ -12,6 +12,7 @@ using WebApp.Services.CommonService;
 using WebApp.Services.OrganizationService.Dto;
 using WebApp.Services.PayrollService.Dto;
 using WebApp.Services.RegionService.Dto;
+using WebApp.Services.TemplateServices.Dto;
 using WebApp.Services.UserService.Dto;
 using X.PagedList;
 
@@ -713,5 +714,50 @@ public static class DataObjectMapExtension
     }
 
 
+    #endregion
+
+    #region TEMPLATE
+    public static TemplateDisplayDto ToDisplayDto(this Template entity)
+    {
+        return new TemplateDisplayDto
+        {
+            Name = entity.Name,
+            Description = entity.Description,
+            Order = entity.Order,
+            TemplateFiles = [.. entity.TemplateFiles.Select(t => t.ToDisplayDto())]
+        };
+    }
+
+    public static Template ToEntity(this TemplateCreateDto dto)
+    {
+        return new Template
+        {
+            Name = dto.Name,
+            Description = dto.Description,
+            Order = dto.Order,
+        };
+    }
+
+    public static TemplateFileDisplayDto ToDisplayDto(this TemplateFile entity)
+    {
+        return new TemplateFileDisplayDto
+        {
+            Id = entity.Id,
+            Version = entity.Version,
+            FileName = entity.FileName,
+            FilePath = entity.FilePath,
+            VersionNote = entity.VersionNote,
+            UploadTime = entity.UploadTime,
+        };
+    }
+
+    public static TemplateFile ToEntity(this TemplateFileCreateDto dto)
+    {
+        return new TemplateFile
+        {
+            Version = dto.Version,
+            VersionNote = dto.VersionNote
+        };
+    }
     #endregion
 }
