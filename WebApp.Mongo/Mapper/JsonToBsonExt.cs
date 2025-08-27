@@ -24,7 +24,10 @@ public static class JsonToBsonExt
     
     public static InvoiceDetailDoc ToPurchaseInvoiceDetailBson(this string stringValue)
     {
-        var json = Regex.Unescape(stringValue);
+        //var json = Regex.Unescape(stringValue);
+        var json = JsonSerializer.Deserialize<string>(stringValue);
+        //Console.WriteLine("Print the string from converter to check:");
+        //Console.WriteLine($"{json}");
         return BsonSerializer.Deserialize<InvoiceDetailDoc>(json);
     }
 
