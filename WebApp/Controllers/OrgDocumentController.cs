@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Linq.Expressions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApp.Authentication;
 using WebApp.Enums;
@@ -19,7 +20,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
         ??
         [
             ".xml", ".pdf", ".xlsx", ".docx", ".jpg", ".jpeg", ".png", ".gif",
-            ".txt", ".csv", ".zip", ".rar", ".7z"
+            ".txt", ".csv", ".zip", ".rar", ".7z", "json"
         ];
 
     /// <summary>
@@ -45,14 +46,13 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// <summary>
     /// Get uploaded files of an organization
     /// </summary>
-    /// <param name="documentType"></param>
-    /// <param name="reqParam"></param>
+    /// <param name="req"></param>
     /// <returns></returns>
-    [HttpGet("get-document")] [HasAuthority(Permissions.DocumentView)]
-    public async Task<IActionResult> GetDocumentsList([FromQuery] DocumentType documentType,
-                                                      [FromQuery] RequestParam reqParam)
+    [HttpGet("get-document")]
+    [HasAuthority(Permissions.DocumentView)]
+    public async Task<IActionResult> GetDocumentsList([FromQuery] DocumentRequestParam req)
     {
-        var response = await documentService.FindDocumentsAsync(documentType, reqParam);
+        var response = await documentService.FindDocumentsAsync(req);
         return Ok(response);
     }
 
@@ -61,7 +61,8 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    [HttpGet(Api.Download)] [HasAuthority(Permissions.DocumentView)]
+    [HttpGet(Api.Download)]
+    [HasAuthority(Permissions.DocumentView)]
     public async Task<IActionResult> DownloadDocument([FromQuery] int documentId)
     {
         var fileResponse = await documentService.GetDocumentByIdAsync(documentId);
@@ -117,16 +118,16 @@ public class OrgDocumentController(IDocumentAppService documentService,
     }
 
     /// <summary>
-    /// Consolidate document of 01/GTGT and download the result as Excel file.
+    /// Summarize document of 01/GTGT and download the result as Excel file.
     /// </summary>
     /// <param name="ids">Array of IDs for documents to consolidate.</param>
     /// <returns>The Excel file containing result</returns>
-    [HttpPost("vat-doc")]
-    public async Task<IActionResult> Consolidate_VatDoc(List<int> ids)
+    [HttpPost("summarize/01gtgt")]
+    public async Task<IActionResult> Summarize_01GTKT(List<int> ids)
     {
         try
         {
-            var fileResult = await documentService.ConsolidateVatDocumentsAsync(ids);
+            var fileResult = await documentService.Summarize_01Gtkt_Documents(ids);
             Response.Headers.Append("X-Filename", fileResult.FileName);
             return File(fileResult.File, ContentType.ApplicationOfficeSpreadSheet, fileResult.FileName);
         }
@@ -140,6 +141,59 @@ public class OrgDocumentController(IDocumentAppService documentService,
         }
     }
 
+    [HttpPost("summarize/bctc133")]
+    public async Task<IActionResult> Summarize_BCTC133(List<int> ids)
+    {
+        try
+        {
+            var fileResult = await documentService.Summarize_Bctc133_Document(ids);
+            Response.Headers.Append("X-Filename", fileResult.FileName);
+            return File(fileResult.File, ContentType.ApplicationOfficeSpreadSheet, fileResult.FileName);
+        }
+        catch (NotFoundException e)
+        {
+            return NotFound(e.Message);
+        }
+        catch (EmptyResultException e)
+        {
+            return Ok(e.Message);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return StatusCode(500, e.Message);
+        }
+    }
+    
+    /// <summary>
+    /// Summarize document of 01/GTGT and download the result as Excel file.
+    /// </summary>
+    /// <param name="ids"></param>
+    /// <returns></returns>
+    [HttpPost("summarize/bctc200")]
+    public async Task<IActionResult> Summarize_BCTC200(List<int> ids)
+    {
+        try
+        {
+            var fileResult = await documentService.Summarize_Bctc200_Document(ids);
+            Response.Headers.Append("X-Filename", fileResult.FileName);
+            return File(fileResult.File, ContentType.ApplicationOfficeSpreadSheet, fileResult.FileName);
+        }
+        catch (NotFoundException e)
+        {
+            return NotFound(e.Message);
+        }
+        catch (EmptyResultException e)
+        {
+            return Ok(e.Message);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return StatusCode(500, e.Message);
+        }
+    }
+    
     /// <summary>
     /// Check if the document is duplicated by comparing its hash value with existing hashes in database.
     /// </summary>
@@ -152,7 +206,8 @@ public class OrgDocumentController(IDocumentAppService documentService,
         return Ok(response);
     }
 
-    [HttpPost("check-hash")] [RequestSizeLimit(10 * 1024 * 1024)]
+    [HttpPost("check-hash")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<IActionResult> TestHashing(IFormFile file)
     {
         using var md5 = System.Security.Cryptography.MD5.Create();
