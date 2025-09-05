@@ -1,7 +1,9 @@
 ﻿using System.Globalization;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Newtonsoft.Json;
 
 
 namespace WebApp.Services.CommonService;
@@ -215,7 +217,29 @@ public static partial class StringConverter
         var children = current?.Elements(childName).ToList() ?? [];
         return children;
     }
-   
+
+    /// <summary>
+    /// Retrieve a single element by its path
+    /// </summary>
+    /// <param name="doc">The XML document to search within.</param>
+    /// <param name="path">The string represents the path to search, in the format "root/element1/element2".</param>
+    /// <returns>The element that match the searching path, or null if no match found.</returns>
+    public static XElement? GetChildElementByPath(this XDocument doc, string path)
+    {
+        if (doc == null) return null;
+
+        XNamespace ns = doc.Root?.Name.Namespace ?? XNamespace.None;
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        XElement current = doc.Root!;
+        foreach (var part in parts.Skip(1)) // suppose the first part is the root element and should be skip
+        {
+            current = current.Element(ns + part)!;
+            if (current == null) return null;
+        }
+        return current;
+    }
+
     /// <summary>
     /// Converts a string representation of a date to a nullable DateTime object.
     /// </summary>
@@ -291,8 +315,19 @@ public static partial class StringConverter
         return match.Success ? match.Groups["value"].Value : null;
     }
 
-    public static string UnescapeUnicode(this string str)
+    private static string UnescapeUnicode(this string str)
     {
         return Regex.Unescape(str);
+    }
+
+    /// <summary>
+    /// Serialize an object to JSON string format.
+    /// </summary>
+    /// <param name="obj">The object to be serialized.</param>
+    /// <returns></returns>
+    public static string? ToJsonString(this object? obj)
+    {
+        if (obj is null) return null;
+        return JsonConvert.SerializeObject(obj);
     }
 }

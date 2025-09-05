@@ -11,17 +11,17 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<Permission> Permissions { get; set; }
-    
+
     public DbSet<TaxOffice> TaxOffices { get; set; }
     public DbSet<TaxOffice2> TaxOffices2 { get; set; }
     public DbSet<District> Districts { get; set; }
     public DbSet<Province> Provinces { get; set; }
 
-    public DbSet<Account> Accounts { get; set; }
-    public DbSet<BalanceSheet> BalanceSheets { get; set; }
-    public DbSet<BalanceSheetDetail> BalanceSheetDetails { get; set; }
-    public DbSet<ImportedBalanceSheet> ImportedBalanceSheets { get; set; }
-    public DbSet<ImportedBalanceSheetDetail> ImportedBalanceSheetDetails { get; set; }
+    //public DbSet<Account> Accounts { get; set; }
+    //public DbSet<BalanceSheet> BalanceSheets { get; set; }
+    //public DbSet<BalanceSheetDetail> BalanceSheetDetails { get; set; }
+    //public DbSet<ImportedBalanceSheet> ImportedBalanceSheets { get; set; }
+    //public DbSet<ImportedBalanceSheetDetail> ImportedBalanceSheetDetails { get; set; }
 
     public DbSet<RiskCompany> RiskCompanies { get; set; }
     public DbSet<InvoiceHistory> SyncInvoiceHistories { get; set; }
@@ -68,35 +68,42 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
 
     public DbSet<Contract> Contracts { get; set; }
 
+    public DbSet<Account> Accounts { get; set; }
+    public DbSet<BalanceEntry> AccountBalances { get; set; }
+    public DbSet<AccountingRegulation> AccountingRegulations { get; set; }
+    public DbSet<Balancesheet> Balancesheets { get; set; }
+    public DbSet<UserInputBalancesheet> UserInputBalancesheets { get; set; }
+    public DbSet<FinancialReportWork> FinancialReportWorks { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasSequence<int>(name: "CommonSeq", schema: "dbo")
                     .StartsAt(1)
                     .IncrementsBy(1);
 
-        modelBuilder.Entity<BalanceSheetDetail>()
-                    .Property(b => b.Id)
-                    .HasDefaultValueSql("NEXT VALUE FOR dbo.CommonSeq");
+        //modelBuilder.Entity<BalanceSheetDetail>()
+        //            .Property(b => b.Id)
+        //            .HasDefaultValueSql("NEXT VALUE FOR dbo.CommonSeq");
 
-        modelBuilder.Entity<BalanceSheet>()
-                    .HasMany<BalanceSheetDetail>(b => b.Details)
-                    .WithOne(b => b.BalanceSheet)
-                    .HasForeignKey("BlId").OnDelete(DeleteBehavior.Cascade);
+        //modelBuilder.Entity<BalanceSheet>()
+        //            .HasMany<BalanceSheetDetail>(b => b.Details)
+        //            .WithOne(b => b.BalanceSheet)
+        //            .HasForeignKey("BlId").OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<ImportedBalanceSheet>()
-                    .HasMany<ImportedBalanceSheetDetail>(b => b.Details)
-                    .WithOne(b => b.ImportedBalanceSheet)
-                    .HasForeignKey("BlId").OnDelete(DeleteBehavior.Cascade);
+        //modelBuilder.Entity<ImportedBalanceSheet>()
+        //            .HasMany<ImportedBalanceSheetDetail>(b => b.Details)
+        //            .WithOne(b => b.ImportedBalanceSheet)
+        //            .HasForeignKey("BlId").OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<BalanceSheet>()
-                    .HasOne<ImportedBalanceSheet>(b => b.ImportedBalanceSheet)
-                    .WithOne(ib => ib.BalanceSheet)
-                    .HasForeignKey<ImportedBalanceSheet>(i => i.BalanceSheetId)
-                    .OnDelete(DeleteBehavior.Cascade);
+        //modelBuilder.Entity<BalanceSheet>()
+        //            .HasOne<ImportedBalanceSheet>(b => b.ImportedBalanceSheet)
+        //            .WithOne(ib => ib.BalanceSheet)
+        //            .HasForeignKey<ImportedBalanceSheet>(i => i.BalanceSheetId)
+        //            .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Account>()
-                    .Property(a => a.Id)
-                    .ValueGeneratedNever();
+        //modelBuilder.Entity<Account>()
+        //            .Property(a => a.Id)
+        //            .ValueGeneratedNever();
 
         modelBuilder.Entity<District>()
                     .Navigation(d => d.Province)
@@ -209,7 +216,18 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
             en.HasIndex(i => i.TaxId);
         });
 
+        modelBuilder.Entity<FinancialReportWork>(en =>
+        {
+            en.HasOne(e => e.UserInput)
+              .WithOne(i => i.FinancialReportWork).OnDelete(DeleteBehavior.Cascade);
+            en.HasOne(e => e.Balancesheet)
+              .WithOne(b => b.FinancialReportWork).OnDelete(DeleteBehavior.Cascade);
+            en.HasIndex(e => e.Year);
+        });
+
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
+
+        
     }
 }

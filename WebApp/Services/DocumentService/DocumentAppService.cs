@@ -660,7 +660,6 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             Ct41 = xDocument.GetXmlNodeValueAsLong("ct41"),
         };
     }
-    //TODO: Read BCTC_133 document
 
     //TODO: Read TK_03TNDN_TT80 document
 
