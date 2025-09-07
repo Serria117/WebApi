@@ -23,6 +23,13 @@ public interface IBalanceSheetAppService
     Task CreateFinancialReportWork(FinancialReportWorkDto dto);
     Task<AppResponse> GetFinancialReportList();
     Task<AppResponse> MapUserBalancesheet(int userInputId);
+
+    /// <summary>
+    /// Extract the user input excel file and return the list of account balances.
+    /// </summary>
+    /// <param name="input">The body parameters that contains the xlsx file to extract data.</param>
+    /// <returns></returns>
+    Task<AppResponse> ExtractUserInputExcelFile(UserInputExcelFile input);
 }
 
 public class BalanceSheetAppService(IAppRepository<Account, int> accountRepo,
@@ -254,10 +261,24 @@ public class BalanceSheetAppService(IAppRepository<Account, int> accountRepo,
             }
             else
             {
-                //TODO Decide whether to append or replace the existing data
+                //Update existing entries or add new entries
                 foreach (var entry in balanceEntries)
                 {
-                    
+                    var existingEntry = report.UserInput.AccountBalances
+                                              .FirstOrDefault(e => e.AccountCode == entry.AccountCode);
+                    if (existingEntry != null)
+                    {
+                        existingEntry.OpenDebit = entry.OpenDebit;
+                        existingEntry.OpenCredit = entry.OpenCredit;
+                        existingEntry.AriseDebit = entry.AriseDebit;
+                        existingEntry.AriseCredit = entry.AriseCredit;
+                        existingEntry.CloseDebit = entry.CloseDebit;
+                        existingEntry.CloseCredit = entry.CloseCredit;
+                    }
+                    else
+                    {
+                        report.UserInput.AccountBalances.Add(entry);
+                    }
                 }
             }
         }

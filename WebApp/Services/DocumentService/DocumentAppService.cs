@@ -96,8 +96,22 @@ public interface IDocumentAppService
     Task<List<string>> CheckMultiFilesForDuplicated(List<string> hashes);
 
     Task<AppResponse> ReadXmlToStringAsync(int id);
+
+    /// <summary>
+    /// Summarizing multiple BCTC_200 documents into a single Excel file
+    /// </summary>
+    /// <param name="ids">List of documents' id for summarizing</param>
+    /// <returns></returns>
     Task<(string FileName, byte[] File)> Summarize_Bctc200_Document(List<int> ids);
+
+    /// <summary>
+    /// Summarizing multiple BCTC_133 documents into a single Excel file
+    /// </summary>
+    /// <param name="ids">List of documents' id for summarizing</param>
+    /// <returns></returns>
     Task<(string FileName, byte[] File)> Summarize_Bctc133_Document(List<int> ids);
+
+    Task<(string FileName, byte[]? Data)> ExportDocumentToExcel(int documentId);
 }
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -107,8 +121,8 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                                     IUserManager userManager,
                                     IHostEnvironment env) : BaseAppService(userManager), IDocumentAppService
 {
-    private readonly string _templateFolder = "ExportTemplates";
-    private readonly string _uploadFolder = "Uploads";
+    private const string _templateFolder = "ExportTemplates";
+    private const string _uploadFolder = "Uploads";
 
     public async Task<AppResponse> UploadDocFileAsync(List<IFormFile> files)
     {
@@ -315,6 +329,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                 DocumentType.TK_05KK_TNCN_TT80 => await Read_05KK_TNCN_Document(doc),
                 DocumentType.TK_05QTN_TNCN_TT80 => await Read_05QTN_TNCN_Document(doc),
                 DocumentType.TK_BCTC_200 => await Read_BCTC200_Document(doc),
+                DocumentType.TK_BCTC_133 => await Read_BCTC133_Document(doc),
                 _ => null
             };
 
@@ -410,7 +425,8 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
     }
 
     /// <summary>
-    /// Read a singlw BCTC_133 document
+    /// Read a single BCTC_133 document into a payload object.
+    /// <br/> This method parses the XML structure of the BCTC_133 document and extracts relevant data.
     /// </summary>
     /// <param name="doc">The document object that contains the document file path and other metadata</param>
     /// <returns></returns>
@@ -419,59 +435,139 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         string filePath = GetFilePath(doc);
         await using var stream = new FileStream(filePath, FileMode.Open);
         var xDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+        //Convert xml document to json object for easier manipulation
+        var jsonDocument = xDocument.XmlToJObject();
+
         XNamespace ns = xDocument.Root?.Name.Namespace ?? XNamespace.None; //retrieve the namespace of the xml file
 
-        var chiTieuChinh_props = typeof(ChiTieuChinhNamNay_133)
+        var chiTieuChinh_props = typeof(ChiTieuToKhaiChinh)
                                  .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                                  .ToList();
-        var pl_kqkd_props = typeof(Pl_KqkdNamNay_133)
+        var pl_kqkd_props = typeof(Pl_Kqkd_133)
                             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                             .ToList();
         var document = new DocumentBctc133Payload
         {
-            OrganizationName = xDocument.GetXmlNodeValue("tenNNT") ?? string.Empty,
-            TaxId = xDocument.GetXmlNodeValue("mst") ?? string.Empty,
+            OrganizationName = xDocument.GetXmlNodeValue("tenNNT"),
+            TaxId = xDocument.GetXmlNodeValue("mst"),
             DocumentName = xDocument.GetXmlNodeValue("tenTKhai"),
             Period = doc.Period,
             Year = doc.Year,
             PeriodType = doc.PeriodType,
             NumberOfAdjustment = doc.NumberOfAdjustment ?? 0,
-        };
-        
-        XElement? chiTieuChinh_el =
-            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/CTieuTKhaiChinh/SoCuoiNam");
-        XElement? kqkdNamNay_el = xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_KQHDSXKD/NamNay");
-        if (chiTieuChinh_el is not null)
-        {
-            ChiTieuChinhNamNay_133 chiTieuChinh = new();
 
+            ChiTieuChinhCuoiNam = new ChiTieuToKhaiChinh(),
+            ChiTieuChinhDauNam = new ChiTieuToKhaiChinh(),
+            KqkdNamNay = new Pl_Kqkd_133(),
+            KqkdNamTruoc = new Pl_Kqkd_133(),
+            CanDoiTaiKhoan = new Pl_Cdtk_133
+            {
+                SoDuCuoiKy = new Cdtk_133_CuoiKy
+                {
+                    No = new Cdtk_133_Account(),
+                    Co = new Cdtk_133_Account(),
+                },
+                SoDuDauKy = new Cdtk_133_DauKy
+                {
+                    No = new Cdtk_133_Account(),
+                    Co = new Cdtk_133_Account(),
+                },
+                SoPhatSinhTrongKy = new Cdtk_133_PhatSinh
+                {
+                    No = new Cdtk_133_Account(),
+                    Co = new Cdtk_133_Account(),
+                }
+            },
+            Lctt = new Pl_Lctt_133()
+            {
+                NamNay = new Lctt_133_NamNay(),
+                NamTruoc = new Lctt_133_NamTruoc()
+            }
+        };
+
+        XElement? chiTieuChinhCuoiNam_el =
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/CTieuTKhaiChinh/SoCuoiNam");
+        XElement? chiTieuChinhDauNam_el =
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/CTieuTKhaiChinh/SoDauNam");
+
+        //Popuplate 'chiTieuChinhCuoiNam' object
+        if (chiTieuChinhCuoiNam_el is not null)
+        {
             foreach (var prop in chiTieuChinh_props)
             {
-                XElement? element = chiTieuChinh_el.Descendants(ns + prop.Name).FirstOrDefault();
+                XElement? element = chiTieuChinhCuoiNam_el.Descendants(ns + prop.Name).FirstOrDefault();
                 if (element is not null)
                 {
-                    prop.SetValue(chiTieuChinh, element.Value);
+                    prop.SetValue(document.ChiTieuChinhCuoiNam, element.Value);
                 }
             }
-
-            document.ChiTieuChinhNamNay = chiTieuChinh;
         }
 
-        if (kqkdNamNay_el is not null)
+        //Popuplate 'chiTieuChinhDauNam' object
+        if (chiTieuChinhDauNam_el is not null)
         {
-            Pl_KqkdNamNay_133 kqkdNamNay = new();
+            foreach (var prop in chiTieuChinh_props)
+            {
+                var element = chiTieuChinhDauNam_el.Descendants(ns + prop.Name).FirstOrDefault();
+                if (element is not null)
+                {
+                    prop.SetValue(document.ChiTieuChinhDauNam, element.Value);
+                }
+            }
+        }
 
+        XElement? kqkdNamTruoc_el = xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_KQHDSXKD/NamTruoc");
+        XElement? kqkdNamNay_el = xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_KQHDSXKD/NamNay");
+
+        //Populate 'Kqkd' object
+        if (kqkdNamNay_el is not null && kqkdNamTruoc_el is not null)
+        {
             foreach (var prop in pl_kqkd_props)
             {
-                XElement? element = kqkdNamNay_el.Descendants(ns + prop.Name).FirstOrDefault();
-                if (element is not null)
+                XElement? namNay_el = kqkdNamNay_el.Descendants(ns + prop.Name).FirstOrDefault();
+                XElement? namTruoc_el = kqkdNamTruoc_el.Descendants(ns + prop.Name).FirstOrDefault();
+                if (namNay_el is not null)
                 {
-                    prop.SetValue(kqkdNamNay, element.Value);
+                    prop.SetValue(document.KqkdNamNay, namNay_el.Value);
+                }
+                if (namTruoc_el is not null)
+                {
+                    prop.SetValue(document.KqkdNamTruoc, namTruoc_el.Value);
                 }
             }
-            document.KqkdNamNay = kqkdNamNay;
         }
 
+        XElement? cdtkNoDauKy_el = 
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoDuDauKy/No");
+        XElement? cdtkCoDauKy_el = 
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoDuDauKy/Co");
+        XElement? cdtkNoCuoiKy_el =
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoDuCuoiKy/No");
+        XElement? cdtkCoCuoiKy_el =
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoDuCuoiKy/Co");
+        XElement? cdtkNoPhatSinh_el =
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoPhatSinhTrongKy/No");
+        XElement? cdtkCoPhatSinh_el =
+            xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoPhatSinhTrongKy/Co");
+        
+        var cdtk_props = typeof(Cdtk_133_Account).GetProperties(BindingFlags.Public | BindingFlags.Instance).ToList();
+
+        foreach (var prop in cdtk_props)
+        {
+            prop.SetValue(document.CanDoiTaiKhoan.SoDuDauKy.No,
+                          cdtkNoDauKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
+            prop.SetValue(document.CanDoiTaiKhoan.SoPhatSinhTrongKy.No, 
+                          cdtkNoPhatSinh_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
+            prop.SetValue(document.CanDoiTaiKhoan.SoDuCuoiKy.No, 
+                          cdtkNoCuoiKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
+            
+            prop.SetValue(document.CanDoiTaiKhoan.SoDuDauKy.Co,
+                          cdtkCoDauKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
+            prop.SetValue(document.CanDoiTaiKhoan.SoPhatSinhTrongKy.Co, 
+                          cdtkCoPhatSinh_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
+            prop.SetValue(document.CanDoiTaiKhoan.SoDuCuoiKy.Co, 
+                          cdtkCoCuoiKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
+        }
         return document;
     }
 
@@ -665,6 +761,111 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
 
     #endregion
 
+    #region Export Excel
+
+    public async Task<(string FileName, byte[]? Data)> ExportDocumentToExcel(int documentId)
+    {
+        var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg && f.Id == documentId)
+                                     .FirstOrDefaultAsync() ?? throw new NotFoundException("Document not found");
+        string fileName = string.Empty;
+        byte[]? data = null;
+        if (doc.DocumentType == DocumentType.TK_BCTC_133)
+        {
+            var result = await ExportBctc133ToExcel(doc);
+            return result;
+        }
+        //TODO: handle other document types
+        if (doc.DocumentType == DocumentType.TK_BCTC_200)
+        {
+            
+        }
+
+        return (fileName, data);
+    }
+
+    private async Task<(string FileName, byte[] Data)> ExportBctc133ToExcel(OrgDocument doc)
+    {
+        var document = await Read_BCTC133_Document(doc);
+        var templatePath = Path.Combine(env.ContentRootPath, _templateFolder, TemplateFileName.ExcelBctc133);
+        if (!File.Exists(templatePath))
+        {
+            throw new FileNotFoundException("Template file not found on the server");
+        }
+
+        await using var stream = new FileStream(templatePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var wb = new Workbook();
+        wb.LoadFromStream(stream);
+        var sheet_bctc = wb.Worksheets[0];
+        var sheet_kqkd = wb.Worksheets[1];
+        var sheet_lctt = wb.Worksheets[2];
+        var sheet_cdtk = wb.Worksheets[3];
+        
+        var chiTieuChinh_props = typeof(ChiTieuToKhaiChinh)
+                                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                                 .ToList();
+
+        sheet_bctc.Range[4, 1].Value = "Tại ngày: 31/12/" + document.Year;
+        sheet_bctc.Range[5, 1].Value = "Người nộp thuế: " + document.OrganizationName.ToUpper();
+        sheet_bctc.Range[6, 1].Value = "Mã số thuế: " + document.TaxId;
+        
+        for (int i = 12; i <= sheet_bctc.LastRow; i++)
+        {
+            var code = sheet_bctc.Range[i, 2].Value.Trim();
+            var prop = chiTieuChinh_props.FirstOrDefault(p => p.Name.Equals("ct" + code,
+                                                                    StringComparison.CurrentCultureIgnoreCase));
+            if (prop != null)
+            {
+                sheet_bctc.Range[i, 4].Value2 = prop.GetValue(document.ChiTieuChinhDauNam)?.ToString();
+                sheet_bctc.Range[i, 5].Value2 = prop.GetValue(document.ChiTieuChinhCuoiNam)?.ToString();
+            }
+        }
+        
+        sheet_kqkd.Range[4, 1].Value = "Năm: " + document.Year;
+        sheet_kqkd.Range[5, 1].Value = "Người nộp thuế: " + document.OrganizationName.ToUpper();
+        sheet_kqkd.Range[6, 1].Value = "Mã số thuế: " + document.TaxId;
+        for(int i = 12; i <= sheet_kqkd.LastRow; i++)
+        {
+            var code = sheet_kqkd.Range[i, 2].Value.Trim();
+            var prop = typeof(Pl_Kqkd_133).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                                          .FirstOrDefault(p => p.Name.Equals("ct" + code,
+                                                                           StringComparison.CurrentCultureIgnoreCase));
+            if (prop != null)
+            {
+                sheet_kqkd.Range[i, 4].Value2 = prop.GetValue(document.KqkdNamTruoc)?.ToString();
+                sheet_kqkd.Range[i, 5].Value2 = prop.GetValue(document.KqkdNamNay)?.ToString();
+            }
+        }
+
+        for (int i = 12; i <= sheet_cdtk.LastRow; i++)
+        {
+            var code = sheet_cdtk.Range[i, 1].Value.Trim();
+            var prop = typeof(Cdtk_133_Account).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                                          .FirstOrDefault(p => p.Name.Equals("ct" + code,
+                                                                             StringComparison.CurrentCultureIgnoreCase));
+            if (prop != null)
+            {
+                sheet_cdtk.Range[i, 3].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuDauKy?.No)?.ToString();
+                sheet_cdtk.Range[i, 4].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuDauKy?.Co)?.ToString();
+                sheet_cdtk.Range[i, 5].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoPhatSinhTrongKy?.No)?.ToString();
+                sheet_cdtk.Range[i, 6].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoPhatSinhTrongKy?.Co)?.ToString();
+                sheet_cdtk.Range[i, 7].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuCuoiKy?.No)?.ToString();
+                sheet_cdtk.Range[i, 8].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuCuoiKy?.Co)?.ToString();
+            }
+        }
+        
+        //TODO: populate LCTT sheet
+        
+        sheet_bctc.Activate(); //Return to first sheet
+        
+        //Save to memory stream and return
+        var outputStream = new MemoryStream();
+        wb.SaveToStream(outputStream, FileFormat.Version2016);
+        var fileName = doc.FileName + ".xlsx";
+        return (fileName, outputStream.ToArray());
+    }
+
+    #endregion
+
     #region 01GTGT Documents
 
     public async Task<(string FileName, byte[] File)> Summarize_01Gtkt_Documents(List<int> ids)
@@ -852,6 +1053,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         {
             readingTask.Add(Task.Run(async () => (doc, await Read_BCTC133_Document(doc))));
         }
+
         var readResult = (await Task.WhenAll(readingTask))
                          .Where(t => t.payload != null)
                          .ToDictionary();
@@ -860,18 +1062,30 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         int sheet0_lastRow = sheet_cdkt.LastRow;
         int sheet1_startColumn = 3;
         int sheet1_lastRow = sheet_kqkd.LastRow;
-        var cdkt_props = typeof(ChiTieuChinhNamNay_133).GetProperties();
-        var kqkd_props = typeof(Pl_KqkdNamNay_133).GetProperties();
+        var cdkt_props = typeof(ChiTieuToKhaiChinh).GetProperties();
+        var kqkd_props = typeof(Pl_Kqkd_133).GetProperties();
+
 
         foreach (var data in readResult)
         {
             var metadata = data.Key;
             var filedata = readResult[metadata];
+
             sheet_cdkt.Range[6, sheet0_startColumn].Value2 = filedata.Year;
             sheet_cdkt.Range[7, sheet0_startColumn].Value2 = metadata.DocumentDate;
+            if (sheet0_startColumn == 3)
+            {
+                sheet_cdkt.Range[1, 1].Value = filedata.OrganizationName;
+                sheet_cdkt.Range[2, 1].Value = "MST: " + filedata.TaxId;
+            }
 
             sheet_kqkd.Range[6, sheet1_startColumn].Value2 = filedata.Year;
             sheet_kqkd.Range[7, sheet1_startColumn].Value2 = metadata.DocumentDate;
+            if (sheet0_startColumn == 3)
+            {
+                sheet_kqkd.Range[1, 1].Value = filedata.OrganizationName;
+                sheet_kqkd.Range[2, 1].Value = "MST: " + filedata.TaxId;
+            }
 
             //Looking up for matching element's code:
             for (int row = 8; row <= sheet0_lastRow; row++)
@@ -882,8 +1096,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                     cdkt_props.FirstOrDefault(p => p.Name.Equals("ct" + code, StringComparison.OrdinalIgnoreCase));
                 if (prop is not null)
                 {
-                    
-                    var value = prop.GetValue(filedata.ChiTieuChinhNamNay)?.ToString();
+                    var value = prop.GetValue(filedata.ChiTieuChinhCuoiNam)?.ToString();
                     if (string.IsNullOrEmpty(value)) continue;
                     sheet_cdkt.Range[row, sheet0_startColumn].Value2 = value;
                 }
@@ -903,6 +1116,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                     sheet_kqkd.Range[row, sheet1_startColumn].Value2 = value;
                 }
             }
+
             sheet1_startColumn++;
         }
 
@@ -911,6 +1125,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         templateFile.SaveToStream(stream, FileFormat.Version2016);
         return (fileName, stream.ToArray());
     }
+
     public async Task<(string FileName, byte[] File)> Summarize_Bctc200_Document(List<int> ids)
     {
         var templateFile = LoadExcelTemplate(TemplateFileName.SummarizeBctc200);
@@ -1088,6 +1303,12 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Loads an Excel template file from the specified template folder.
+    /// </summary>
+    /// <param name="templateFile">Template's name to load.</param>
+    /// <returns></returns>
+    /// <exception cref="NotFoundException">Throw if file not found.</exception>
     private Workbook LoadExcelTemplate(string templateFile)
     {
         Workbook workbook = new()

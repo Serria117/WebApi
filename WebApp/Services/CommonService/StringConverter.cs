@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 
 namespace WebApp.Services.CommonService;
@@ -16,7 +17,7 @@ public static partial class StringConverter
 {
     [GeneratedRegex(@"\s{2,}")]
     private static partial Regex SpaceRegex();
-    
+
     [GeneratedRegex("\\p{IsCombiningDiacriticalMarks}+")]
     private static partial Regex UnsignRegex();
 
@@ -30,8 +31,8 @@ public static partial class StringConverter
     {
         return string.IsNullOrEmpty(str) ? null : SpaceRegex().Replace(str.Trim(), " ");
     }
-    
-     /// <summary>
+
+    /// <summary>
     /// Determines whether the specified string is null or an empty string ("").
     /// </summary>
     /// <param name="value">The string to test.</param>
@@ -62,7 +63,7 @@ public static partial class StringConverter
     /// </returns>
     public static decimal Percent(this string value)
     {
-        if(value.IsNullOrEmpty()) return 0;
+        if (value.IsNullOrEmpty()) return 0;
         value = value.Replace("%", "").Trim();
         return decimal.TryParse(value, out var result) ? result / 100 : 0;
     }
@@ -124,7 +125,7 @@ public static partial class StringConverter
         if (value.IsNullOrEmpty()) return defaultValue;
         return DateTime.TryParse(value, out var result) ? result : defaultValue;
     }*/
-    
+
     /// <summary>
     /// Removes diacritical marks (accents) from the input string and replaces certain specific characters with their non-accented equivalents.
     /// </summary>
@@ -137,13 +138,20 @@ public static partial class StringConverter
         return regex.Replace(temp, string.Empty).Replace('\u0111', 'd').Replace('\u0110', 'D').RemoveSpace()!;
     }
 
-    public static string? GetXmlNodeValue(this XDocument doc, string nodeName)
+    /// <summary>
+    /// Get the first XML node value that matches the given node name. <br/>
+    /// Use only when you are sure that the node name is unique in the document.
+    /// </summary>
+    /// <param name="doc">The XML document.</param>
+    /// <param name="nodeName">Node name to search for.</param>
+    /// <returns></returns>
+    public static string GetXmlNodeValue(this XDocument doc, string nodeName)
     {
         return doc.Descendants()
-          .FirstOrDefault(e => e.Name.LocalName == nodeName)?
-          .Value;
+                  .FirstOrDefault(e => e.Name.LocalName == nodeName)?
+                  .Value ?? string.Empty;
     }
-    
+
     public static long GetXmlNodeValueAsLong(this XDocument doc, string nodeName)
     {
         return long.TryParse(doc.GetXmlNodeValue(nodeName), out var value) ? value : 0;
@@ -153,7 +161,7 @@ public static partial class StringConverter
     {
         return long.TryParse(e.Element(nameSpace + nodeName)?.Value, out var value) ? value : 0;
     }
-    
+
     /// <summary>
     /// Retrieves the value of an XML element by traversing a specified path.
     /// </summary>
@@ -170,9 +178,10 @@ public static partial class StringConverter
             if (current == null) return null;
             current = current.Element(node);
         }
+
         return current?.Value;
     }
-    
+
     /// <summary>
     /// Retrieves the value of a child XML element by following a specified path.
     /// </summary>
@@ -189,8 +198,10 @@ public static partial class StringConverter
             {
                 return null; // Return null if the path is invalid
             }
+
             element = element.Element(node);
         }
+
         return element?.Value; // Return the value of the final element
     }
 
@@ -204,7 +215,7 @@ public static partial class StringConverter
     /// A list of child XML elements matching the specified name at the end of the path.
     /// Returns an empty list if the path is invalid or no matching elements are found.
     /// </returns>
-    public static List<XElement> GetChildElementsByPath(this XDocument doc, 
+    public static List<XElement> GetChildElementsByPath(this XDocument doc,
                                                         string childName,
                                                         params string[] path)
     {
@@ -214,6 +225,7 @@ public static partial class StringConverter
             if (current == null) return [];
             current = current.Element(node);
         }
+
         var children = current?.Elements(childName).ToList() ?? [];
         return children;
     }
@@ -237,6 +249,7 @@ public static partial class StringConverter
             current = current.Element(ns + part)!;
             if (current == null) return null;
         }
+
         return current;
     }
 
@@ -286,8 +299,8 @@ public static partial class StringConverter
         }
 
         var splitted = str.Split("/");
-        return splitted.Length > 1 
-            ? (splitted[1].ToInt(), splitted[0].ToInt()) 
+        return splitted.Length > 1
+            ? (splitted[1].ToInt(), splitted[0].ToInt())
             : (splitted[0].ToInt(), 0);
     }
 
@@ -329,5 +342,53 @@ public static partial class StringConverter
     {
         if (obj is null) return null;
         return JsonConvert.SerializeObject(obj);
+    }
+
+    public static JObject XmlToJObject(this XDocument xml)
+    {
+        string json = JsonConvert.SerializeXNode(xml);
+        return JObject.Parse(json);
+    }
+
+    public static string ToNonNullString(this JToken? token)
+    {
+        if (token == null) return string.Empty;
+        return (string)token!;
+    }
+    
+    public static string GetJsonValue(this JObject? jObject, string key)
+    {
+        if (jObject == null || string.IsNullOrEmpty(key)) return string.Empty;
+    
+        var parts = key.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        JToken? current = jObject;
+    
+        foreach (var part in parts)
+        {
+            if (current is JObject obj)
+            {
+                if (!obj.TryGetValue(part, out current))
+                {
+                    return string.Empty;
+                }
+            }
+            else if (current is JArray arr)
+            {
+                if (int.TryParse(part, out var idx) && idx >= 0 && idx < arr.Count)
+                {
+                    current = arr[idx];
+                }
+                else
+                {
+                    return string.Empty;
+                }
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+    
+        return current?.ToNonNullString() ?? string.Empty;
     }
 }

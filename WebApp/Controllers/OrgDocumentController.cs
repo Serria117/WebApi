@@ -84,6 +84,23 @@ public class OrgDocumentController(IDocumentAppService documentService,
         return File(fileStream, contentType, fileName);
     }
 
+    [HttpGet("export/{documentId:int}")]
+    public async Task<IActionResult> ExportExcelDocument(int documentId)
+    {
+        try
+        {
+            var result = await documentService.ExportDocumentToExcel(documentId);
+            if(result.Data is null) return NotFound("Document not found or unsupported document type");
+            Response.Headers.Append("X-Filename", result.FileName);
+            Console.WriteLine("File name: " + result.FileName);
+            return File(result.Data, ContentType.ApplicationOfficeSpreadSheet, result.FileName);
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+
     /// <summary>
     /// Read a specific document from file
     /// </summary>

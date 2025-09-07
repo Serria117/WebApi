@@ -765,6 +765,9 @@ namespace WebApp.Core.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<string>("JsonContent")
+                        .HasColumnType("NVARCHAR(MAX)");
+
                     b.Property<DateTime>("LastUpdateAt")
                         .HasColumnType("datetime2");
 

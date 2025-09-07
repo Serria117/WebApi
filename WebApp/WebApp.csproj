@@ -72,6 +72,12 @@
   <ItemGroup>
     <None Remove="Uploads\**" />
     <None Remove="WebApp.Enums\**" />
+    <None Update="ExportTemplates\bctc133_report.xlsx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ExportTemplates\XML_bctc200.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

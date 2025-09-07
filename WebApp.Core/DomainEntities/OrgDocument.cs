@@ -44,4 +44,7 @@ public class OrgDocument : BaseEntityAuditable<int>
     
     [StringLength(255)]
     public string Hash { get; set; } = string.Empty;
+
+    [Column(TypeName = "NVARCHAR(MAX)")]
+    public string? JsonContent { get; set; }
 }
