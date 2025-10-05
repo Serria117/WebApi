@@ -15,30 +15,30 @@ namespace WebApp.Services.RegionService;
 
 public interface IRegionAppService
 {
-    Task<AppResponse> CreateProvinceAsync(ProvinceCreateDto input);
-    Task<AppResponse> CreateDistrictAsync(DistrictCreateDto input);
-    Task<AppResponse> CreateTaxOfficeAsync(TaxOfficeCreateDto input);
-    Task<AppResponse> GetAllProvincesAsync(PageRequest page);
-    Task<AppResponse> GetProvinceAsync(int id);
-    Task<AppResponse> GetDistrictsInProvinceAsync(int provinceId);
-    Task<AppResponse> GetTaxOfficesInProvinceAsync(int provinceId);
-    Task<AppResponse> CreateManyProvincesAsync(List<ProvinceCreateDto> input);
-    Task<AppResponse> CreateManyDistrictsAsync(int provinceId, List<DistrictCreateDto> input);
-    Task<AppResponse> GetTaxOfficesByParentAsync(int parentId);
-    Task<AppResponse> CreateManyTaxOfficeAsync(int pId, List<TaxOfficeCreateDto> input);
-    Task<AppResponse> UpdateProvinceAsync(int id, ProvinceCreateDto input);
-    Task<AppResponse> GetAllTaxOfficesAsync(PageRequest req);
-    Task<AppResponse> FindTaxOfficeByIdAsync(int id);
-    Task<AppResponse> FindTopLevelTaxOfficesAsync();
-    Task<AppResponse> UpdateTaxOfficeAsync(int id, TaxOfficeCreateDto input);
+    Task<ResponseBase> CreateProvinceAsync(ProvinceCreateDto input);
+    Task<ResponseBase> CreateDistrictAsync(DistrictCreateDto input);
+    Task<ResponseBase> CreateTaxOfficeAsync(TaxOfficeCreateDto input);
+    Task<ResponseBase> GetAllProvincesAsync(PageRequest page);
+    Task<ResponseBase> GetProvinceAsync(int id);
+    Task<ResponseBase> GetDistrictsInProvinceAsync(int provinceId);
+    Task<ResponseBase> GetTaxOfficesInProvinceAsync(int provinceId);
+    Task<ResponseBase> CreateManyProvincesAsync(List<ProvinceCreateDto> input);
+    Task<ResponseBase> CreateManyDistrictsAsync(int provinceId, List<DistrictCreateDto> input);
+    Task<ResponseBase> GetTaxOfficesByParentAsync(int parentId);
+    Task<ResponseBase> CreateManyTaxOfficeAsync(int pId, List<TaxOfficeCreateDto> input);
+    Task<ResponseBase> UpdateProvinceAsync(int id, ProvinceCreateDto input);
+    Task<ResponseBase> GetAllTaxOfficesAsync(PageRequest req);
+    Task<ResponseBase> FindTaxOfficeByIdAsync(int id);
+    Task<ResponseBase> FindTopLevelTaxOfficesAsync();
+    Task<ResponseBase> UpdateTaxOfficeAsync(int id, TaxOfficeCreateDto input);
     Task<bool> TaxOfficeCodeExists(string code);
-    Task<AppResponse> GetDistrictById(int id);
-    Task<AppResponse> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos);
-    Task<AppResponse> GetTaxOffice2ByProvince(int provinceId);
-    Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode, int provinceId);
-    Task<AppResponse> GetAllTaxOffice2(PageRequest req);
-    Task<AppResponse> GetTaxOffice2ById(int id);
-    Task<AppResponse> UpdateTaxOffice2(int id, TaxOffice2CreateDto input);
+    Task<ResponseBase> GetDistrictById(int id);
+    Task<ResponseBase> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos);
+    Task<ResponseBase> GetTaxOffice2ByProvince(int provinceId);
+    Task<ResponseBase> GetTaxOffice2ByDistrict(string districtCode, int provinceId);
+    Task<ResponseBase> GetAllTaxOffice2(PageRequest req);
+    Task<ResponseBase> GetTaxOffice2ById(int id);
+    Task<ResponseBase> UpdateTaxOffice2(int id, TaxOffice2CreateDto input);
 }
 
 public class RegionAppService(ILogger<RegionAppService> logger,
@@ -47,30 +47,30 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                               IAppRepository<TaxOffice2, int> taxRepo2,
                               IAppRepository<TaxOffice, int> taxRepo) : IRegionAppService
 {
-    public async Task<AppResponse> CreateProvinceAsync(ProvinceCreateDto input)
+    public async Task<ResponseBase> CreateProvinceAsync(ProvinceCreateDto input)
     {
         var province = input.ToEntity();
         var saved = await provinceRepo.CreateAsync(province);
-        return AppResponse.OkResult(saved.ToDisplayDto());
+        return ResponseBase.OkResult(saved.ToDisplayDto());
     }
 
-    public async Task<AppResponse> CreateManyProvincesAsync(List<ProvinceCreateDto> input)
+    public async Task<ResponseBase> CreateManyProvincesAsync(List<ProvinceCreateDto> input)
     {
         try
         {
             var provinces = input.MapCollection(x => x.ToEntity()).ToList();
             await provinceRepo.CreateManyAsync(provinces);
-            return new AppResponse();
+            return new ResponseBase();
         }
         catch (Exception e)
         {
             logger.LogError("Error:{message}", e.Message);
             logger.LogError("Stack trace: {stackTrace}", e.StackTrace);
-            return AppResponse.Error("Failed to create provinces");
+            return ResponseBase.Error("Failed to create provinces");
         }
     }
 
-    public async Task<AppResponse> UpdateProvinceAsync(int id, ProvinceCreateDto input)
+    public async Task<ResponseBase> UpdateProvinceAsync(int id, ProvinceCreateDto input)
     {
         try
         {
@@ -78,70 +78,70 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             if (found is null) throw new NotFoundException("invalid province's ID");
             input.UpdateEntity(found);
             await provinceRepo.UpdateAsync(found);
-            return AppResponse.Ok();
+            return ResponseBase.Ok();
         }
         catch (Exception e)
         {
             logger.LogError("Failed to update province. Reason: {message}.", e.Message);
-            return AppResponse.Error(e.Message);
+            return ResponseBase.Error(e.Message);
         }
     }
 
-    public async Task<AppResponse> CreateDistrictAsync(DistrictCreateDto input)
+    public async Task<ResponseBase> CreateDistrictAsync(DistrictCreateDto input)
     {
         if (!await provinceRepo.ExistAsync(x => x.Id == input.ProvinceId))
-            return AppResponse.Error("Province could not be found");
+            return ResponseBase.Error("Province could not be found");
         var district = input.ToEntity(provinceRepo);
         var saved = await districtRepo.CreateAsync(district);
-        return AppResponse.OkResult(saved.ToDisplayDto());
+        return ResponseBase.OkResult(saved.ToDisplayDto());
     }
 
-    public async Task<AppResponse> CreateManyDistrictsAsync(int provinceId, List<DistrictCreateDto> input)
+    public async Task<ResponseBase> CreateManyDistrictsAsync(int provinceId, List<DistrictCreateDto> input)
     {
         try
         {
             if (!await provinceRepo.ExistAsync(x => x.Id == provinceId))
-                return AppResponse.Error("Province could not be found");
+                return ResponseBase.Error("Province could not be found");
             var districts = input.MapCollection(x => x.ToEntity(provinceRepo)).ToList();
             await districtRepo.CreateManyAsync(districts);
-            return AppResponse.OkResult("OK");
+            return ResponseBase.OkResult("OK");
         }
         catch (Exception e)
         {
             logger.LogError("Error: {message}", e.Message);
-            return AppResponse.Error("Failed to create districts");
+            return ResponseBase.Error("Failed to create districts");
         }
     }
 
-    public async Task<AppResponse> GetDistrictById(int id)
+    public async Task<ResponseBase> GetDistrictById(int id)
     {
         var district = await districtRepo.Find(x => x.Id == id && !x.Deleted).FirstOrDefaultAsync();
         if (district is null)
         {
-            return AppResponse.Error404("District not found");
+            return ResponseBase.Error404("District not found");
         }
-        return AppResponse.OkResult(district.ToDisplayDto());
+        return ResponseBase.OkResult(district.ToDisplayDto());
     }
 
-    public async Task<AppResponse> CreateTaxOfficeAsync(TaxOfficeCreateDto input)
+    public async Task<ResponseBase> CreateTaxOfficeAsync(TaxOfficeCreateDto input)
     {
         if (await TaxOfficeCodeExists(input.Code))
-            return AppResponse.Error400($"Tax Office Code '{input.Code}' already exists");
+            return ResponseBase.Error400($"Tax Office Code '{input.Code}' already exists");
 
         if (input.ProvinceId is not null && !await provinceRepo.ExistAsync(x => x.Id == input.ProvinceId && !x.Deleted))
-            return AppResponse.Error400("Province could not be found");
+            return ResponseBase.Error400("Province could not be found");
 
         // check for parent existence
         if (input.ParentId is not null && !await taxRepo.ExistAsync(x => x.Id == input.ParentId && !x.Deleted))
-            return AppResponse.Error400("Parent Tax Office could not be found");
+            return ResponseBase.Error400("Parent Tax Office could not be found");
 
         var taxOffice = input.ToEntity(provinceRepo);
 
         var saved = await taxRepo.CreateAsync(taxOffice);
-        return AppResponse.OkResult(saved.ToDisplayDto());
+        return ResponseBase.OkResult(saved.ToDisplayDto());
     }
 
-    public async Task<AppResponse> UpdateTaxOfficeAsync(int id, TaxOfficeCreateDto input)
+    public async Task<ResponseBase> UpdateTaxOfficeAsync(int id, TaxOfficeCreateDto input)
     {
         try
         {
@@ -171,37 +171,37 @@ public class RegionAppService(ILogger<RegionAppService> logger,
 
             input.UpdateEntity(found);
             await taxRepo.UpdateAsync(found);
-            return AppResponse.Ok();
+            return ResponseBase.Ok();
         }
         catch (NotFoundException e)
         {
-            return AppResponse.Error404(e.Message);
+            return ResponseBase.Error404(e.Message);
         }
         catch (InvalidActionException e)
         {
-            return AppResponse.Error400(e.Message);
+            return ResponseBase.Error400(e.Message);
         }
         catch (Exception e)
         {
-            return AppResponse.Error500(e.Message);
+            return ResponseBase.Error500(e.Message);
         }
     }
 
-    public async Task<AppResponse> CreateManyTaxOfficeAsync(int pId, List<TaxOfficeCreateDto> input)
+    public async Task<ResponseBase> CreateManyTaxOfficeAsync(int pId, List<TaxOfficeCreateDto> input)
     {
         try
         {
             if (!await provinceRepo.ExistAsync(x => x.Id == pId))
-                return AppResponse.Error("Province could not be found");
+                return ResponseBase.Error("Province could not be found");
             var taxOffices = input.MapCollection(x => x.ToEntity(provinceRepo)).ToList();
 
             await taxRepo.CreateManyAsync(taxOffices);
-            return AppResponse.OkResult("OK");
+            return ResponseBase.OkResult("OK");
         }
         catch (Exception e)
         {
             logger.LogError("{message}", e.Message);
-            return AppResponse.Error("Failed to create tax offices");
+            return ResponseBase.Error("Failed to create tax offices");
         }
     }
 
@@ -210,7 +210,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         return await taxRepo.ExistAsync(x => x.Code == code && x.Deleted == false);
     }
 
-    public async Task<AppResponse> GetAllTaxOfficesAsync(PageRequest req)
+    public async Task<ResponseBase> GetAllTaxOfficesAsync(PageRequest req)
     {
         //Find the tax office without a parent, these are the top level tax offices.
         var parents = await taxRepo.Find(x => !x.Deleted && (x.ParentId == null || x.ParentId.Value == 0),
@@ -243,17 +243,17 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             }
         }
 
-        return AppResponse.OkResult(parents.MapPagedList(x => x.ToDisplayDto()));
+        return ResponseBase.OkResult(parents.MapPagedList(x => x.ToDisplayDto()));
     }
 
-    public async Task<AppResponse> FindTaxOfficeByIdAsync(int id)
+    public async Task<ResponseBase> FindTaxOfficeByIdAsync(int id)
     {
         var taxOffice = await taxRepo.Find(filter: x => x.Id == id && !x.Deleted)
                                      .FirstOrDefaultAsync();
 
         if (taxOffice is null)
         {
-            return AppResponse.Error404("Tax Office could not be found");
+            return ResponseBase.Error404("Tax Office could not be found");
         }
 
         var children = await taxRepo.Find(x => x.ParentId != null && x.ParentId == id && !x.Deleted)
@@ -266,16 +266,16 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             taxOffice.Parent = parent;
         }
 
-        return AppResponse.OkResult(taxOffice.ToDisplayDto());
+        return ResponseBase.OkResult(taxOffice.ToDisplayDto());
     }
 
-    public async Task<AppResponse> FindTopLevelTaxOfficesAsync()
+    public async Task<ResponseBase> FindTopLevelTaxOfficesAsync()
     {
         var topLevelTaxOffices = await taxRepo.Find(x => x.ParentId == null || x.ParentId.Value == 0).ToListAsync();
-        return AppResponse.OkResult(topLevelTaxOffices.MapCollection(x => x.ToDisplayDto()));
+        return ResponseBase.OkResult(topLevelTaxOffices.MapCollection(x => x.ToDisplayDto()));
     }
 
-    public async Task<AppResponse> GetAllProvincesAsync(PageRequest page)
+    public async Task<ResponseBase> GetAllProvincesAsync(PageRequest page)
     {
         var result = await provinceRepo.Find(x => !x.Deleted
                                                   && (string.IsNullOrWhiteSpace(page.Keyword) ||
@@ -286,27 +286,27 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                                        .AsSplitQuery()
                                        .ToPagedListAsync(page.Page, page.Size);
 
-        return AppResponse.OkResult(result.MapPagedList(x => x.ToDisplayDto()));
+        return ResponseBase.OkResult(result.MapPagedList(x => x.ToDisplayDto()));
     }
 
-    public async Task<AppResponse> GetProvinceAsync(int id)
+    public async Task<ResponseBase> GetProvinceAsync(int id)
     {
         var province = await provinceRepo.Find(filter: x => x.Id == id && x.Deleted == false)
                                          .Include(p => p.Districts.Where(d => !d.Deleted))
                                          //.Include(p => p.TaxOffices.Where(t => !t.Deleted))
                                          .FirstOrDefaultAsync();
         return province == null
-            ? AppResponse.Error404("Province could not be found")
-            : AppResponse.OkResult(province.ToDisplayDto());
+            ? ResponseBase.Error404("Province could not be found")
+            : ResponseBase.OkResult(province.ToDisplayDto());
     }
 
-    public async Task<AppResponse> GetDistrictsInProvinceAsync(int provinceId)
+    public async Task<ResponseBase> GetDistrictsInProvinceAsync(int provinceId)
     {
         var districts = await districtRepo.Find(filter: d => d.Province!.Id == provinceId && !d.Deleted,
                                                 sortBy: "Code", order: "ASC")
                                           .ToListAsync();
-        if (districts.Count == 0) return AppResponse.Error404("No districts found for the given province ID");
-        return new AppResponse
+        if (districts.Count == 0) return ResponseBase.Error404("No districts found for the given province ID");
+        return new ResponseBase
         {
             Data = districts.MapCollection(x => x.ToDisplayDto()).ToList(),
             Message = "OK",
@@ -317,27 +317,27 @@ public class RegionAppService(ILogger<RegionAppService> logger,
 
     }
 
-    public async Task<AppResponse> GetTaxOfficesInProvinceAsync(int provinceId)
+    public async Task<ResponseBase> GetTaxOfficesInProvinceAsync(int provinceId)
     {
         var taxOffices = await taxRepo.Find(filter: t => t.Province != null && t.Province.Id == provinceId,
                                             sortBy: "Id", order: "ASC")
                                       .AsNoTracking()
                                       .ToListAsync();
-        return AppResponse.OkResult(taxOffices.MapCollection(x => x.ToDisplayDto()));
+        return ResponseBase.OkResult(taxOffices.MapCollection(x => x.ToDisplayDto()));
     }
 
-    public async Task<AppResponse> GetTaxOfficesByParentAsync(int parentId)
+    public async Task<ResponseBase> GetTaxOfficesByParentAsync(int parentId)
     {
         var taxOffices = await taxRepo.Find(x => x.ParentId != null && x.ParentId == parentId,
                                             sortBy: "Id", order: "ASC")
                                       .AsNoTracking()
                                       .ToListAsync();
-        return AppResponse.OkResult(taxOffices.MapCollection(x => x.ToDisplayDto()));
+        return ResponseBase.OkResult(taxOffices.MapCollection(x => x.ToDisplayDto()));
     }
 
     #region New Tax Offices
 
-    public async Task<AppResponse> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos)
+    public async Task<ResponseBase> CreateTaxOffice2(List<TaxOffice2CreateDto> dtos)
     {
         List<TaxOffice2CreateDto> validDtos = [];
         foreach (var dto in dtos)
@@ -350,7 +350,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         }
         if (validDtos.Count == 0)
         {
-            return AppResponse.Error400("No valid tax office data");
+            return ResponseBase.Error400("No valid tax office data");
         }
         var newTaxOffices = validDtos.Select(d => new TaxOffice2
         {
@@ -360,7 +360,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             ProvinceId = d.ProvinceId,
         }).ToList();
         await taxRepo2.CreateManyAsync(newTaxOffices);
-        return new AppResponse
+        return new ResponseBase
         {
             Code = "200",
             Success = true,
@@ -373,11 +373,11 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         };
     }
 
-    public async Task<AppResponse> GetTaxOffice2ByProvince(int provinceId)
+    public async Task<ResponseBase> GetTaxOffice2ByProvince(int provinceId)
     {
         var taxOffices = await taxRepo2.Find(x => x.ProvinceId == provinceId && !x.Deleted)
                                        .ToListAsync();
-        return AppResponse.OkResult(taxOffices.Select(x => new TaxOffice2DiplayDto
+        return ResponseBase.OkResult(taxOffices.Select(x => new TaxOffice2DiplayDto
         {
             Id = x.Id,
             FullName = x.FullName,
@@ -388,7 +388,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         }).ToList());
     }
 
-    public async Task<AppResponse> GetTaxOffice2ByDistrict(string districtCode, int provinceId)
+    public async Task<ResponseBase> GetTaxOffice2ByDistrict(string districtCode, int provinceId)
     {
         var provinceTaxCode = districtCode[..3] + "00";
         var taxOffices = await taxRepo2.Find(x => (((x.Code == districtCode || x.Code == provinceTaxCode)
@@ -396,7 +396,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
                                              && !x.Deleted)
                                        .OrderBy(x => x.Code)
                                        .ToListAsync();
-        return AppResponse.OkResult(taxOffices.Select(x => new TaxOffice2DiplayDto
+        return ResponseBase.OkResult(taxOffices.Select(x => new TaxOffice2DiplayDto
         {
             Id = x.Id,
             FullName = x.FullName,
@@ -406,7 +406,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             ProvinceName = x.Province?.Name
         }).ToList());
     }
-    public async Task<AppResponse> GetAllTaxOffice2(PageRequest req)
+    public async Task<ResponseBase> GetAllTaxOffice2(PageRequest req)
     {
 
         var query = taxRepo2.Find(x => !x.Deleted, sortBy: req.SortBy, order: req.OrderBy);
@@ -420,7 +420,7 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         var taxOffices = await query.AsNoTracking()
                                     .ToPagedListAsync(req.Page, req.Size);
 
-        return AppResponse.OkResult(taxOffices.MapPagedList(x => new TaxOffice2DiplayDto
+        return ResponseBase.OkResult(taxOffices.MapPagedList(x => new TaxOffice2DiplayDto
         {
             Id = x.Id,
             FullName = x.FullName,
@@ -431,15 +431,15 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         }));
     }
 
-    public async Task<AppResponse> GetTaxOffice2ById(int id)
+    public async Task<ResponseBase> GetTaxOffice2ById(int id)
     {
         var found = await taxRepo2.Find(x => x.Id == id && !x.Deleted)
                                   .FirstOrDefaultAsync();
         if (found is null)
         {
-            return AppResponse.Error404("Not found");
+            return ResponseBase.Error404("Not found");
         }
-        return AppResponse.OkResult(new TaxOffice2DiplayDto
+        return ResponseBase.OkResult(new TaxOffice2DiplayDto
         {
             Id = found.Id,
             FullName = found.FullName,
@@ -450,13 +450,13 @@ public class RegionAppService(ILogger<RegionAppService> logger,
         });
     }
 
-    public async Task<AppResponse> UpdateTaxOffice2(int id, TaxOffice2CreateDto input)
+    public async Task<ResponseBase> UpdateTaxOffice2(int id, TaxOffice2CreateDto input)
     {
         try
         {
             var found = await taxRepo2.FindByIdAsync(id) ?? throw new NotFoundException("Invalid tax office's ID");
             if (input.ProvinceId is not null && !await provinceRepo.ExistAsync(x => x.Id == input.ProvinceId && !x.Deleted))
-                return AppResponse.Error400("Province could not be found");
+                return ResponseBase.Error400("Province could not be found");
 
             found.FullName= input.FullName;
             found.ShortName = input.ShortName;
@@ -464,15 +464,15 @@ public class RegionAppService(ILogger<RegionAppService> logger,
             found.ProvinceId = input.ProvinceId;
 
             await taxRepo2.UpdateAsync(found);
-            return AppResponse.Ok();
+            return ResponseBase.Ok();
         }
         catch (NotFoundException e)
         {
-            return AppResponse.Error404(e.Message);
+            return ResponseBase.Error404(e.Message);
         }
         catch (Exception e)
         {
-            return AppResponse.Error500(e.Message);
+            return ResponseBase.Error500(e.Message);
         }
     }
     #endregion

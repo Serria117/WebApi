@@ -19,7 +19,7 @@ namespace WebApp.Services.InvoiceService;
 
 public partial class InvoiceService
 {
-    public async Task<AppResponse> ExtractPurchaseInvoices(string token,
+    public async Task<ResponseBase> ExtractPurchaseInvoices(string token,
                                                            string from, string to,
                                                            int[]? invoiceTypes)
     {
@@ -36,7 +36,7 @@ public partial class InvoiceService
                                                               to.ToDateTime()!.Value,
                                                               0, 0, SyncType.Purchased);
 
-            return new AppResponse
+            return new ResponseBase
             {
                 Message = $"Không có hóa đơn mới nào trong khoảng thời gian từ {from} đến {to}",
                 Code = "200"
@@ -50,7 +50,7 @@ public partial class InvoiceService
                                                               to.ToDateTime()!.Value,
                                                               0, 0,
                                                               SyncType.Purchased, false);
-            return new AppResponse
+            return new ResponseBase
             {
                 Message = "Failed to retrieve purchase invoices. " +
                                      $"Please try again later. {result.Message}",
@@ -84,12 +84,12 @@ public partial class InvoiceService
         }
 
         if (invoicesToSaveList.Count == 0)
-            return AppResponse.OkResult($"Tìm thấy {countFromResponse} hóa đơn mua hàng đã có trong hệ thống, " +
+            return ResponseBase.OkResult($"Tìm thấy {countFromResponse} hóa đơn mua hàng đã có trong hệ thống, " +
                                         "không có hóa đơn mới nào để thêm");
 
         foreach (var invoice in invoicesToSaveList)
         {
-            AppResponse invDetailResponse = await restService.GetPurchaseInvoiceDetail(token, invoice);
+            ResponseBase invDetailResponse = await restService.GetPurchaseInvoiceDetail(token, invoice);
 
             if (invDetailResponse.Code == InvoiceDetailStatus.TooManyRequest.ToString())
             {
@@ -97,7 +97,7 @@ public partial class InvoiceService
                                             "Please try again later.");
                 var deserializableResult = await WriteDeserializableInvoices(deSerializableInvoices);
                 var undeserializableResult = await WriteUndeserializableInvoices(unDeserializableInvoices);
-                return new AppResponse
+                return new ResponseBase
                 {
                     Success = true,
                     Message = invDetailResponse.Message,
@@ -150,7 +150,7 @@ public partial class InvoiceService
                                             totalSuccess: downloadCount - dResult.ErrorCount - uResult.ErrorCount,
                                             type: SyncType.Purchased);
 
-        return new AppResponse
+        return new ResponseBase
         {
             TotalCount = countFromResponse,
             Code = "200",
@@ -167,7 +167,7 @@ public partial class InvoiceService
         };
     }
 
-    public async Task<AppResponse> QueryPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams)
+    public async Task<ResponseBase> QueryPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams)
     {
         var filter = InvoiceFilterBuilder.StartBuilder()
                                          .FromDate(invoiceParams.From)
@@ -206,7 +206,7 @@ public partial class InvoiceService
             data.Add(displayModel);
         }
 
-        return new AppResponse
+        return new ResponseBase
         {
             Data = data,
             Message = "Ok",
@@ -218,7 +218,7 @@ public partial class InvoiceService
         };
     }
 
-    public async Task<AppResponse> UploadPurchaseInvoices(List<IFormFile> files)
+    public async Task<ResponseBase> UploadPurchaseInvoices(List<IFormFile> files)
     {
         try
         {
@@ -231,7 +231,7 @@ public partial class InvoiceService
             }
 
             var result = await mongoPurchaseInvoice.InsertInvoicesAsync(invoices);
-            return new AppResponse
+            return new ResponseBase
             {
                 Success = result,
                 Code = result ? "200" : "400",
@@ -241,14 +241,14 @@ public partial class InvoiceService
         catch (Exception e)
         {
             logger.LogErrorFormatted(exception: e);
-            return AppResponse.Error400("Tải lên file không thành công. Hãy kiểm tra log.");
+            return ResponseBase.Error400("Tải lên file không thành công. Hãy kiểm tra log.");
         }
     }
 
-    public async Task<AppResponse> DeletePurchaseInvoicesAsync(List<string> ids)
+    public async Task<ResponseBase> DeletePurchaseInvoicesAsync(List<string> ids)
     {
         var result = await mongoPurchaseInvoice.DeleteInvoices(ids);
-        return new AppResponse
+        return new ResponseBase
         {
             Success = result,
             Code = result ? "200" : "400",
@@ -256,7 +256,7 @@ public partial class InvoiceService
         };
     }
 
-    public async Task<AppResponse> RecheckPurchaseInvoiceStatus(string token, string from, string to)
+    public async Task<ResponseBase> RecheckPurchaseInvoiceStatus(string token, string from, string to)
     {
         var result = await restService.GetPurchaseInvoiceListInRange(token, from, to);
         var total = 0L;
@@ -271,7 +271,7 @@ public partial class InvoiceService
                 updateList.Add(inv.ToDisplayModel());
             }
         }
-        return new AppResponse
+        return new ResponseBase
         {
             Message = total > 0
                 ? $"{total:N0} hóa đơn đã được cập nhật trạng thái"

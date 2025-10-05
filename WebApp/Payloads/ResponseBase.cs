@@ -5,7 +5,10 @@ using X.PagedList;
 
 namespace WebApp.Payloads;
 
-public class AppResponse
+/// <summary>
+/// Basic response wrapper object
+/// </summary>
+public class ResponseBase
 {
     public string? Code { get; set; }
     public bool Success { get; set; } = true;
@@ -16,23 +19,23 @@ public class AppResponse
     public long? TotalCount { get; set; }
     public object? Data { get; set; }
 
-    public static AppResponse Ok()
+    public static ResponseBase Ok()
     {
-        return new AppResponse { Code = "200", Success = true };
+        return new ResponseBase { Code = "200", Success = true };
     }
 
-    public static AppResponse Ok(string message)
+    public static ResponseBase Ok(string message)
     {
-        return new AppResponse { Code = "200", Success = true, Message = message };
+        return new ResponseBase { Code = "200", Success = true, Message = message };
     }
 
-    public static AppResponse Ok(string code, string message)
+    public static ResponseBase Ok(string code, string message)
     {
-        return new AppResponse { Success = true, Message = message, Code = code };
+        return new ResponseBase { Success = true, Message = message, Code = code };
     }
-    public static AppResponse OkResult(object data)
+    public static ResponseBase OkResult(object data)
     {
-        AppResponse response = new()
+        ResponseBase response = new()
         {
             Code = "200",
             Message = "OK",
@@ -61,9 +64,9 @@ public class AppResponse
         return response;
     }
 
-    public static AppResponse Error(string mesage, params string[] details)
+    public static ResponseBase Error(string mesage, params string[] details)
     {
-        return new AppResponse
+        return new ResponseBase
         {
             Success = false,
             Message = mesage,
@@ -72,9 +75,9 @@ public class AppResponse
         };
     }
 
-    public static AppResponse Error(string mesage, List<string> details)
+    public static ResponseBase Error(string mesage, List<string> details)
     {
-        return new AppResponse
+        return new ResponseBase
         {
             Success = false,
             Message = mesage,
@@ -82,9 +85,9 @@ public class AppResponse
         };
     }
 
-    public static AppResponse Error400(string message, params string[] details)
+    public static ResponseBase Error400(string message, params string[] details)
     {
-        return new AppResponse
+        return new ResponseBase
         {
             Code = "400",
             Success = false,
@@ -93,9 +96,9 @@ public class AppResponse
         };
     }
     
-    public static AppResponse Error404(string message, params string[] details)
+    public static ResponseBase Error404(string message, params string[] details)
     {
-        return new AppResponse
+        return new ResponseBase
         {
             Code = "404",
             Success = false,
@@ -104,9 +107,9 @@ public class AppResponse
         };
     }
 
-    public static AppResponse Error500(string message, params string[] details)
+    public static ResponseBase Error500(string message, params string[] details)
     {
-        return new AppResponse
+        return new ResponseBase
         {
             Code = "500",
             Success = false,

@@ -11,19 +11,19 @@ namespace WebApp.Services.RiskCompanyService;
 
 public interface IRiskCompanyAppService
 {
-    Task<AppResponse> GetAsync(PageRequest page);
-    Task<AppResponse> CreateAsync(RiskCompany riskCompany);
-    Task<AppResponse> CreateManyAsync(List<RiskCompany> riskCompanies);
-    Task<AppResponse> CheckInvoicesAsync(List<InvoiceDisplayDto> invoices);
-    Task<AppResponse> SoftDeleteAsync(int id);
-    Task<AppResponse> SoftDeleteManyAsync(List<int> ids);
+    Task<ResponseBase> GetAsync(PageRequest page);
+    Task<ResponseBase> CreateAsync(RiskCompany riskCompany);
+    Task<ResponseBase> CreateManyAsync(List<RiskCompany> riskCompanies);
+    Task<ResponseBase> CheckInvoicesAsync(List<InvoiceDisplayDto> invoices);
+    Task<ResponseBase> SoftDeleteAsync(int id);
+    Task<ResponseBase> SoftDeleteManyAsync(List<int> ids);
     bool IsInvoiceRisk(string? sellerTaxCode);
 }
 
 public class RiskCompanyBaseAppService(IAppRepository<RiskCompany, int> riskCompanyRepo,
                                    IUserManager userManager) : BaseAppService(userManager), IRiskCompanyAppService
 {
-    public async Task<AppResponse> GetAsync(PageRequest page)
+    public async Task<ResponseBase> GetAsync(PageRequest page)
     {
         var riskList = await riskCompanyRepo.Find(filter: x => !x.Deleted
                                                        && (page.Keyword == null
@@ -34,25 +34,25 @@ public class RiskCompanyBaseAppService(IAppRepository<RiskCompany, int> riskComp
                                             )
                                             .ToPagedListAsync(page.Page, page.Size);
 
-        return AppResponse.OkResult(riskList);
+        return ResponseBase.OkResult(riskList);
     }
 
-    public async Task<AppResponse> CreateAsync(RiskCompany riskCompany)
+    public async Task<ResponseBase> CreateAsync(RiskCompany riskCompany)
     {
-        return AppResponse.OkResult(await riskCompanyRepo.CreateAsync(riskCompany));
+        return ResponseBase.OkResult(await riskCompanyRepo.CreateAsync(riskCompany));
     }
 
-    public async Task<AppResponse> CreateManyAsync(List<RiskCompany> riskCompanies)
+    public async Task<ResponseBase> CreateManyAsync(List<RiskCompany> riskCompanies)
     {
         var riskList = await riskCompanyRepo.Find(x => !x.Deleted)
                                             .Select(x => x.TaxId)
                                             .ToListAsync();
         riskCompanies = riskCompanies.Where(x => !riskList.Contains(x.TaxId)).ToList();
         await riskCompanyRepo.CreateManyAsync(riskCompanies);
-        return AppResponse.Ok();
+        return ResponseBase.Ok();
     }
 
-    public async Task<AppResponse> CheckInvoicesAsync(List<InvoiceDisplayDto> invoices)
+    public async Task<ResponseBase> CheckInvoicesAsync(List<InvoiceDisplayDto> invoices)
     {
         var riskList = await riskCompanyRepo.Find(x => !x.Deleted)
                                             .Select(x => x.TaxId)
@@ -60,7 +60,7 @@ public class RiskCompanyBaseAppService(IAppRepository<RiskCompany, int> riskComp
         var positiveInv = invoices.Where(invoice => riskList.Contains(invoice.SellerTaxCode))
                                   .ToList();
 
-        return AppResponse.OkResult(positiveInv);
+        return ResponseBase.OkResult(positiveInv);
     }
 
     public bool IsInvoiceRisk(string? sellerTaxCode)
@@ -70,15 +70,15 @@ public class RiskCompanyBaseAppService(IAppRepository<RiskCompany, int> riskComp
         return riskList.Contains(sellerTaxCode);
     }
 
-    public async Task<AppResponse> SoftDeleteAsync(int id)
+    public async Task<ResponseBase> SoftDeleteAsync(int id)
     {
         var deleteResult = await riskCompanyRepo.SoftDeleteAsync(id);
-        return deleteResult ? AppResponse.Ok() : AppResponse.Error($"Failed to delete Id: {id}");
+        return deleteResult ? ResponseBase.Ok() : ResponseBase.Error($"Failed to delete Id: {id}");
     }
 
-    public async Task<AppResponse> SoftDeleteManyAsync(List<int> ids)
+    public async Task<ResponseBase> SoftDeleteManyAsync(List<int> ids)
     {
         var deleteResult = await riskCompanyRepo.SoftDeleteManyAsync(ids.ToArray());
-        return deleteResult ? AppResponse.Ok() : AppResponse.Error("Failed to delete");
+        return deleteResult ? ResponseBase.Ok() : ResponseBase.Error("Failed to delete");
     }
 }

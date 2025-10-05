@@ -9,13 +9,13 @@ using X.Extensions.PagedList.EF;
 namespace WebApp.Services.TemplateServices;
 public interface ITemplateAppService
 {
-    Task<AppResponse> CreateTemplate(TemplateCreateDto dto);
+    Task<ResponseBase> CreateTemplate(TemplateCreateDto dto);
     Task DeleteTemplateFile(int fileId);
     Task<(string FileName, byte[] FileData)> DownloadFile(int fileId);
-    Task<AppResponse> FindTemplates(PageRequest request);
-    Task<AppResponse> GetTemplateById(int id);
-    Task<AppResponse> UpdateTemplateInfo(int id, TemplateCreateDto dto);
-    Task<AppResponse> UploadNewFileToTemplate(TemplateFileUploadDto dto);
+    Task<ResponseBase> FindTemplates(PageRequest request);
+    Task<ResponseBase> GetTemplateById(int id);
+    Task<ResponseBase> UpdateTemplateInfo(int id, TemplateCreateDto dto);
+    Task<ResponseBase> UploadNewFileToTemplate(TemplateFileUploadDto dto);
 }
 
 public class TemplateAppService(IAppRepository<Template, int> templateRepository,
@@ -23,7 +23,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
                                 IHostEnvironment env) : ITemplateAppService
 {
     private readonly string _templateFolder = "Templates";
-    public async Task<AppResponse> CreateTemplate(TemplateCreateDto dto)
+    public async Task<ResponseBase> CreateTemplate(TemplateCreateDto dto)
     {
         var newTemplate = dto.ToEntity();
 
@@ -44,10 +44,10 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
             }
         }
         var createdTemplate = await templateRepository.CreateAsync(newTemplate);
-        return AppResponse.OkResult(createdTemplate.ToDisplayDto());
+        return ResponseBase.OkResult(createdTemplate.ToDisplayDto());
     }
 
-    public async Task<AppResponse> FindTemplates(PageRequest request)
+    public async Task<ResponseBase> FindTemplates(PageRequest request)
     {
         var query = templateRepository.Find(t => !t.Deleted);
         if(request.Keyword is not null)
@@ -56,41 +56,41 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
         }
         query = query.OrderBy(t => t.Order);
         var found = await query.ToPagedListAsync(request.Page, request.Size);
-        return AppResponse.OkResult(found.MapPagedList(t => t.ToDisplayDto()));
+        return ResponseBase.OkResult(found.MapPagedList(t => t.ToDisplayDto()));
     }
 
-    public async Task<AppResponse> GetTemplateById(int id)
+    public async Task<ResponseBase> GetTemplateById(int id)
     {
         var found = await templateRepository.Find(t => !t.Deleted && t.Id == id)
                                             .Include(t => t.TemplateFiles
                                                            .Where(x => !x.Deleted)
                                                            .OrderByDescending(x => x.UploadTime))
                                             .FirstOrDefaultAsync();
-        if(found == null) return AppResponse.Error404("Template not found");
+        if(found == null) return ResponseBase.Error404("Template not found");
         var dto = found.ToDisplayDto();
-        return AppResponse.OkResult(dto);
+        return ResponseBase.OkResult(dto);
     }
 
-    public async Task<AppResponse> UpdateTemplateInfo(int id, TemplateCreateDto dto)
+    public async Task<ResponseBase> UpdateTemplateInfo(int id, TemplateCreateDto dto)
     {
         var template = await templateRepository.Find(t => !t.Deleted && t.Id == id)
                                                .FirstOrDefaultAsync();
-        if (template is null) return AppResponse.Error404("Template not found");
+        if (template is null) return ResponseBase.Error404("Template not found");
 
         template.Name = dto.Name;
         template.Description = dto.Description;
         template.Order = dto.Order;
 
-        return AppResponse.Ok();
+        return ResponseBase.Ok();
     }
 
-    public async Task<AppResponse> UploadNewFileToTemplate(TemplateFileUploadDto dto)
+    public async Task<ResponseBase> UploadNewFileToTemplate(TemplateFileUploadDto dto)
     {
-        if (dto.TemplateFile.FileToUpload is null) return AppResponse.Error400("File is empty");
+        if (dto.TemplateFile.FileToUpload is null) return ResponseBase.Error400("File is empty");
         var template = await templateRepository.Find(x => x.Id == dto.TemplateId && !x.Deleted)
                                                .FirstOrDefaultAsync();
 
-        if (template is null) return AppResponse.Error404("Template not found");
+        if (template is null) return ResponseBase.Error404("Template not found");
         var fileName = await UploadTemplateFile(dto.TemplateFile.FileToUpload);
         template.TemplateFiles.Add(new TemplateFile
         {
@@ -101,7 +101,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
             UploadTime = DateTime.Now.ToLocalTime()
         });
         await templateRepository.UpdateAsync(template);
-        return AppResponse.Ok();
+        return ResponseBase.Ok();
 
     }
 

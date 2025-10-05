@@ -12,7 +12,7 @@ namespace WebApp.Services.PayrollService;
 
 public partial class PayrollAppService
 {
-    public async Task<AppResponse> CreateEmployeeAsync(EmployeeCreateDto dto)
+    public async Task<ResponseBase> CreateEmployeeAsync(EmployeeCreateDto dto)
     {
         try
         {
@@ -20,12 +20,12 @@ public partial class PayrollAppService
             var org = await OrganizationRepository.Find(o => o.Id == WorkingOrg.ToGuid())
                                                   .FirstOrDefaultAsync();
             if (org is null)
-                return AppResponse.Error404("Organization not found");
+                return ResponseBase.Error404("Organization not found");
 
             //check if employee's taxId existing in the organization:
             var existEmployeeTaxId = await IsEmployeeDuplicatedAsync(dto.TaxId, dto.PersonalId);
             if (existEmployeeTaxId)
-                return AppResponse.Error($"Employee with taxId [{dto.TaxId}] already exists");
+                return ResponseBase.Error($"Employee with taxId [{dto.TaxId}] already exists");
 
             var employee = dto.ToEntity(org);
             if (dto.Dependents.Count > 0)
@@ -44,13 +44,13 @@ public partial class PayrollAppService
                                     dto.SalaryEndDate);
 
             await transaction.CommitAsync();
-            return AppResponse.OkResult(savedEmployee.ToDisplayDto());
+            return ResponseBase.OkResult(savedEmployee.ToDisplayDto());
         }
         catch (Exception e)
         {
             logger.LogErrorFormatted(exception: e);
             await transaction.RollbackAsync();
-            return AppResponse.Error(ResponseMessage.GenericError);
+            return ResponseBase.Error(ResponseMessage.GenericError);
         }
         finally
         {
@@ -58,7 +58,7 @@ public partial class PayrollAppService
         }
     }
 
-    public async Task<AppResponse> UpdateEmployeeAsync(long id, EmployeeUpdate dto)
+    public async Task<ResponseBase> UpdateEmployeeAsync(long id, EmployeeUpdate dto)
     {
         try
         {
@@ -66,7 +66,7 @@ public partial class PayrollAppService
             var employee = await EmployeeRepository.Find(e => e.Id == id && !e.Deleted)
                                                    .Include(e => e.Dependents)
                                                    .FirstOrDefaultAsync();
-            if (employee is null) return AppResponse.Error404("Employee not found");
+            if (employee is null) return ResponseBase.Error404("Employee not found");
 
             //Update entity then save change to database:
             employee.Name = dto.Name;
@@ -123,13 +123,13 @@ public partial class PayrollAppService
 
             await EmployeeRepository.UpdateAsync(employee);
             await transaction.CommitAsync();
-            return AppResponse.OkResult(employee.ToDisplayDto());
+            return ResponseBase.OkResult(employee.ToDisplayDto());
         }
         catch (Exception e)
         {
             logger.LogErrorFormatted(exception: e);
             await transaction.RollbackAsync();
-            return AppResponse.Error(ResponseMessage.GenericError);
+            return ResponseBase.Error(ResponseMessage.GenericError);
         }
         finally
         {
@@ -137,7 +137,7 @@ public partial class PayrollAppService
         }
     }
 
-    public async Task<AppResponse> GetEmployeesAsync(EmployeeQuery query)
+    public async Task<ResponseBase> GetEmployeesAsync(EmployeeQuery query)
     {
         var emp = await EmployeeRepository
                         .Find(e => e.OrganizationId == WorkingOrg.ToGuid()
@@ -155,13 +155,13 @@ public partial class PayrollAppService
                         .Include(e => e.Allowances)*/
                         .AsNoTracking()
                         .ToListAsync();
-        return AppResponse.OkResult(emp);
+        return ResponseBase.OkResult(emp);
     }
 
-    public async Task<AppResponse> GetEmployeesInPeriod(long periodId)
+    public async Task<ResponseBase> GetEmployeesInPeriod(long periodId)
     {
         var period = await GetPayrollPeriod(periodId);
-        if (period is null) return AppResponse.Error404("PayrollPeriod not found.");
+        if (period is null) return ResponseBase.Error404("PayrollPeriod not found.");
         var employees = await EmployeeRepository
                               .Find(e => e.OrganizationId == WorkingOrg.ToGuid()
                                          && !e.Deleted
@@ -172,10 +172,10 @@ public partial class PayrollAppService
                                                                   && (s.EndDate >= period.EndDate || s.EndDate == null)))
 
                               .ToListAsync();
-        return AppResponse.OkResult(employees);
+        return ResponseBase.OkResult(employees);
     }
 
-    public async Task<AppResponse> GetEmployeeById(long id)
+    public async Task<ResponseBase> GetEmployeeById(long id)
     {
         var employee = await EmployeeRepository.Find(x => x.Id == id)
                                                .Include(x => x.Dependents)
@@ -183,28 +183,28 @@ public partial class PayrollAppService
                                                .Include(x => x.Allowances)
                                                .FirstOrDefaultAsync();
         return employee is not null
-            ? AppResponse.OkResult(employee.ToDisplayDto())
-            : AppResponse.Error404("Employee not found");
+            ? ResponseBase.OkResult(employee.ToDisplayDto())
+            : ResponseBase.Error404("Employee not found");
     }
 
-    public async Task<AppResponse> DeleteEmployeesAsync(List<long> idList)
+    public async Task<ResponseBase> DeleteEmployeesAsync(List<long> idList)
     {
         var result = await EmployeeRepository.SoftDeleteManyAsync([.. idList]);
         return result
-            ? AppResponse.OkResult(result)
-            : AppResponse.Error400("Failed to delete employee");
+            ? ResponseBase.OkResult(result)
+            : ResponseBase.Error400("Failed to delete employee");
     }
 
-    public async Task<AppResponse> AddSalaryToEmployeeAsync(SalaryCreate dto)
+    public async Task<ResponseBase> AddSalaryToEmployeeAsync(SalaryCreate dto)
     {
         var emp = await EmployeeRepository.Find(e => e.Id == dto.EmployeeId).FirstOrDefaultAsync();
-        if (emp is null) return AppResponse.Error404("Employee not found");
-        return AppResponse.OkResult(await CreateSalaryAsync(emp,
+        if (emp is null) return ResponseBase.Error404("Employee not found");
+        return ResponseBase.OkResult(await CreateSalaryAsync(emp,
                                                             dto.SalaryValue, dto.InsuranceSalaryValue,
                                                             dto.EffectiveDate, dto.EndDate));
     }
 
-    public async Task<AppResponse> EditDependentsInEmployeeAsync(long employeeId,
+    public async Task<ResponseBase> EditDependentsInEmployeeAsync(long employeeId,
                                                                  ICollection<DependentCreateDto> dtoList)
     {
         var emp = await EmployeeRepository.Find(e => e.Id == employeeId
@@ -212,7 +212,7 @@ public partial class PayrollAppService
                                                      && e.OrganizationId == WorkingOrg.ToGuid())
                                           .Include(e => e.Dependents.Where(d => d.Deleted == false))
                                           .FirstOrDefaultAsync();
-        if (emp is null) return AppResponse.Error404("Employee not found");
+        if (emp is null) return ResponseBase.Error404("Employee not found");
 
         var dependentList = dtoList.Select(item => new Dependents
         {
@@ -229,7 +229,7 @@ public partial class PayrollAppService
                                    .ToList();
 
         await DependentsRepository.CreateManyAsync(dependentList);
-        return AppResponse.OkResult(dependentList);
+        return ResponseBase.OkResult(dependentList);
     }
 
     

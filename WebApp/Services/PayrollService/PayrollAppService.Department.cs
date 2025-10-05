@@ -23,25 +23,25 @@ public partial class PayrollAppService
         await DepartmentRepository.CreateAsync(newDep);
     }
 
-    public async Task<AppResponse> GetDepartmentsAsync()
+    public async Task<ResponseBase> GetDepartmentsAsync()
     {
         var orgId = WorkingOrg.ToGuid();
         if (orgId == Guid.Empty)
             throw new InvalidOperationException("Working organization is not set.");
 
         var departments = await DepartmentRepository.Find(d => d.OrganizationId == orgId).ToListAsync();
-        return AppResponse.OkResult(departments);
+        return ResponseBase.OkResult(departments);
     }
 
-    public async Task<AppResponse> GetDepartmentByIdAsync(string id)
+    public async Task<ResponseBase> GetDepartmentByIdAsync(string id)
     {
         var orgId = WorkingOrg.ToGuid();
         if (orgId == Guid.Empty)
             throw new InvalidOperationException("Working organization is not set.");
         var department = await DepartmentRepository.Find(d => d.Id == id && d.OrganizationId == orgId).FirstOrDefaultAsync();
         if (department == null)
-            return AppResponse.Error404("Department not found.");
+            return ResponseBase.Error404("Department not found.");
 
-        return AppResponse.OkResult(department);
+        return ResponseBase.OkResult(department);
     }
 }

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
 using WebApp.Core.DomainEntities.Payroll;
 using WebApp.Enums;
 using WebApp.Repositories;
@@ -257,15 +258,18 @@ public static class DataObjectMapExtension
             TypeOfVatPeriod = i.TypeOfVatPeriod.RemoveSpace() ?? "Q",
             CapitalOwnershipType = (CapitalOwnershipType?)i.CapitalOwnershipType,
             Representative = i.Representative.RemoveSpace(),
-            OrganizationLoginInfos = [.. i.OrganizationLoginInfos
-                                      .Select(x => new OrganizationLoginInfo
-                                      {
-                                          AccountName = x.AccountName,
-                                          Password = x.Password,
-                                          Provider = x.Provider,
-                                          Url = x.Url,
-                                          Username = x.Username
-                                      })]
+            OrganizationLoginInfos =
+            [
+                .. i.OrganizationLoginInfos
+                    .Select(x => new OrganizationLoginInfo
+                    {
+                        AccountName = x.AccountName,
+                        Password = x.Password,
+                        Provider = x.Provider,
+                        Url = x.Url,
+                        Username = x.Username
+                    })
+            ]
         };
     }
 
@@ -639,10 +643,10 @@ public static class DataObjectMapExtension
         };
     }
 
-
     #endregion
 
     #region TEMPLATE
+
     public static TemplateDisplayDto ToDisplayDto(this Template entity)
     {
         return new TemplateDisplayDto
@@ -685,5 +689,86 @@ public static class DataObjectMapExtension
             VersionNote = dto.VersionNote
         };
     }
+
+    #endregion
+
+    #region Financial Report
+
+    public static FinancialReportDisplayDto ToDisplayDto(this FinancialReportWork r)
+    {
+        return new FinancialReportDisplayDto
+        {
+            Id = r.Id,
+            OrganizationId = r.OrganizationId,
+            Name = r.Name,
+            Regulation = r.Regulation,
+            Note = r.Note,
+            BeginDate = r.BeginDate,
+            EndDate = r.EndDate,
+            ReportDate = r.ReportDate,
+            Year = r.Year,
+            FirstFiscalDate = r.FirstFiscalDate,
+            TaxAgencyCode = r.TaxAgencyCode,
+            TaxAgencyName = r.TaxAgencyName,
+            Status = r.Status,
+            UserInput = r.UserInput == null
+                ? null
+                : new UserInputTrialDto()
+                {
+                    Id = r.UserInput.Id,
+                    Entries = r.UserInput.Entries.Select(e => new UserInputEntryDto
+                    {
+                        Id = e.Id,
+                        Name = e.Name,
+                        AccountCode = e.AccountCode,
+                        OpenCredit = e.OpenCredit,
+                        OpenDebit = e.OpenDebit,
+                        AriseCredit = e.AriseCredit,
+                        AriseDebit = e.AriseDebit,
+                        CloseCredit = e.CloseCredit,
+                        CloseDebit = e.CloseDebit,
+                        IsMatchRegulation = e.IsMatchRegulation,
+                        IsUserInput = e.IsUserInput,
+                        ParentCode = e.ParentCode,
+                        NetBalanceValid = e.NetBalanceValid,
+                        InvalidNetBalanceDifference = e.InvalidNetBalanceDifference
+                    }).ToArray()
+                },
+            TrialBalance = r.TrialBalanceEntries.Select(e => new TrialBalanceEntryDto
+            {
+                Id = e.Id,
+                Name = e.Name,
+                AccountCode = e.AccountCode,
+                OpenCredit = e.OpenCredit,
+                OpenDebit = e.OpenDebit,
+                AriseCredit = e.AriseCredit,
+                AriseDebit = e.AriseDebit,
+                CloseCredit = e.CloseCredit,
+                CloseDebit = e.CloseDebit,
+                IsMatchRegulation = e.IsMatchRegulation,
+                IsUserInput = e.IsUserInput,
+                ParentCode = e.ParentCode,
+                NetBalanceValid = e.NetBalanceValid,
+                InvalidNetBalanceDifference = e.InvalidNetBalanceDifference
+            }).ToArray(),
+            IncomeStatement = r.IncomeStatementEntries.Select(i => new IncomeStatementEntryDto
+            {
+                Id = i.Id,
+                Name = i.Name,
+                Code = i.Code,
+                LastYear = i.LastYear,
+                ThisYear = i.ThisYear
+            }).ToArray(),
+            BalanceSheet = r.BalanceSheetEntries.Select(b => new BalanceSheetEntryDto
+            {
+                Id = b.Id,
+                Name = b.Name,
+                Code = b.Code,
+                BeginingBalance = b.BeginingBalance,
+                EndingBalance = b.EndingBalance
+            }).ToArray()
+        };
+    }
+
     #endregion
 }

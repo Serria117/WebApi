@@ -16,44 +16,44 @@ public interface IAdminAppService
     /// Creates a new menu item based on the provided details.
     /// </summary>
     /// <param name="menu">An instance of <see cref="MenuInputDto"/> containing the details of the menu item to be created.</param>
-    /// <returns>An <see cref="AppResponse"/> indicating the result of the operation, including success status and any additional information.</returns>
-    Task<AppResponse> CreateMenu(MenuInputDto menu);
+    /// <returns>An <see cref="ResponseBase"/> indicating the result of the operation, including success status and any additional information.</returns>
+    Task<ResponseBase> CreateMenu(MenuInputDto menu);
 
     /// <summary>
     /// Updates an existing menu item with the provided details.
     /// </summary>
     /// <param name="id">The unique identifier of the menu item to be updated.</param>
     /// <param name="input">An instance of <see cref="MenuInputDto"/> containing the updated details for the menu item.</param>
-    /// <returns>An <see cref="AppResponse"/> indicating the result of the operation, including success status and any additional information.</returns>
-    Task<AppResponse> UpdateMenu(int id, MenuInputDto input);
+    /// <returns>An <see cref="ResponseBase"/> indicating the result of the operation, including success status and any additional information.</returns>
+    Task<ResponseBase> UpdateMenu(int id, MenuInputDto input);
 
     /// <summary>
     /// Retrieves a menu item by its unique identifier.
     /// </summary>
     /// <param name="id">The unique identifier of the menu item to retrieve.</param>
-    /// <returns>An <see cref="AppResponse"/> containing the menu item data if found, or an error response if the menu item does not exist.</returns>
-    public Task<AppResponse> GetMenuById(int id);
+    /// <returns>An <see cref="ResponseBase"/> containing the menu item data if found, or an error response if the menu item does not exist.</returns>
+    public Task<ResponseBase> GetMenuById(int id);
 
     /// <summary>
     /// Sets specific permissions for a menu item identified by its ID.
     /// </summary>
     /// <param name="menuId">The unique identifier of the menu item for which the permissions are to be set.</param>
     /// <param name="permissionsId">A list of permission IDs to be associated with the menu item.</param>
-    /// <returns>An <see cref="AppResponse"/> indicating the success or failure of the operation, with additional details if available.</returns>
-    public Task<AppResponse> SetPermissionsForMenu(int menuId, List<int> permissionsId);
+    /// <returns>An <see cref="ResponseBase"/> indicating the success or failure of the operation, with additional details if available.</returns>
+    public Task<ResponseBase> SetPermissionsForMenu(int menuId, List<int> permissionsId);
 
     /// <summary>
     /// Deletes a menu item with the specified identifier.
     /// </summary>
     /// <param name="id">The unique identifier of the menu item to be deleted.</param>
-    /// <returns>An <see cref="AppResponse"/> indicating the result of the operation, including success status and any additional information.</returns>
-    Task<AppResponse> DeleteMenu(int id);
+    /// <returns>An <see cref="ResponseBase"/> indicating the result of the operation, including success status and any additional information.</returns>
+    Task<ResponseBase> DeleteMenu(int id);
 
     /// <summary>
     /// Retrieves a list of all menu items available in the system.
     /// </summary>
-    /// <returns>An <see cref="AppResponse"/> containing the list of menu items, including status and any additional information.</returns>
-    Task<AppResponse> GetAllMenus();
+    /// <returns>An <see cref="ResponseBase"/> containing the list of menu items, including status and any additional information.</returns>
+    Task<ResponseBase> GetAllMenus();
 }
 
 public class AdminBaseAppService(IUserManager userManager,
@@ -61,7 +61,7 @@ public class AdminBaseAppService(IUserManager userManager,
                              IAppRepository<Permission, int> permissionRepo,
                              ILogger<AdminBaseAppService> logger) : BaseAppService(userManager), IAdminAppService
 {
-    public async Task<AppResponse> CreateMenu(MenuInputDto inputDto)
+    public async Task<ResponseBase> CreateMenu(MenuInputDto inputDto)
     {
         var permissions = await permissionRepo.Find(x => inputDto.Permissions.Contains(x.Id))
                                               .ToListAsync();
@@ -77,10 +77,10 @@ public class AdminBaseAppService(IUserManager userManager,
             menu.MenuPermissions.Add(new MenuPermission { PermissionId = permission.Id });
 
         var result = await menuRepo.CreateAsync(menu);
-        return AppResponse.OkResult(result);
+        return ResponseBase.OkResult(result);
     }
 
-    public async Task<AppResponse> UpdateMenu(int id, MenuInputDto input)
+    public async Task<ResponseBase> UpdateMenu(int id, MenuInputDto input)
     {
         try
         {
@@ -88,7 +88,7 @@ public class AdminBaseAppService(IUserManager userManager,
                                       .Include(x => x.MenuPermissions)
                                       .FirstOrDefaultAsync();
 
-            if (found is null) return AppResponse.Error404("Menu not found");
+            if (found is null) return ResponseBase.Error404("Menu not found");
 
             //update menu with new values
             found.Label = input.Label;
@@ -109,7 +109,7 @@ public class AdminBaseAppService(IUserManager userManager,
 
             if (input.Permissions.Count <= 0)
             {
-                return AppResponse.Ok();
+                return ResponseBase.Ok();
             }
 
             var permissions = await permissionRepo.Find(x => input.Permissions.Contains(x.Id))
@@ -118,7 +118,7 @@ public class AdminBaseAppService(IUserManager userManager,
             if (permissions.Count <= 0)
             {
                 await menuRepo.UpdateAsync(found);
-                return AppResponse.Ok();
+                return ResponseBase.Ok();
             }
 
             foreach (var permission in permissions)
@@ -128,25 +128,25 @@ public class AdminBaseAppService(IUserManager userManager,
 
             await menuRepo.UpdateAsync(found);
 
-            return AppResponse.Ok();
+            return ResponseBase.Ok();
         }
         catch (Exception e)
         {
             logger.LogError("Error: {message}", e.Message);
-            return AppResponse.Error500(e.Message);
+            return ResponseBase.Error500(e.Message);
         }
     }
 
-    public async Task<AppResponse> GetMenuById(int id)
+    public async Task<ResponseBase> GetMenuById(int id)
     {
         var found = await menuRepo.Find(x => x.Id == id)
                                   .Include(x => x.Parent)
                                   .Include(x => x.MenuPermissions)
                                   .FirstOrDefaultAsync();
-        return found is null ? AppResponse.Error404("Menu not found") : AppResponse.OkResult(found);
+        return found is null ? ResponseBase.Error404("Menu not found") : ResponseBase.OkResult(found);
     }
 
-    public async Task<AppResponse> SetPermissionsForMenu(int menuId, List<int> permissionsId)
+    public async Task<ResponseBase> SetPermissionsForMenu(int menuId, List<int> permissionsId)
     {
         try
         {
@@ -154,14 +154,14 @@ public class AdminBaseAppService(IUserManager userManager,
                                      .Include(m => m.MenuPermissions)
                                      .ThenInclude(mp => mp.Permission)
                                      .FirstOrDefaultAsync();
-            if (menu is null) return AppResponse.Error404("Menu not found");
+            if (menu is null) return ResponseBase.Error404("Menu not found");
 
             // Remove all current permissions from the menu
             if (permissionsId.Count == 0)
             {
                 menu.MenuPermissions.Clear();
                 await menuRepo.UpdateAsync(menu);
-                return AppResponse.Ok();
+                return ResponseBase.Ok();
             }
 
             var permissionsToRemove = menu.MenuPermissions.Where(mp => !permissionsId.Contains(mp.PermissionId))
@@ -181,22 +181,22 @@ public class AdminBaseAppService(IUserManager userManager,
             }
 
             await menuRepo.UpdateAsync(menu);
-            return AppResponse.Ok();
+            return ResponseBase.Ok();
         }
         catch (Exception e)
         {
             logger.LogError("Error: {messsage}", e.Message);
             logger.LogInformation("Stack trace: {stackTrace}", e.StackTrace);
-            return AppResponse.Error(e.Message);
+            return ResponseBase.Error(e.Message);
         }
     }
 
-    public Task<AppResponse> DeleteMenu(int id)
+    public Task<ResponseBase> DeleteMenu(int id)
     {
         throw new NotImplementedException();
     }
 
-    public async Task<AppResponse> GetAllMenus()
+    public async Task<ResponseBase> GetAllMenus()
     {
         try
         {
@@ -205,12 +205,12 @@ public class AdminBaseAppService(IUserManager userManager,
                                           .ThenInclude(x => x.MenuPermissions)
                                           .OrderBy(x => x.Order)
                                           .ToListAsync();
-            return AppResponse.OkResult(childList);
+            return ResponseBase.OkResult(childList);
         }
         catch (Exception e)
         {
             logger.LogError("Error: {message}", e.Message);
-            return AppResponse.Error404(e.Message);
+            return ResponseBase.Error404(e.Message);
         }
     }
 }

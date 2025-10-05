@@ -34,7 +34,7 @@ public interface IInvoiceAppService
     /// <param name="taxCode"></param>
     /// <param name="invoiceParams"></param>
     /// <returns>The invoice list</returns>
-    Task<AppResponse> FindPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams);
+    Task<ResponseBase> FindPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams);
 
     /// <summary>
     /// Sync invoices from hoadondientu.gdt.gov.vn
@@ -43,7 +43,7 @@ public interface IInvoiceAppService
     /// <param name="from">Start date</param>
     /// <param name="to">End date</param>
     /// <returns>Success result if all invoices were synced</returns>
-    Task<AppResponse> ExtractPurchaseInvoices(string token, string from, string to);
+    Task<ResponseBase> ExtractPurchaseInvoices(string token, string from, string to);
 
 
     /// <summary>
@@ -62,13 +62,13 @@ public interface IInvoiceAppService
     /// <param name="from">Start date</param>
     /// <param name="to">End date</param>
     /// <returns>The result of checking process.</returns>
-    Task<AppResponse> RecheckPurchaseInvoice(string token, string from, string to);
+    Task<ResponseBase> RecheckPurchaseInvoice(string token, string from, string to);
 
-    Task<AppResponse> FindOne(string taxCode, string id);
-    Task<AppResponse> ExtractSoldInvoice(SyncInvoiceRequest request);
-    Task<AppResponse> FindSoldInvoices(string taxCode, InvoiceRequestParam invoiceParams);
-    Task<AppResponse> UploadPurchaseXml(List<IFormFile> files);
-    Task<AppResponse> UploadSoldXml(List<IFormFile> files);
+    Task<ResponseBase> FindOne(string taxCode, string id);
+    Task<ResponseBase> ExtractSoldInvoice(SyncInvoiceRequest request);
+    Task<ResponseBase> FindSoldInvoices(string taxCode, InvoiceRequestParam invoiceParams);
+    Task<ResponseBase> UploadPurchaseXml(List<IFormFile> files);
+    Task<ResponseBase> UploadSoldXml(List<IFormFile> files);
 }
 
 //TODO: Refactor this class to use the new InvoiceService
@@ -85,7 +85,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
 {
     #region Sold Invoices
 
-    public async Task<AppResponse> ExtractSoldInvoice(SyncInvoiceRequest request)
+    public async Task<ResponseBase> ExtractSoldInvoice(SyncInvoiceRequest request)
     {
         var result = await restService.GetSoldInvoiceInRangeAsync(request.Token, request.From, request.To);
         long? totalFromResponse = 0L;
@@ -99,7 +99,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
             inserted = await mongoSoldInvoice.InsertInvoicesAsync(docs);
         }
 
-        return new AppResponse
+        return new ResponseBase
         {
             Success = true,
             Code = "200",
@@ -112,7 +112,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         };
     }
 
-    public async Task<AppResponse> FindSoldInvoices(string taxCode, InvoiceRequestParam invoiceParams)
+    public async Task<ResponseBase> FindSoldInvoices(string taxCode, InvoiceRequestParam invoiceParams)
     {
         invoiceParams.Valid();
         //filter by seller taxid
@@ -127,7 +127,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
 
         var result = await soldInvoiceDetailRepository
             .FindInvoiceAsync(filter, invoiceParams.Page!.Value, invoiceParams.Size!.Value);
-        return new AppResponse
+        return new ResponseBase
         {
             Success = true,
             Data = result.Data.Select(x => x.ToDisplayModel()).ToList(),
@@ -140,7 +140,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         };
     }
 
-    public async Task<AppResponse> UploadSoldXml(List<IFormFile> files)
+    public async Task<ResponseBase> UploadSoldXml(List<IFormFile> files)
     {
         try
         {
@@ -151,12 +151,12 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                 invoices.Add(invoice);
             }
 
-            return AppResponse.OkResult(invoices);
+            return ResponseBase.OkResult(invoices);
         }
         catch (Exception ex)
         {
             logger.LogErrorFormatted(exception: ex);
-            return AppResponse.Error400("Failed to upload XML file: " + ex.Message);
+            return ResponseBase.Error400("Failed to upload XML file: " + ex.Message);
         }
     }
 
@@ -164,7 +164,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
 
     #region Purchase Invoice
 
-    public async Task<AppResponse> FindPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams)
+    public async Task<ResponseBase> FindPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams)
     {
         invoiceParams.Valid();
 
@@ -203,7 +203,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
             data.Add(displayModel);
         }
 
-        return new AppResponse
+        return new ResponseBase
         {
             Data = data,
             Message = "Ok",
@@ -215,7 +215,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         };
     }
 
-    public async Task<AppResponse> RecheckPurchaseInvoice(string token, string from, string to)
+    public async Task<ResponseBase> RecheckPurchaseInvoice(string token, string from, string to)
     {
         var resultFromService = await restService.GetPurchaseInvoiceListInRange(token, from, to, null);
         var total = 0L;
@@ -231,7 +231,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
             }
         }
         
-        return new AppResponse
+        return new ResponseBase
         {
             Message = total > 0
                 ? $"{total:N0} hóa đơn đã được cập nhật trạng thái"
@@ -241,7 +241,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
     }
 
     //TODO: Refactor ExtractPurchaseInvoices method
-    public async Task<AppResponse> ExtractPurchaseInvoices(string token, string from, string to)
+    public async Task<ResponseBase> ExtractPurchaseInvoices(string token, string from, string to)
     {
         logger.LogInformation("Begining to extract Invoices from {from} to {to} at {time}",
                               from, to, DateTime.Now.ToLocalTime());
@@ -252,7 +252,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         if (result is not { Success: true, Data: not null })
         {
             logger.LogWarning("Invoice not found. {message}", result.Message);
-            return AppResponse.Error("Invoice not found");
+            return ResponseBase.Error("Invoice not found");
         }
 
         var invoiceList = (List<InvoiceModel>)result.Data;
@@ -261,7 +261,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         {
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
                                                 $"Không có hóa đơn phát sinh từ {from} dến {to}!");
-            return AppResponse.OkResult("Không có hóa đơn mới phát sinh");
+            return ResponseBase.OkResult("Không có hóa đơn mới phát sinh");
         }
      
         var buyerTaxId = invoiceList.First().Nmmst;
@@ -282,7 +282,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         {
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
                                                 $"Không có hóa đơn phát sinh từ {from} dến {to}!");
-            return AppResponse.OkResult("Không có hóa đơn mới phát sinh");
+            return ResponseBase.OkResult("Không có hóa đơn mới phát sinh");
         }
         
         await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Bắt đầu tải chi tiết hóa đơn...");
@@ -362,7 +362,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         return writeResult;
     }
 
-    public async Task<AppResponse> UploadPurchaseXml(List<IFormFile> files)
+    public async Task<ResponseBase> UploadPurchaseXml(List<IFormFile> files)
     {
         try
         {
@@ -375,12 +375,12 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
             }
 
             // TODO: persist the invoice to the database
-            return AppResponse.OkResult(invoices);
+            return ResponseBase.OkResult(invoices);
         }
         catch (Exception e)
         {
             logger.LogErrorFormatted(exception: e);
-            return AppResponse.Error("Failed to upload XML file: " + e.Message);
+            return ResponseBase.Error("Failed to upload XML file: " + e.Message);
         }
     }
 
@@ -418,17 +418,17 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         return file;
     }
 
-    public async Task<AppResponse> FindOne(string taxCode, string id)
+    public async Task<ResponseBase> FindOne(string taxCode, string id)
     {
         var found = await mongoPurchaseInvoice.FindOneAsync(x => x.Id == id && x.Nmmst == taxCode);
         return found != null
-            ? AppResponse.OkResult(found.ToDisplayModel())
-            : AppResponse.Error404("No invoice was found.");
+            ? ResponseBase.OkResult(found.ToDisplayModel())
+            : ResponseBase.Error404("No invoice was found.");
     }
 
     #region Private method
 
-    private async Task<AppResponse> WriteInvoices(List<InvoiceDetailModel> deserializedInvoices,
+    private async Task<ResponseBase> WriteInvoices(List<InvoiceDetailModel> deserializedInvoices,
                                                   List<string> unDeserializedInvoices, int total)
     {
         var totalSync = deserializedInvoices.Count + unDeserializedInvoices.Count;
@@ -499,7 +499,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage, message + errorMessage);
 
             var isInserted = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert); //Insert into DB
-            return new AppResponse
+            return new ResponseBase
             {
                 Success = isInserted,
                 Code = totalSync == total ? "200" : "207",
@@ -520,7 +520,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         catch (Exception e)
         {
             logger.LogError("Failed with Error: {mess}", e.Message);
-            return AppResponse.Error500("Warning: saving invoices to database unsuccessfully due to an error occured.");
+            return ResponseBase.Error500("Warning: saving invoices to database unsuccessfully due to an error occured.");
         }
     }
 

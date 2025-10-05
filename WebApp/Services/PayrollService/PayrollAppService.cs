@@ -9,23 +9,23 @@ namespace WebApp.Services.PayrollService;
 
 public interface IPayrollAppService
 {
-    Task<AppResponse> CreatePayrollPeriodsAsync(int year, Weekend weekend);
-    Task<AppResponse> CreateEmployeeAsync(EmployeeCreateDto dto);
-    Task<AppResponse> GetEmployeesAsync(EmployeeQuery query);
-    Task<AppResponse> GetEmployeesInPeriod(long periodId);
-    Task<AppResponse> GetPayrollPeriodAsync(long pId);
-    Task<AppResponse> GetYearPayrollPeriod(PayrollPeriodQuery query);
-    Task<AppResponse> UpdateEmployeeAsync(long id, EmployeeUpdate dto);
-    Task<AppResponse> DeleteEmployeesAsync(List<long> idList);
-    Task<AppResponse> AddSalaryToEmployeeAsync(SalaryCreate dto);
-    Task<AppResponse> GetEmployeeById(long id);
-    Task<AppResponse> EditDependentsInEmployeeAsync(long employeeId, ICollection<DependentCreateDto> dtoList);
-    Task<AppResponse> CreateAllowanceType(AllowanceTypeCreate dto);
-    Task<AppResponse> GetAllowanceTypes();
-    Task<AppResponse> CreateTimesheetsAsync(long periodId);
+    Task<ResponseBase> CreatePayrollPeriodsAsync(int year, Weekend weekend);
+    Task<ResponseBase> CreateEmployeeAsync(EmployeeCreateDto dto);
+    Task<ResponseBase> GetEmployeesAsync(EmployeeQuery query);
+    Task<ResponseBase> GetEmployeesInPeriod(long periodId);
+    Task<ResponseBase> GetPayrollPeriodAsync(long pId);
+    Task<ResponseBase> GetYearPayrollPeriod(PayrollPeriodQuery query);
+    Task<ResponseBase> UpdateEmployeeAsync(long id, EmployeeUpdate dto);
+    Task<ResponseBase> DeleteEmployeesAsync(List<long> idList);
+    Task<ResponseBase> AddSalaryToEmployeeAsync(SalaryCreate dto);
+    Task<ResponseBase> GetEmployeeById(long id);
+    Task<ResponseBase> EditDependentsInEmployeeAsync(long employeeId, ICollection<DependentCreateDto> dtoList);
+    Task<ResponseBase> CreateAllowanceType(AllowanceTypeCreate dto);
+    Task<ResponseBase> GetAllowanceTypes();
+    Task<ResponseBase> CreateTimesheetsAsync(long periodId);
     Task CreateDepartmentAsync(DepartmentCreate dto);
-    Task<AppResponse> GetDepartmentsAsync();
-    Task<AppResponse> GetDepartmentByIdAsync(string id);
+    Task<ResponseBase> GetDepartmentsAsync();
+    Task<ResponseBase> GetDepartmentByIdAsync(string id);
 }
 
 public partial class PayrollAppService(IUserManager userManager,

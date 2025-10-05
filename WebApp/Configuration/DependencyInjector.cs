@@ -3,6 +3,7 @@ using WebApp.Mongo;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Queues;
 using WebApp.Repositories;
+using WebApp.Services.AccountingServices;
 using WebApp.Services.BackgroundServices;
 using WebApp.Services.BalanceSheetService;
 using WebApp.Services.CachingServices;
@@ -101,7 +102,7 @@ public static class DependencyInjector
         s.AddScoped<IInvoiceService, InvoiceService>(); //the new invoice service
         s.AddScoped<IRegionAppService, RegionAppService>();
         s.AddScoped<IRiskCompanyAppService, RiskCompanyBaseAppService>();
-        s.AddScoped<IBalanceSheetAppService, BalanceSheetAppService>();
+        s.AddScoped<IFinancialStatementAppService, FinancialStatementAppService>();
         s.AddScoped<IDocumentAppService, DocumentBaseAppService>();
         s.AddScoped<ISoldInvoiceAppService, SoldInvoiceAppService>();
         s.AddScoped<IErrorInvoiceAppService, ErrorInvoiceBaseAppService>();

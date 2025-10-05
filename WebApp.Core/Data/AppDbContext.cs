@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
 using WebApp.Core.DomainEntities.Payroll;
 
 namespace WebApp.Core.Data;
@@ -69,11 +70,25 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<Contract> Contracts { get; set; }
 
     public DbSet<Account> Accounts { get; set; }
-    public DbSet<BalanceEntry> AccountBalances { get; set; }
+    public DbSet<TrialBalanceEntry> TrialBalanceEntries { get; set; }
+
     public DbSet<AccountingRegulation> AccountingRegulations { get; set; }
-    public DbSet<Balancesheet> Balancesheets { get; set; }
-    public DbSet<UserInputBalancesheet> UserInputBalancesheets { get; set; }
+
+    //public DbSet<TrialBalance> TrialBalances { get; set; }
+    public DbSet<UserInputTrialBalance> UserInputTrialBalance { get; set; }
+
     public DbSet<FinancialReportWork> FinancialReportWorks { get; set; }
+
+    //public DbSet<BalanceSheet> Balancesheets { get; set; }
+    public DbSet<BalanceSheetItem> BalanceSheetItems { get; set; }
+    public DbSet<BalanceSheetEntry> BalanceSheetEntries { get; set; }
+    public DbSet<BalanceSheetMap> AccountBalanceMappings { get; set; }
+    public DbSet<IncomeStatementItem> IncomeStatementItems { get; set; }
+    public DbSet<IncomeStatementEntry> IncomeStatementEntries { get; set; }
+    public DbSet<IncomeStatementMap> IncomeStatementMaps { get; set; }
+    public DbSet<ReportTemplateXml> ReportTemplateXml { get; set; }
+    public DbSet<ReportContentXml> ReportContentXml { get; set; }
+    public DbSet<FinancialStatementNote> FinancialStatementNotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -196,10 +211,7 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
              .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<Department>(e =>
-        {
-            e.Property(d => d.Id).HasColumnType("CHAR(26)");
-        });
+        modelBuilder.Entity<Department>(e => { e.Property(d => d.Id).HasColumnType("CHAR(26)"); });
 
         modelBuilder.Entity<ExpenseTypeHistory>(e =>
         {
@@ -211,23 +223,37 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
              .OnDelete(DeleteBehavior.NoAction);
         });
 
-        modelBuilder.Entity<InvoiceServiceToken>(en =>
-        {
-            en.HasIndex(i => i.TaxId);
-        });
+        modelBuilder.Entity<InvoiceServiceToken>(en => { en.HasIndex(i => i.TaxId); });
 
         modelBuilder.Entity<FinancialReportWork>(en =>
         {
+            en.Property(e => e.Id).HasColumnType("CHAR(26)");
             en.HasOne(e => e.UserInput)
               .WithOne(i => i.FinancialReportWork).OnDelete(DeleteBehavior.Cascade);
-            en.HasOne(e => e.Balancesheet)
+            en.HasMany(e => e.TrialBalanceEntries)
+              .WithOne(t => t.FinancialReportWork).OnDelete(DeleteBehavior.Cascade);
+            en.HasMany(e => e.BalanceSheetEntries)
               .WithOne(b => b.FinancialReportWork).OnDelete(DeleteBehavior.Cascade);
+            en.HasMany(e => e.IncomeStatementEntries)
+              .WithOne(i => i.FinancialReportWork).OnDelete(DeleteBehavior.Cascade);
             en.HasIndex(e => e.Year);
+            en.HasOne(e => e.Xml)
+              .WithOne(e => e.FinancialReportWork).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserInputTrialBalance>(en =>
+        {
+            en.HasMany(e => e.Entries)
+              .WithOne(e => e.InputTrialBalance).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<AccountingRegulation>(en =>
+        {
+            en.HasOne(e => e.ReportTemplateXml)
+              .WithOne(t => t.Regulation).OnDelete(DeleteBehavior.NoAction);
         });
 
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
-
-        
     }
 }

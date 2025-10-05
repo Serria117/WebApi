@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WebApp.Services.BalanceSheetService.Dto;
 
-public class UserInputBalancesheetDto
+public class UserInputTrialBalanceDto
 {
-    public int FinancialReportId { get; set; }
+    public string FinancialReportId { get; set; } = string.Empty;
     public int Year { get; set; }
     public DateTime BeginDate { get; set; }
     public DateTime EndDate { get; set; }
@@ -15,7 +15,7 @@ public class UserInputBalancesheetDto
 
 public class UserInputExcelFile
 {
-    public int FinancialReportId { get; set; }
+    public string FinancialReportId { get; set; } = string.Empty;
     public required IFormFile File { get; set; }
 }
 

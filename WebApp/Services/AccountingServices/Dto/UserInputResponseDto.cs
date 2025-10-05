@@ -1,4 +1,5 @@
 ﻿using WebApp.Core.DomainEntities.Accounting;
+using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
 
 namespace WebApp.Services.BalanceSheetService.Dto;
 
@@ -7,12 +8,12 @@ namespace WebApp.Services.BalanceSheetService.Dto;
 /// </summary>
 public class UserInputResponseDto
 {
-    public UserInputBalancesheet? UserInputBalancesheet { get; set; }
+    public UserInputTrialBalance? UserInputTrialBalance { get; set; }
     public ICollection<UserInputValidationResult> ValidationResults { get; set; } = [];
 }
 
 public class UserInputValidationResult
 {
-    public BalanceEntry? BalanceEntry { get; set; }
+    public TrialBalanceEntry? BalanceEntry { get; set; }
     public List<string> Errors { get; set; } = [];
 }

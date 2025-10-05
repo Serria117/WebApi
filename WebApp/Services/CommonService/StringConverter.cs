@@ -108,6 +108,16 @@ public static partial class StringConverter
     }
 
     /// <summary>
+    /// Round the decimal number to integer, using AwayFromZero strategy
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public static decimal RoundToInteger(this decimal value)
+    {
+        return decimal.Round(value, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
     /// Converts the specified string to a double-precision floating-point number.
     /// </summary>
     /// <param name="value">The string to convert.</param>
@@ -236,7 +246,7 @@ public static partial class StringConverter
     /// <param name="doc">The XML document to search within.</param>
     /// <param name="path">The string represents the path to search, in the format "root/element1/element2".</param>
     /// <returns>The element that match the searching path, or null if no match found.</returns>
-    public static XElement? GetChildElementByPath(this XDocument doc, string path)
+    public static XElement? GetChildElementByPath(this XDocument? doc, string path)
     {
         if (doc == null) return null;
 

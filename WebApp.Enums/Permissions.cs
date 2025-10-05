@@ -52,4 +52,9 @@ public struct Permissions
     public const string TaxProcedureView = "TAX_PROCEDURE.VIEW";
     public const string TaxProcedureUpdate = "TAX_PROCEDURE.UPDATE";
     public const string TaxProcedureDelete = "TAX_PROCEDURE.DELETE";
+
+    public const string FinancialReportCreate = "FINANCIAL_REPORT.CREATE";
+    public const string FinancialReportView = "FINANCIAL_REPORT.VIEW";
+    public const string FinancialReportUpdate = "FINANCIAL_REPORT.UPDATE";
+    public const string FinancialReportDelete = "FINANCIAL_REPORT.DELETE";
 }

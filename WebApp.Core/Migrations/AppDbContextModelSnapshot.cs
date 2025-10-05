@@ -17,7 +17,7 @@ namespace WebApp.Core.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.10")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -118,11 +118,16 @@ namespace WebApp.Core.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("ParentCode")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AccountingRegulationId");
+
+                    b.HasIndex("Code");
+
+                    b.HasIndex("Name");
 
                     b.ToTable("ACC_Account");
                 });
@@ -153,68 +158,65 @@ namespace WebApp.Core.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<string>("RegulationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.HasKey("Id");
 
                     b.ToTable("ACC_Regulation");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.BalanceEntry", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.BalanceSheetEntry", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("AccountCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<decimal>("AriseCredit")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("AriseDebit")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("BalancesheetId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("CloseCredit")
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BalanceSheetItemId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("BeginingBalance")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("CloseDebit")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("Code")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
 
                     b.Property<bool>("Deleted")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsUserInput")
+                    b.Property<decimal>("EndingBalance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("FinancialReportId")
+                        .IsRequired()
+                        .HasColumnType("CHAR(26)");
+
+                    b.Property<bool>("HasChildren")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<decimal>("OpenCredit")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("OpenDebit")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("UserInputBalancesheetId")
-                        .HasColumnType("int");
+                    b.Property<string>("ParentCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BalancesheetId");
+                    b.HasIndex("BalanceSheetItemId");
 
-                    b.HasIndex("UserInputBalancesheetId");
+                    b.HasIndex("FinancialReportId");
 
-                    b.ToTable("ACC_BalanceEntry");
+                    b.ToTable("ACC_BalanceSheetEntries");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.Balancesheet", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.BalanceSheetItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -222,48 +224,73 @@ namespace WebApp.Core.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreateAt")
-                        .HasColumnType("datetime2");
+                    b.Property<int>("AccountBalanceType")
+                        .HasColumnType("int");
 
-                    b.Property<string>("CreateBy")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
 
                     b.Property<bool>("Deleted")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("FinancialReportWorkId")
-                        .HasColumnType("int");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
-                    b.Property<DateTime>("LastUpdateAt")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("ParentCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
 
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Regulation")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Year")
+                    b.Property<int>("RegulationId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FinancialReportWorkId")
-                        .IsUnique()
-                        .HasFilter("[FinancialReportWorkId] IS NOT NULL");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.ToTable("ACC_Balancesheet");
+                    b.ToTable("ACC_BalanceSheetItems");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialReportWork", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.BalanceSheetMap", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BalanceSheetItemId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("NegativeValue")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RegulationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ValueType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("BalanceSheetItemId");
+
+                    b.ToTable("ACC_BalanceSheetMaps");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("CHAR(26)");
 
                     b.Property<DateTime>("BeginDate")
                         .HasColumnType("datetime2");
@@ -277,6 +304,14 @@ namespace WebApp.Core.Migrations
                     b.Property<bool>("Deleted")
                         .HasColumnType("bit");
 
+                    b.Property<string>("District")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("DistrictCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
@@ -287,6 +322,9 @@ namespace WebApp.Core.Migrations
 
                     b.Property<DateTime>("LastUpdateAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("LastYearReportId")
+                        .HasColumnType("CHAR(26)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -300,6 +338,14 @@ namespace WebApp.Core.Migrations
                     b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Province")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("ProvinceCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<int>("Regulation")
                         .HasColumnType("int");
 
@@ -307,7 +353,8 @@ namespace WebApp.Core.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("TaxAgencyCode")
                         .IsRequired()
@@ -328,7 +375,262 @@ namespace WebApp.Core.Migrations
 
                     b.HasIndex("Year");
 
-                    b.ToTable("FinancialReportWorks");
+                    b.ToTable("ACC_FinancialReportWorks");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialStatementNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("RegulationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TemplateFile")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ACC_FinancialStatementNote");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.IncomeStatementEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FinancialReportWorkId")
+                        .IsRequired()
+                        .HasColumnType("CHAR(26)");
+
+                    b.Property<int>("IncomeStatementItemId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("LastYear")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<decimal>("ThisYear")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialReportWorkId");
+
+                    b.HasIndex("IncomeStatementItemId");
+
+                    b.ToTable("ACC_IncomeStatementEntries");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.IncomeStatementItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasChild")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("NegativeValue")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ParentCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<int>("RegulationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ACC_IncomeStatementItems");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.IncomeStatementMap", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("IncomeStatementItemId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RegulationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("IncomeStatementItemId");
+
+                    b.ToTable("ACC_IncomeStatementMap");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.TrialBalanceEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccountCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal>("AriseCredit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("AriseDebit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CloseCredit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CloseDebit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FinancialReportWorkId")
+                        .HasColumnType("CHAR(26)");
+
+                    b.Property<decimal?>("InvalidNetBalanceDifference")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsMatchRegulation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUserInput")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("MappedSuccess")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool?>("NetBalanceValid")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("OpenCredit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OpenDebit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ParentCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int?>("UserInputTrialBalanceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountCode");
+
+                    b.HasIndex("FinancialReportWorkId");
+
+                    b.HasIndex("UserInputTrialBalanceId");
+
+                    b.ToTable("ACC_TrialBalanceEntries");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.UserInputTrialBalance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FinancialReportWorkId")
+                        .HasColumnType("CHAR(26)");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Regulation")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialReportWorkId")
+                        .IsUnique()
+                        .HasFilter("[FinancialReportWorkId] IS NOT NULL");
+
+                    b.ToTable("ACC_UserInputBalancesheet");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.InvoiceHistory", b =>
@@ -385,7 +687,7 @@ namespace WebApp.Core.Migrations
                     b.ToTable("INV_InvoiceHistory");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.UserInputBalancesheet", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.ReportContentXml", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -393,37 +695,53 @@ namespace WebApp.Core.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreateAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreateBy")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(MAX)");
 
                     b.Property<bool>("Deleted")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("FinancialReportWorkId")
-                        .HasColumnType("int");
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
-                    b.Property<DateTime>("LastUpdateAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Regulation")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("int");
+                    b.Property<string>("FinancialReportId")
+                        .IsRequired()
+                        .HasColumnType("CHAR(26)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FinancialReportWorkId")
-                        .IsUnique()
-                        .HasFilter("[FinancialReportWorkId] IS NOT NULL");
+                    b.HasIndex("FinancialReportId")
+                        .IsUnique();
 
-                    b.ToTable("ACC_UserInputBalancesheet");
+                    b.ToTable("ACC_XmlReport");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.ReportTemplateXml", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RegulationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("XmlTemplate")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(MAX)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RegulationId")
+                        .IsUnique();
+
+                    b.ToTable("ACC_ReportTemplateXml");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Contract", b =>
@@ -826,7 +1144,7 @@ namespace WebApp.Core.Migrations
                     b.Property<int?>("DistrictId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Emails")
+                    b.PrimitiveCollection<string>("Emails")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -846,7 +1164,7 @@ namespace WebApp.Core.Migrations
                     b.Property<DateTime>("LastUpdateAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Phones")
+                    b.PrimitiveCollection<string>("Phones")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -1974,36 +2292,43 @@ namespace WebApp.Core.Migrations
                     b.Navigation("AccountingRegulation");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.BalanceEntry", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.BalanceSheetEntry", b =>
                 {
-                    b.HasOne("WebApp.Core.DomainEntities.Accounting.Balancesheet", null)
-                        .WithMany("AccountBalances")
-                        .HasForeignKey("BalancesheetId");
-
-                    b.HasOne("WebApp.Core.DomainEntities.Accounting.UserInputBalancesheet", null)
-                        .WithMany("AccountBalances")
-                        .HasForeignKey("UserInputBalancesheetId");
-                });
-
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.Balancesheet", b =>
-                {
-                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialReportWork", "FinancialReportWork")
-                        .WithOne("Balancesheet")
-                        .HasForeignKey("WebApp.Core.DomainEntities.Accounting.Balancesheet", "FinancialReportWorkId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.BalanceSheetItem", "BalanceSheetItem")
                         .WithMany()
-                        .HasForeignKey("OrganizationId")
+                        .HasForeignKey("BalanceSheetItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("FinancialReportWork");
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", "FinancialReportWork")
+                        .WithMany("BalanceSheetEntries")
+                        .HasForeignKey("FinancialReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Organization");
+                    b.Navigation("BalanceSheetItem");
+
+                    b.Navigation("FinancialReportWork");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialReportWork", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.BalanceSheetMap", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId");
+
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.BalanceSheetItem", "BalanceSheetItem")
+                        .WithMany()
+                        .HasForeignKey("BalanceSheetItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("BalanceSheetItem");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
                         .WithMany()
@@ -2012,14 +2337,91 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.UserInputBalancesheet", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.IncomeStatementEntry", b =>
                 {
-                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialReportWork", "FinancialReportWork")
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", "FinancialReportWork")
+                        .WithMany("IncomeStatementEntries")
+                        .HasForeignKey("FinancialReportWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.IncomeStatementItem", "IncomeStatementItem")
+                        .WithMany()
+                        .HasForeignKey("IncomeStatementItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialReportWork");
+
+                    b.Navigation("IncomeStatementItem");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.IncomeStatementMap", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.IncomeStatementItem", "IncomeStatementItem")
+                        .WithMany()
+                        .HasForeignKey("IncomeStatementItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("IncomeStatementItem");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.TrialBalanceEntry", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", "FinancialReportWork")
+                        .WithMany("TrialBalanceEntries")
+                        .HasForeignKey("FinancialReportWorkId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.UserInputTrialBalance", "InputTrialBalance")
+                        .WithMany("Entries")
+                        .HasForeignKey("UserInputTrialBalanceId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("FinancialReportWork");
+
+                    b.Navigation("InputTrialBalance");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.UserInputTrialBalance", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", "FinancialReportWork")
                         .WithOne("UserInput")
-                        .HasForeignKey("WebApp.Core.DomainEntities.Accounting.UserInputBalancesheet", "FinancialReportWorkId")
+                        .HasForeignKey("WebApp.Core.DomainEntities.Accounting.FinancialStatement.UserInputTrialBalance", "FinancialReportWorkId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("FinancialReportWork");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.ReportContentXml", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", "FinancialReportWork")
+                        .WithOne("Xml")
+                        .HasForeignKey("WebApp.Core.DomainEntities.Accounting.ReportContentXml", "FinancialReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialReportWork");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.ReportTemplateXml", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.AccountingRegulation", "Regulation")
+                        .WithOne("ReportTemplateXml")
+                        .HasForeignKey("WebApp.Core.DomainEntities.Accounting.ReportTemplateXml", "RegulationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Regulation");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Contract", b =>
@@ -2281,21 +2683,27 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Permission");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.Balancesheet", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.AccountingRegulation", b =>
                 {
-                    b.Navigation("AccountBalances");
+                    b.Navigation("ReportTemplateXml");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialReportWork", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.FinancialReportWork", b =>
                 {
-                    b.Navigation("Balancesheet");
+                    b.Navigation("BalanceSheetEntries");
+
+                    b.Navigation("IncomeStatementEntries");
+
+                    b.Navigation("TrialBalanceEntries");
 
                     b.Navigation("UserInput");
+
+                    b.Navigation("Xml");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.UserInputBalancesheet", b =>
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.UserInputTrialBalance", b =>
                 {
-                    b.Navigation("AccountBalances");
+                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>

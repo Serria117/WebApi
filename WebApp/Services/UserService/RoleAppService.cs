@@ -20,9 +20,9 @@ namespace WebApp.Services.UserService
     {
         Task<RoleDisplayDto> CreateRole(RoleInputDto dto);
 
-        Task<AppResponse> GetRoleById(int id);
+        Task<ResponseBase> GetRoleById(int id);
 
-        Task<AppResponse> GetAllRoles(PageRequest request);
+        Task<ResponseBase> GetAllRoles(PageRequest request);
 
         /// <summary>
         /// Updates an existing role with the specified details.
@@ -35,11 +35,11 @@ namespace WebApp.Services.UserService
         /// Retrieves all permissions associated with a specific role.
         /// </summary>
         /// <param name="roleId">The ID of the role whose permissions are to be retrieved.</param>
-        /// <returns>An <see cref="AppResponse"/> containing the permissions of the specified role.</returns>
-        Task<AppResponse> GetAllPermissionsInRole(int roleId);
+        /// <returns>An <see cref="ResponseBase"/> containing the permissions of the specified role.</returns>
+        Task<ResponseBase> GetAllPermissionsInRole(int roleId);
 
         Task DeleteRole(int roleId);
-        Task<AppResponse> FindRoleById(int id);
+        Task<ResponseBase> FindRoleById(int id);
     }
 
     public class RoleAppService(IAppRepository<User, Guid> userRepository,
@@ -49,18 +49,18 @@ namespace WebApp.Services.UserService
                                 ICachingRoleService cachingRoleService,
                                 ILogger<RoleAppService> logger) : IRoleAppService
     {
-        public async Task<AppResponse> GetRoleById(int id)
+        public async Task<ResponseBase> GetRoleById(int id)
         {
             var found = await roleRepository.Find(x => x.Id == id && !x.Deleted)
                                             .Include(x => x.Permissions)
                                             .Include(x => x.Users)
                                             .FirstOrDefaultAsync();
             return found is null
-                ? AppResponse.Error404("Role not found")
-                : AppResponse.OkResult(found.ToDisplayDto());
+                ? ResponseBase.Error404("Role not found")
+                : ResponseBase.OkResult(found.ToDisplayDto());
         }
 
-        public async Task<AppResponse> GetAllRoles(PageRequest request)
+        public async Task<ResponseBase> GetAllRoles(PageRequest request)
         {
             var pagedResult = await roleRepository
                                     .Find(
@@ -75,17 +75,17 @@ namespace WebApp.Services.UserService
                                     .ToPagedListAsync(request.Page, request.Size);
             var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
             return request.Fields.Length == 0
-                ? AppResponse.OkResult(dtoResult)
-                : AppResponse.OkResult(dtoResult.ProjectPagedList(request.Fields));
+                ? ResponseBase.OkResult(dtoResult)
+                : ResponseBase.OkResult(dtoResult.ProjectPagedList(request.Fields));
         }
 
-        public async Task<AppResponse> GetAllPermissionsInRole(int roleId)
+        public async Task<ResponseBase> GetAllPermissionsInRole(int roleId)
         {
             var role = await roleRepository.Find(r => r.Id == roleId)
                                            .Include(r => r.Permissions).FirstOrDefaultAsync();
             return role is null
-                ? new AppResponse { Success = false, Message = "Role not found" }
-                : AppResponse.OkResult(role.ToDisplayDto());
+                ? new ResponseBase { Success = false, Message = "Role not found" }
+                : ResponseBase.OkResult(role.ToDisplayDto());
         }
 
         //TODO: implementation for add and remove user from role
@@ -112,14 +112,14 @@ namespace WebApp.Services.UserService
             return saved.ToDisplayDto();
         }
 
-        public async Task<AppResponse> FindRoleById(int id)
+        public async Task<ResponseBase> FindRoleById(int id)
         {
             var role = await roleRepository.Find(filter: r => r.Id == id && !r.Deleted, 
                                                  include: [nameof(Role.Users), nameof(Role.Permissions)])
                                            .FirstOrDefaultAsync();
             return role is null
-                ? new AppResponse { Success = false, Message = "Role not found" }
-                : AppResponse.OkResult(role.ToDisplayDto());
+                ? new ResponseBase { Success = false, Message = "Role not found" }
+                : ResponseBase.OkResult(role.ToDisplayDto());
         }
 
         //TODO: re-test this method for potential bugs

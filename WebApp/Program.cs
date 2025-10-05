@@ -167,6 +167,7 @@ services.AddSwaggerGen(ops =>
             []
         }
     });
+    
     // Set the comments path for the Swagger JSON and UI.
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
@@ -201,7 +202,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
-    await seeder.SeedAsync();
+    //await seeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline.

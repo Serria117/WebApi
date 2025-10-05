@@ -10,21 +10,21 @@ namespace WebApp.Services.PayrollService;
 
 public partial class PayrollAppService
 {
-    public async Task<AppResponse> CreateAllowanceType(AllowanceTypeCreate dto)
+    public async Task<ResponseBase> CreateAllowanceType(AllowanceTypeCreate dto)
     {
         var newAllowanceType = dto.ToEntity(WorkingOrg.ToGuid() == Guid.Empty ? null : WorkingOrg.ToGuid());
         await AllowanceTypesRepository.CreateAsync(newAllowanceType);
-        return AppResponse.OkResult(newAllowanceType);
+        return ResponseBase.OkResult(newAllowanceType);
     }
 
-    public async Task<AppResponse> GetAllowanceTypes()
+    public async Task<ResponseBase> GetAllowanceTypes()
     {
         var result = await AllowanceTypesRepository
                            .Find(x => !x.Deleted
                                       && (x.OrganizationId == null || x.OrganizationId == WorkingOrg.ToGuid()))
                            .OrderBy(x => x.Id)
                            .ToListAsync();
-        return AppResponse.OkResult(result.Select(a => new AllowanceTypeDisplay
+        return ResponseBase.OkResult(result.Select(a => new AllowanceTypeDisplay
         {
             Id = a.Id,
             Name = a.Name,

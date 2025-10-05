@@ -12,7 +12,7 @@ namespace WebApp.Services.UserService
     {
         Task<List<Permission>> GetPermissions();
         Task<List<string>> GetPermissionsFromMongo(Guid userId);
-        Task<AppResponse> GetAllPermissionsInSystem();
+        Task<ResponseBase> GetAllPermissionsInSystem();
         Task<List<MenuItemDisplayDto>> GetMenuItems();
     }
 
@@ -97,13 +97,13 @@ namespace WebApp.Services.UserService
             return [.. (await userMongoRepository.GetUser(userId)).Permissions];
         }
 
-        public async Task<AppResponse> GetAllPermissionsInSystem()
+        public async Task<ResponseBase> GetAllPermissionsInSystem()
         {
             var permissions = await permissionRepo.Find(p => !p.Deleted)
                                                   .OrderBy(p => p.PermissionName)
                                                   .ToListAsync();
             //permissions.Select(mapper.Map<PermissionDisplayDto>)
-            return AppResponse.OkResult(permissions.MapCollection(x => x.ToDisplayDto()));
+            return ResponseBase.OkResult(permissions.MapCollection(x => x.ToDisplayDto()));
         }
     }
 }

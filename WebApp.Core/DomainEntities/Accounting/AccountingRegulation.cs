@@ -16,4 +16,14 @@ public class AccountingRegulation : BaseEntity<int>
     public string? Description { get; set; }
     public DateTime? EffectiveDate { get; set; }
     public DateTime? EndDate { get; set; }
+    [MaxLength(50)]
+    public string RegulationType { get; set; } = string.Empty;
+    public ReportTemplateXml? ReportTemplateXml { get; set; }
+}
+
+public struct RegulationType
+{
+    public const string FinancialReport = "Báo cáo kế toán"; //Báo cáo tài chính
+    public const string TaxDeclaration = "Tờ khai thuế"; // Tờ khai, tờ khai quyết toán
+    
 }

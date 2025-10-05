@@ -8,14 +8,14 @@ namespace WebApp.Services.PayrollService;
 
 public partial class PayrollAppService
 {
-    public async Task<AppResponse> CreateTimesheetsAsync(long periodId)
+    public async Task<ResponseBase> CreateTimesheetsAsync(long periodId)
     {
         var payrollPeriod = await GetPayrollPeriod(periodId);
-        if (payrollPeriod is null) return AppResponse.Error404("PayrollPeriod not found.");
+        if (payrollPeriod is null) return ResponseBase.Error404("PayrollPeriod not found.");
 
         var timesheets = await CreateTimesheetsForPeriod(payrollPeriod);
 
-        return AppResponse.OkResult(timesheets.Select(t => new
+        return ResponseBase.OkResult(timesheets.Select(t => new
         {
             t.Id,
             t.Date,
@@ -29,7 +29,7 @@ public partial class PayrollAppService
         }).ToList());
     }
 
-    public async Task<AppResponse> UpdateTimesheetAsync(TimesheetUpdate dto)
+    public async Task<ResponseBase> UpdateTimesheetAsync(TimesheetUpdate dto)
     {
         var timesheet = await TimesheetRepository.Find(t => t.Id == dto.Id
                                                             && t.OrganizationId == WorkingOrg.ToGuid())
@@ -44,7 +44,7 @@ public partial class PayrollAppService
         timesheet.IsTripDay = dto.IsTripDay;
 
         await TimesheetRepository.UpdateAsync(timesheet);
-        return AppResponse.OkResult(new TimesheetDisplay
+        return ResponseBase.OkResult(new TimesheetDisplay
         {
             Id = timesheet.Id,
             Date = timesheet.Date,

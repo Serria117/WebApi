@@ -22,7 +22,7 @@ public interface IEmailAppService
     /// </summary>
     /// <returns></returns>
     Task AutoSyncEmailsAsync();
-    Task<AppResponse> FindEmailsAsync(EmailFilterRequest request);
+    Task<ResponseBase> FindEmailsAsync(EmailFilterRequest request);
 }
 
 public class EmailAppService(IConfiguration config,
@@ -75,7 +75,7 @@ public class EmailAppService(IConfiguration config,
 
     }
 
-    public async Task<AppResponse> FindEmailsAsync(EmailFilterRequest request)
+    public async Task<ResponseBase> FindEmailsAsync(EmailFilterRequest request)
     {
         try
         {
@@ -114,7 +114,7 @@ public class EmailAppService(IConfiguration config,
             }
 
             await client.DisconnectAsync(true);
-            return new AppResponse
+            return new ResponseBase
             {
                 Success = true,
                 Data = new
@@ -128,7 +128,7 @@ public class EmailAppService(IConfiguration config,
         catch (Exception e)
         {
             logger.LogErrorFormatted(exception: e);
-            return AppResponse.Error("Lỗi khi tải email!");
+            return ResponseBase.Error("Lỗi khi tải email!");
         }
     }
 

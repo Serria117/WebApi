@@ -95,7 +95,7 @@ public class OrganizationController(IOrganizationAppService orgService) : Contro
     /// <returns></returns>
     [HttpGet("exist/{taxId}")]
     [HasAuthority(Permissions.OrgView)]
-    public async Task<AppResponse> CheckTaxId(string taxId)
+    public async Task<ResponseBase> CheckTaxId(string taxId)
     {
         return await orgService.CheckTaxIdExist(taxId);
     }
