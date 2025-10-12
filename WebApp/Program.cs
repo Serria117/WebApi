@@ -201,8 +201,12 @@ var app = builder.Build();
 // Initialize database and seed default values
 using (var scope = app.Services.CreateScope())
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
-    //await seeder.SeedAsync();
+    if (!app.Environment.IsDevelopment())
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+        await seeder.SeedAsync();
+    }
+    
 }
 
 // Configure the HTTP request pipeline.

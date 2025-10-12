@@ -1,4 +1,4 @@
-﻿namespace WebApp.Services.BalanceSheetService.Dto;
+﻿namespace WebApp.Services.AccountingServices.Dto;
 
 public class FinancialReportWorkDto
 {
@@ -10,6 +10,7 @@ public class FinancialReportWorkDto
     public DateTime ReportDate { get; set; }
     public string FirstFiscalDate { get; set; } = string.Empty;
     public int Regulation { get; set; }
+    public string? Status { get; set; }
     
 }
 

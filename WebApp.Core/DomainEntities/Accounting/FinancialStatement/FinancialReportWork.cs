@@ -68,5 +68,5 @@ public struct ReportStatus
 {
     public const string New = "New";
     public const string Pending = "Pending";
-    public const string Finish = "Finished";
+    public const string Ready = "Ready";
 }

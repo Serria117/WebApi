@@ -79,6 +79,9 @@
     <None Update="ExportTemplates\XML_bctc133.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="ImportTemplates\Template_bang_can_doi_tk.xlsx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -88,6 +91,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="DocumentTemplates\" />
+    <Folder Include="ImportTemplates\" />
     <Folder Include="Services\RestService\Dto\InvDetail\" />
   </ItemGroup>
 

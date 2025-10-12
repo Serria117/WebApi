@@ -22,7 +22,8 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
                                 IAppRepository<TemplateFile, int> fileRepository,
                                 IHostEnvironment env) : ITemplateAppService
 {
-    private readonly string _templateFolder = "Templates";
+    private const string TemplateFolder = "DocumentTemplates";
+
     public async Task<ResponseBase> CreateTemplate(TemplateCreateDto dto)
     {
         var newTemplate = dto.ToEntity();
@@ -36,7 +37,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
                 newTemplate.TemplateFiles.Add(new TemplateFile
                 {
                     FileName = fileName,
-                    FilePath = $"Uploads\\{_templateFolder}\\{fileName}",
+                    FilePath = $@"Uploads\{TemplateFolder}\{fileName}",
                     Version = file.Version,
                     VersionNote = file.VersionNote,
                     UploadTime = DateTime.Now.ToLocalTime()
@@ -95,7 +96,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
         template.TemplateFiles.Add(new TemplateFile
         {
             FileName = fileName,
-            FilePath = $"Uploads\\{_templateFolder}\\{fileName}",
+            FilePath = $"Uploads\\{TemplateFolder}\\{fileName}",
             Version = dto.TemplateFile.Version,
             VersionNote = dto.TemplateFile.VersionNote,
             UploadTime = DateTime.Now.ToLocalTime()
@@ -141,7 +142,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
             throw new ArgumentException("File is empty.");
 
         var contentRoot = env.ContentRootPath;
-        var templatesDir = Path.Combine(contentRoot, "Uploads", _templateFolder);
+        var templatesDir = Path.Combine(contentRoot, "Uploads", TemplateFolder);
 
         if (!Directory.Exists(templatesDir))
             Directory.CreateDirectory(templatesDir);

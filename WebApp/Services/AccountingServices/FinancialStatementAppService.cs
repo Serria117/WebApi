@@ -9,6 +9,7 @@ using WebApp.Enums.Accounting;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
 using WebApp.Repositories;
+using WebApp.Services.AccountingServices.Dto;
 using WebApp.Services.BalanceSheetService.Dto;
 using WebApp.Services.CommonService;
 using WebApp.Services.Mappers;
@@ -41,13 +42,12 @@ public interface IFinancialStatementAppService
     /// <returns></returns>
     Task<ResponseBase> ImportUserInputTrialBalanceFromExcelFile(UserInputExcelFile input);
 
-    Task<ResponseBase> MapBalanceSheetFromTrialBalance(string reportId);
     Task<ResponseBase> MapIncomeStatementFromTrialBalance(string reportId);
     Task<ResponseBase> GetLastYearReports(int curentReportId);
     Task<ResponseBase> ClearAllUserInputTrialEntries(string reportId);
     Task<ResponseBase> SoftDeleteReport(string reportId);
     Task<ResponseBase> HardDeleteReport(string reportId);
-    Task<ResponseBase> UpdateUserInputTrialBalance(string reportId, List<UserBalanceEntryInput> entries);
+    Task<ResponseBase> UpdateUserInputTrialBalance(string reportId, List<UserBalanceEntryUpdate> entries);
     Task<ResponseBase> DeleteUserInputTrialBalance(long[] ids);
     Task<ResponseBase> GetRegulationList();
     Task<ResponseBase> ResetReport(string reportId);
@@ -64,6 +64,7 @@ public interface IFinancialStatementAppService
     Task<ResponseBase> CreateOrUpdateXmlDocument(string reportId);
     Task<ResponseBase> CalculateFinancialStatement(string reportId);
     Task<(string FileName, byte[] File)> ExportReportNoteExcel(string reportId);
+    Task<(string FileName, byte[] File)> DownloadTrialBalanceTemplate();
 }
 
 public class FinancialStatementAppService(AppDbContext dbContext,
@@ -78,16 +79,19 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                           IUserManager userManager)
     : BaseAppService(userManager), IFinancialStatementAppService
 {
-    private const string TemplateFolder = "ExportTemplates";
+    private const string ExportTemplateFolder = "ExportTemplates";
+    private const string ImportTemplateFOlder = "ImportTemplates";
 
     public async Task<ResponseBase> GetRegulationList()
     {
         var result = await dbContext.AccountingRegulations
-                                    .Where(r => !r.Deleted && r.RegulationType == RegulationType.FinancialReport)
+                                    .Where(r => !r.Deleted 
+                                                && r.RegulationType == RegulationType.FinancialReport)
                                     .Select(r => new
                                     {
                                         r.Id, r.Name, r.Description
                                     })
+                                    .AsNoTracking()
                                     .ToListAsync();
         return ResponseBase.OkResult(result);
     }
@@ -96,6 +100,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     {
         var result = await accountRepo.Find(a => a.AccountingRegulationId == regulationId && !a.Deleted)
                                       .OrderBy(a => a.Code)
+                                      .AsNoTracking()
                                       .ToListAsync();
         return ResponseBase.OkResult(result.Select(a => new
         {
@@ -114,7 +119,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         var organization = await orgRepo.Find(o => o.Id == WorkingOrg.ToGuid() && !o.Deleted)
                                         .Include(o => o.TaxOffice2)
                                         .Include(o => o.District).ThenInclude(d => d!.Province)
-                                        .AsSingleQuery()
+                                        .AsSplitQuery()
                                         .FirstOrDefaultAsync()
                            ?? throw new NotFoundException("Organization not found");
         var accountsByRegulation = await accountRepo.Find(x => x.AccountingRegulationId == dto.Regulation)
@@ -164,9 +169,9 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             Year = dto.Year,
             Name = dto.Name,
             FirstFiscalDate = dto.FirstFiscalDate,
-            BeginDate = dto.BeginDate,
-            EndDate = dto.EndDate,
-            ReportDate = dto.ReportDate,
+            BeginDate = dto.BeginDate.ToLocalTime(),
+            EndDate = dto.EndDate.ToLocalTime(),
+            ReportDate = dto.ReportDate.ToLocalTime(),
             Note = dto.Note,
             Regulation = dto.Regulation,
             TaxAgencyCode = organization.TaxOffice2!.Code,
@@ -210,15 +215,19 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                     r.BeginDate, r.EndDate,
                                     r.Regulation,
                                     r.TaxAgencyName, r.TaxAgencyCode,
-                                    r.CreateBy, r.CreateAt
+                                    r.CreateBy, r.CreateAt,
+                                    r.Status, r.ReportDate
                                 })
+                                .AsNoTracking()
                                 .ToListAsync();
         return ResponseBase.OkResult(result);
     }
 
     public async Task<ResponseBase> GetFinancialReportById(string id)
     {
-        var result = await reportRepo.Find(r => r.Id == id && r.OrganizationId == WorkingOrg.ToGuid() && !r.Deleted)
+        var result = await reportRepo.Find(r => r.Id == id 
+                                                && r.OrganizationId == WorkingOrg.ToGuid() 
+                                                && !r.Deleted)
                                      .Include(r => r.TrialBalanceEntries.OrderBy(e => e.AccountCode))
                                      .Include(r => r.BalanceSheetEntries.OrderBy(b => b.Code))
                                      .Include(r => r.IncomeStatementEntries.OrderBy(i => i.Code))
@@ -245,8 +254,8 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     {
         var report = await reportRepo.Find(r => r.Id == input.FinancialReportId && !r.Deleted)
                                      .Include(r => r.UserInput).ThenInclude(u => u!.Entries)
-                                     .FirstOrDefaultAsync() ??
-                     throw new NotFoundException("Financial report not found");
+                                     .FirstOrDefaultAsync() 
+                     ?? throw new NotFoundException("Financial report not found");
 
         var accounts = await accountRepo.Find(x => x.AccountingRegulationId == report.Regulation)
                                         .AsNoTracking()
@@ -508,23 +517,30 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <returns></returns>
     /// <exception cref="NotFoundException">will be throw if report Id does not exist.</exception>
     public async Task<ResponseBase> UpdateUserInputTrialBalance(string reportId,
-                                                                List<UserBalanceEntryInput> entries)
+                                                                List<UserBalanceEntryUpdate> entries)
     {
         try
         {
             var report = await reportRepo.Find(r => r.Id == reportId && !r.Deleted
                                                                      && r.OrganizationId == WorkingOrg.ToGuid())
                                          .Include(r => r.UserInput)
-                                         .ThenInclude(u => u!.Entries)
+                                         .AsSplitQuery()
+                                         .AsNoTracking()
                                          .FirstOrDefaultAsync()
                          ?? throw new NotFoundException("Financial report not found");
+            if(report.UserInput == null) throw new NotFoundException("Financial report has no user entries yet!");
+            
+            var updatingEntries = await dbContext.TrialBalanceEntries
+                                                 .Where(t => entries.Select(e => e.Id).Contains(t.Id)
+                                                        && t.UserInputTrialBalanceId == report.UserInput.Id
+                                                        && t.IsUserInput)
+                                                 .ToListAsync();
+            if(updatingEntries.Count == 0) throw new NotFoundException("Entries not found.");
 
-            if (report.UserInput == null || report.UserInput.Entries.Count == 0)
-                throw new NotFoundException("User input trial balance not found");
-
-            foreach (var trialBalanceEntry in report.UserInput.Entries)
+            int updateCount = 0;
+            foreach (var trialBalanceEntry in updatingEntries)
             {
-                var inputEntry = entries.FirstOrDefault(e => e.Code == trialBalanceEntry.AccountCode);
+                var inputEntry = entries.FirstOrDefault(e => e.Id == trialBalanceEntry.Id);
                 if (inputEntry == null)
                 {
                     continue;
@@ -536,10 +552,12 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                 trialBalanceEntry.AriseCredit = inputEntry.AriseCredit;
                 trialBalanceEntry.CloseDebit = inputEntry.CloseDebit;
                 trialBalanceEntry.CloseCredit = inputEntry.CloseCredit;
+                updateCount++;
             }
-
-            await reportRepo.UpdateAsync(report);
-            return ResponseBase.OkResult(report.UserInput);
+            if(updateCount == 0) throw new NotFoundException("No entries updated because not matched Id.");
+            dbContext.TrialBalanceEntries.UpdateRange(updatingEntries);
+            await dbContext.SaveChangesAsync();
+            return ResponseBase.Ok();
         }
         catch (NotFoundException e)
         {
@@ -554,7 +572,6 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         }
     }
 
-    //TODO: calculate balance sheet, income statement in a single method to reduce database roundtrip:
     public async Task<ResponseBase> CalculateFinancialStatement(string reportId)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
@@ -575,6 +592,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
             await MapBalanceSheetAsync(report);
             await MapIncomeStatementAsync(report);
+            report.Status = ReportStatus.Ready;
             dbContext.FinancialReportWorks.Update(report);
 
             await dbContext.SaveChangesAsync();
@@ -587,14 +605,6 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             throw;
         }
     }
-
-    public async Task<ResponseBase> MapBalanceSheetFromTrialBalance(string reportId)
-    {
-        // await MapBalanceSheetAsync(reportId);
-        // await MapIncomeStatementAsync(reportId);
-        return ResponseBase.Ok();
-    }
-
 
     public async Task<ResponseBase> ResetReport(string reportId)
     {
@@ -795,7 +805,9 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
         try
         {
-            var report = await dbContext.FinancialReportWorks.Where(r => r.Id == reportId)
+            var report = await dbContext.FinancialReportWorks
+                                        .Where(r => r.Id == reportId
+                                                    && r.OrganizationId == WorkingOrg.ToGuid())
                                         .Include(r => r.UserInput).ThenInclude(u => u!.Entries)
                                         .Include(r => r.TrialBalanceEntries)
                                         .Include(r => r.BalanceSheetEntries)
@@ -825,6 +837,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                 entry.CloseDebit = 0;
             }
 
+            report.Status = ReportStatus.Pending;
             dbContext.TrialBalanceEntries.RemoveRange(report.UserInput.Entries); //Remove all entries first
             dbContext.UserInputTrialBalance.Remove(report.UserInput); //Then remove the user input itself
             dbContext.FinancialReportWorks.Update(report);
@@ -846,7 +859,8 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     {
         Console.WriteLine("ReportID:" + reportId);
         Console.WriteLine("OrganizationId: " + WorkingOrg.ToGuid());
-        var report = await reportRepo.Find(x => x.Id == reportId && x.OrganizationId == WorkingOrg.ToGuid())
+        var report = await reportRepo.Find(x => x.Id == reportId
+                                                && x.OrganizationId == WorkingOrg.ToGuid())
                                      .Include(x => x.Xml)
                                      .FirstOrDefaultAsync()
                      ?? throw new NotFoundException("Report not found");
@@ -873,7 +887,8 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
     public async Task<ResponseBase> CreateOrUpdateXmlDocument(string reportId)
     {
-        var report = await reportRepo.Find(x => x.Id == reportId && x.OrganizationId == WorkingOrg.ToGuid())
+        var report = await reportRepo.Find(x => x.Id == reportId
+                                                && x.OrganizationId == WorkingOrg.ToGuid())
                                      .Include(x => x.Xml)
                                      .FirstOrDefaultAsync()
                      ?? throw new NotFoundException("Report not found");
@@ -900,13 +915,25 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     public async Task<(string FileName, byte[] File)> ExportReportNoteExcel(string reportId)
     {
         var report = await dbContext.FinancialReportWorks
-                                    .Where(r => r.Id == reportId && r.OrganizationId == WorkingOrg.ToGuid())
+                                    .Where(r => r.Id == reportId
+                                                && r.OrganizationId == WorkingOrg.ToGuid())
                                     .Include(r => r.TrialBalanceEntries)
                                     .Include(r => r.Organization)
+                                    .AsNoTracking()
                                     .FirstOrDefaultAsync();
         if (report is null) throw new NotFoundException("Report not found");
         var resultExcel = await CreateFinancialStatementNoteExcel(report);
         return resultExcel;
+    }
+
+    public async Task<(string FileName, byte[] File)> DownloadTrialBalanceTemplate()
+    {
+        const string filename = "Template_bang_can_doi_tk.xlsx";
+        var templateFile = LoadExcelTemplate(ImportTemplateFOlder, filename); 
+        await using var stream = new MemoryStream();
+        templateFile.SaveToStream(stream, FileFormat.Version2016);
+        var file = stream.ToArray();
+        return (filename, file);
     }
 
     #region Private Method
@@ -963,7 +990,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                          r.TaxAgencyCode, r.TaxAgencyName,
                                          r.Organization!.Address,
                                          Name = r.Organization.FullName,
-                                         TaxId = r.Organization.TaxId,
+                                         r.Organization.TaxId,
                                          Province = new
                                          {
                                              r.Organization.District!.Province!.Name,
@@ -1273,7 +1300,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         var templateFilename = await dbContext.FinancialStatementNotes
                                               .FirstOrDefaultAsync(m => m.RegulationId == report.Regulation)
                                ?? throw new NotFoundException("Financial statement note not found");
-        var templateExcel = LoadExcelTemplate(templateFilename.TemplateFile);
+        var templateExcel = LoadExcelTemplate(ExportTemplateFolder, templateFilename.TemplateFile);
         var sh = templateExcel.Worksheets[0];
         sh.Range["A1"].Value = report.Organization?.FullName;
         sh.Range["H3"].Value2 = report.Year;
@@ -1526,18 +1553,18 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         sh.Range["J278"].Value2 = trialBalance.FirstOrDefault(x => x.AccountCode == "821")?.AriseDebit;
 
         using var stream = new MemoryStream();
-        templateExcel.SaveToStream(stream);
+        templateExcel.SaveToStream(stream, FileFormat.Version2016);
         stream.Position = 0;
         return (templateFilename.TemplateFile, stream.ToArray());
     }
 
-    private Workbook LoadExcelTemplate(string templateFile)
+    private Workbook LoadExcelTemplate(string templateFolder, string templateFile)
     {
         Workbook workbook = new()
         {
             Version = ExcelVersion.Version2016
         };
-        string filePath = Path.Combine(env.ContentRootPath, TemplateFolder, templateFile);
+        string filePath = Path.Combine(env.ContentRootPath, templateFolder, templateFile);
         if (!File.Exists(filePath)) throw new NotFoundException("Template file not found.");
         workbook.LoadFromFile(filePath);
         return workbook;

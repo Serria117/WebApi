@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using WebApp.Authentication;
 using WebApp.Enums;
+using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Services.AccountingServices;
+using WebApp.Services.AccountingServices.Dto;
 using WebApp.Services.BalanceSheetService;
 using WebApp.Services.BalanceSheetService.Dto;
 using WebApp.Utils;
@@ -124,12 +126,17 @@ public class AccountingController(IFinancialStatementAppService service,
     [HttpPost("financial-report/update-input/{id}")]
     [HasAuthority(Permissions.FinancialReportUpdate)]
     public async Task<IActionResult> UpdateUserInputTrialBalance([FromRoute] string id,
-                                                                 List<UserBalanceEntryInput> input)
+                                                                 List<UserBalanceEntryUpdate> input)
     {
         try
         {
-            await service.UpdateUserInputTrialBalance(id, input);
-            return Ok();
+            var result = await service.UpdateUserInputTrialBalance(id, input);
+            return Ok(result);
+        }
+        catch (NotFoundException e)
+        {
+            logger.LogErrorFormatted(exception: e);
+            return NotFound(e.Message);
         }
         catch (Exception e)
         {
@@ -327,6 +334,22 @@ public class AccountingController(IFinancialStatementAppService service,
         catch (Exception e)
         {
             logger.LogErrorFormatted(exception: e);
+            return BadRequest(e.Message);
+        }
+    }
+
+    [HttpGet("financial-report/template/trial-balance")]
+    public async Task<IActionResult> DownloadTrialBalanceTempate()
+    {
+        try
+        {
+            var result = await service.DownloadTrialBalanceTemplate();
+            Response.Headers.Append("X-Filename", result.FileName);
+            return File(result.File, ContentType.ApplicationOfficeSpreadSheet, result.FileName);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
             return BadRequest(e.Message);
         }
     }

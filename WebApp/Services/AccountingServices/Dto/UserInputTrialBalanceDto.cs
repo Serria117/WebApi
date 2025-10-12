@@ -1,7 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
-namespace WebApp.Services.BalanceSheetService.Dto;
+﻿namespace WebApp.Services.AccountingServices.Dto;
 
 public class UserInputTrialBalanceDto
 {
@@ -28,4 +25,9 @@ public class UserBalanceEntryInput
     public decimal AriseCredit { get; set; }
     public decimal CloseDebit { get; set; }
     public decimal CloseCredit { get; set; }
+}
+
+public class UserBalanceEntryUpdate : UserBalanceEntryInput
+{
+    public long Id { get; set; }
 }

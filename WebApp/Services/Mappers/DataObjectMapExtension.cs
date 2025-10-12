@@ -8,6 +8,7 @@ using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
 using WebApp.Core.DomainEntities.Payroll;
 using WebApp.Enums;
 using WebApp.Repositories;
+using WebApp.Services.AccountingServices.Dto;
 using WebApp.Services.BalanceSheetService.Dto;
 using WebApp.Services.CommonService;
 using WebApp.Services.OrganizationService.Dto;
