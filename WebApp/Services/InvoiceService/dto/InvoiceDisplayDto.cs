@@ -39,6 +39,8 @@ public class InvoiceDisplayDto
 
     public string? LookUpUrl { get; set; }
     public string? LookUpCode { get; set; }
+
+    public ICollection<Fee> Fees { get; set; } = [];
     public decimal? TotalOtherFee { get; set; }
 }
 
@@ -53,4 +55,10 @@ public class Goods
     public double? Discount { get; set; } //Chiết khấu
     public decimal? Tax { get; set; } //Tiền thuế
     public string? TaxType { get; set; } //Loại thuế suất
+}
+
+public class Fee
+{
+    public string FeeName { get; set; } = string.Empty;
+    public decimal FeeAmount { get; set; } = 0;
 }

@@ -140,7 +140,7 @@ public class InvoiceDetailDoc
 
     [BsonElement("thlap")] public int? Thlap { get; set; }
 
-    [BsonElement("thttlphi")] public List<object> Thttlphi { get; set; } = [];
+    [BsonElement("thttlphi")] public List<Thttlphi> Thttlphi { get; set; } = [];
 
     [BsonElement("thttltsuat")] public List<Thttltsuat> Thttltsuat { get; set; } = [];
 
@@ -411,4 +411,13 @@ public class Ttttkhac
     [BsonElement("dlieu")]
     [BsonIgnoreIfNull]
     public string? Dlieu { get; set; }
+}
+
+
+public class Thttlphi
+{
+    [BsonElement("tlphi")]
+    public string? Tlphi { get; set; } = string.Empty;
+    [BsonElement("tphi")]
+    public decimal? Tphi { get; set; } = 0;
 }

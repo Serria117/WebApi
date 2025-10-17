@@ -26,6 +26,7 @@ public interface IInvoiceMongoRepository
     Task<long> UpdateInvoiceStatus(FilterDefinition<InvoiceDetailDoc> filter, int status);
     Task<bool> InvoiceExist(FilterDefinition<InvoiceDetailDoc> filter);
     Task<bool> DeleteInvoices(IEnumerable<string> ids);
+    Task<ICollection<InvoiceDetailDoc>> FindInvoicesNonPaging(FilterDefinition<InvoiceDetailDoc> filter);
 }
 
 public class InvoiceMongoRepository(IMongoDatabase db)
@@ -67,6 +68,12 @@ public class InvoiceMongoRepository(IMongoDatabase db)
         return result;
     }
 
+    public async Task<ICollection<InvoiceDetailDoc>> FindInvoicesNonPaging(FilterDefinition<InvoiceDetailDoc> filter)
+    {
+        var sortFilter = Builders<InvoiceDetailDoc>.Sort.Ascending("tdlap").Ascending("nbmst");
+        return await Collection.Find(filter).Sort(sortFilter).ToListAsync();
+    }
+    
     public async Task<PaginatedDocResult<InvoiceDetailDoc>> FindInvoices(FilterDefinition<InvoiceDetailDoc> filter,
                                                                          int page, int size)
     {

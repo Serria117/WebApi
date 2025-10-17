@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Data;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -7,6 +8,7 @@ using MongoDB.Bson;
 using Spire.Xls;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
+using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Mongo.DeserializedModel;
 using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
@@ -40,6 +42,7 @@ public interface IInvoiceService
     /// <param name="to">End date</param>
     /// <returns></returns>
     Task<byte[]?> ExportExcel(string taxCode, string from, string to);
+
     /// <summary>
     /// Extract invoice's detail information from the hoadondientu API
     /// </summary>
@@ -48,6 +51,7 @@ public interface IInvoiceService
     /// <param name="to">End date</param>
     /// <returns></returns>
     Task<ResponseBase> ExtractPurchaseInvoices(string token, string from, string to, int[]? invoiceTypes);
+
     Task<ResponseBase> GetSoldInvoiceFromService(string token, string from, string to);
 
     /// <summary>
@@ -57,6 +61,7 @@ public interface IInvoiceService
     /// <param name="invoiceParams">Request parameters to build the filter for query</param>
     /// <returns></returns>
     Task<ResponseBase> QueryPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams);
+
     /// <summary>
     /// Upload purchase invoice from xml files
     /// </summary>
@@ -76,7 +81,7 @@ public partial class InvoiceService(IUserManager userManager,
                                     ISoldInvoiceDetailRepository soldInvoiceDetailRepository,
                                     IErrorInvoiceRepository errorInvoiceRepository,
                                     INotificationAppService notificationService)
-     : BaseAppService(userManager), IInvoiceService
+    : BaseAppService(userManager), IInvoiceService
 {
     private JwtSecurityTokenHandler TokenHandler => new JwtSecurityTokenHandler();
 
@@ -113,7 +118,8 @@ public partial class InvoiceService(IUserManager userManager,
     }
 
 
-    private async Task<(bool Success, int ErrorCount, List<PurchaseInvoiceErrorDisplay> Error)> WriteDeserializableInvoices(List<InvoiceDetailModel> invoices)
+    private async Task<(bool Success, int ErrorCount, List<PurchaseInvoiceErrorDisplay> Error)>
+        WriteDeserializableInvoices(List<InvoiceDetailModel> invoices)
     {
         List<PurchaseInvoiceErrorDisplay> errorList = [];
         if (invoices.Count == 0)
@@ -121,6 +127,7 @@ public partial class InvoiceService(IUserManager userManager,
             Console.WriteLine("No invoice to convert");
             return (true, 0, errorList);
         }
+
         Console.WriteLine($"Found {invoices.Count} invoices.");
         try
         {
@@ -176,7 +183,8 @@ public partial class InvoiceService(IUserManager userManager,
         }
     }
 
-    private async Task<(bool Success, int ErrorCount, List<PurchaseInvoiceErrorDisplay> Error)> WriteUndeserializableInvoices(List<string> invoices)
+    private async Task<(bool Success, int ErrorCount, List<PurchaseInvoiceErrorDisplay> Error)>
+        WriteUndeserializableInvoices(List<string> invoices)
     {
         List<PurchaseInvoiceErrorDisplay> errorList = [];
         if (invoices.Count == 0)
@@ -184,6 +192,7 @@ public partial class InvoiceService(IUserManager userManager,
             Console.WriteLine("No invoice to convert");
             return (true, 0, errorList);
         }
+
         Console.WriteLine($"Found {invoices.Count} invoices.");
         try
         {
@@ -232,7 +241,7 @@ public partial class InvoiceService(IUserManager userManager,
 
     //TODO: separate this method into two methods: one for deserializable invoices and one for un-deserializable invoices
     private async Task<ResponseBase> WriteInvoices(List<InvoiceDetailModel> deserializedInvoices,
-                                                  List<string> unDeserializedInvoices, int total)
+                                                   List<string> unDeserializedInvoices, int total)
     {
         var totalSync = deserializedInvoices.Count + unDeserializedInvoices.Count;
         try
@@ -322,7 +331,8 @@ public partial class InvoiceService(IUserManager userManager,
         catch (Exception e)
         {
             logger.LogError("Failed with Error: {mess}", e.Message);
-            return ResponseBase.Error500("Warning: saving invoices to database unsuccessfully due to an error occured.");
+            return ResponseBase.Error500(
+                "Warning: saving invoices to database unsuccessfully due to an error occured.");
         }
     }
 
@@ -510,7 +520,7 @@ public partial class InvoiceService(IUserManager userManager,
 
         foreach (var inv in purchaseList)
         {
-            #region Summary
+            #region Purchase Summary
 
             shPurchaseSummary.Range[purchaseSummaryRow, 1].Value2 = inv.InvoiceNumber;
             shPurchaseSummary.Range[purchaseSummaryRow, 2].Value2 = inv.InvoiceNotation;
@@ -545,7 +555,10 @@ public partial class InvoiceService(IUserManager userManager,
 
             #endregion
 
-            if (inv.GoodsDetail.IsNullOrEmpty())
+            #region Purchase Detail
+
+            if (inv.GoodsDetail
+                   .IsNullOrEmpty()) //If good detail is empty, fill the detail sheet with basic invoice data
             {
                 purchaseSummaryRow++;
 
@@ -568,8 +581,6 @@ public partial class InvoiceService(IUserManager userManager,
                 // shPurchaseDetail.Range[detailRow, 10].Value2 = item.Rate;
                 // shPurchaseDetail.Range[detailRow, 10].NumberFormat = "0.0%";
 
-                //shPurchaseDetail.Range[detailRow, 11].Value2 = item.Discount;
-
                 shPurchaseDetail.Range[detailRow, 12].Value2 = inv.Vat;
                 shPurchaseDetail.Range[detailRow, 12].NumberFormat = "#,##0";
                 shPurchaseDetail.Range[detailRow, 13].Value2 = inv.CreationDate?.ToLocalTime();
@@ -588,10 +599,24 @@ public partial class InvoiceService(IUserManager userManager,
                 continue;
             }
 
-            foreach (var item in inv.GoodsDetail)
-            {
-                #region Detail
+            var goodAndFee = new List<Goods>();
 
+            //Add goods and fees to a single list of details:
+            goodAndFee.AddRange(inv.GoodsDetail);
+            if (inv.Fees.Count > 0)
+            {
+                goodAndFee.AddRange(inv.Fees.Select(f => new Goods()
+                {
+                    Name = f.FeeName,
+                    UnitPrice = (double)f.FeeAmount,
+                    Quantity = 1,
+                    Discount = null,
+                    PreTaxPrice = f.FeeAmount,
+                }));
+            }
+
+            foreach (var item in goodAndFee)
+            {
                 var unitPrice = item.UnitPrice;
                 var preTaxPrice = item.PreTaxPrice;
                 var vat = item.Tax;
@@ -640,12 +665,12 @@ public partial class InvoiceService(IUserManager userManager,
                 shPurchaseDetail.Range[detailRow, 17].Value2 = inv.InvoiceType;
                 shPurchaseDetail.Range[detailRow, 18].Value2 = item.TaxType;
 
-                #endregion
-
                 detailRow++;
             }
 
             purchaseSummaryRow++;
+
+            #endregion
         }
 
         #endregion
@@ -675,7 +700,7 @@ public partial class InvoiceService(IUserManager userManager,
                 shSoldSummary.Range[soldSummaryRow, 10].NumberFormat = "#,##0";
                 shSoldSummary.Range[soldSummaryRow, 11].Value2 = inv.TotalPriceVat;
                 shSoldSummary.Range[soldSummaryRow, 11].NumberFormat = "#,##0";
-                
+
                 shSoldSummary.Range[soldSummaryRow, 12].Value2 = inv.Status;
 
                 soldSummaryRow++;
@@ -742,7 +767,7 @@ public partial class InvoiceService(IUserManager userManager,
             shSoldSummary.AutoFilters.Range = shSoldSummary.Range[$"A{titleRow}:X{soldSummaryRow - 1}"];
             shSoldSummary.Range[3, 1].FormulaR1C1 =
                 $"\"Tổng số hóa đơn: \"&COUNT(A{titleRow + 1}:A{soldSummaryRow - 1})";
-            
+
 
             shSoldDetail.Range[4, 1, soldDetailRow - 1, 3].AutoFitColumns();
             shSoldDetail.Range[4, 6, soldDetailRow - 1, 16].AutoFitColumns();
@@ -761,7 +786,6 @@ public partial class InvoiceService(IUserManager userManager,
 
         shPurchaseSummary.Range[4, 1, purchaseSummaryRow - 1, 3].AutoFitColumns();
         shPurchaseSummary.Range[4, 5, purchaseSummaryRow - 1, 13].AutoFitColumns();
-
 
         #region Formula, filter and formatting
 
@@ -824,14 +848,60 @@ public partial class InvoiceService(IUserManager userManager,
 
         #endregion
 
-
-
-
         using var stream = new MemoryStream();
         workbook.SaveToStream(stream, FileFormat.Version2016);
         return stream.ToArray();
     }
 
+    private async Task CompareInvoiceData(Workbook? importWb, ICollection<InvoiceDetailDoc> invoices)
+    {
+        if(importWb == null) 
+            throw new EmptyInputException("Imported file has no data");
+        var dataSheet = importWb.Worksheets[0];
+        var lastDataRow = dataSheet.LastRow;
+        var extractingDataList = new List<CompareInvoiceDto>();
+        for (int i = 4; i <= lastDataRow; i++)
+        {
+            CompareInvoiceDto data = new()
+            {
+                InvoiceNumber = dataSheet.Range[i, 5].Value,
+                InvoiceNotation = dataSheet.Range[i, 3].Value,
+                InvoiceDate = dataSheet.Range[i, 4].HasDateTime ? dataSheet.Range[i, 4].DateTimeValue : null,
+                SellerName = dataSheet.Range[i, 6].Value,
+                SellerTaxCode = dataSheet.Range[i, 7].Value,
+                GoodPrice = dataSheet.Range[i,8].Value.ToDecimal(),
+                Tax = dataSheet.Range[i, 9].Value.ToDecimal(),
+                TotalPrice = dataSheet.Range[i, 10].Value.ToDecimal(),
+                InvoiceStatus = dataSheet.Range[i, 12].Value,
+            };
+            extractingDataList.Add(data);
+        }
+        if(extractingDataList.Count == 0)
+            throw new EmptyResultException("No data extracted");
+        
+        var extractDataToModel = extractingDataList.GroupBy(x => new {x.InvoiceNumber, x.InvoiceNotation})
+                                                   .Select(x => new InvoiceDisplayDto
+                                                   {
+                                                       InvoiceNumber = x.Key.InvoiceNumber,
+                                                       InvoiceNotation = x.Key.InvoiceNotation,
+                                                       SellerTaxCode = x.Select(i => i.SellerTaxCode).First(),
+                                                       SellerName = x.Select(i => i.SellerName).First(),
+                                                       GoodsDetail = x.Select(i => new Goods()
+                                                       {
+                                                           PreTaxPrice = i.GoodPrice,
+                                                           Tax = i.Tax,
+                                                       }).ToList()
+                                                   }).ToList();
+        var invoiceModels = invoices.Select(x => x.ToDisplayModel()).ToList();
+        foreach (var extractEntry in extractDataToModel)
+        {
+            var matchInv = invoiceModels.FirstOrDefault(x => x.InvoiceNumber!.ToString() == extractEntry.InvoiceNumber
+                                                             && x.InvoiceNotation == extractEntry.InvoiceNotation
+                                                             && x.SellerTaxCode == extractEntry.SellerTaxCode);
+            
+        }
+    }
+    
     [GeneratedRegex("""
                     "shdon"\s*:\s*(?:"(?<value>[^"]*)"|(?<value>[^,\}\s]+))
                     """)]

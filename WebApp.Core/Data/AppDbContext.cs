@@ -58,11 +58,8 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<AllowanceType> AllowanceTypes { get; set; }
     public DbSet<Bonus> Bonus { get; set; }
     public DbSet<BonusType> BonusTypes { get; set; }
-
     public DbSet<PayrollPeriod> PayrollPeriods { get; set; }
-
     public DbSet<Timesheet> Timesheets { get; set; }
-
     public DbSet<Department> Departments { get; set; }
     public DbSet<ExpenseType> ExpenseTypes { get; set; }
     public DbSet<ExpenseTypeHistory> ExpenseTypeHistories { get; set; }

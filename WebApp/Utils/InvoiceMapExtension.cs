@@ -39,6 +39,11 @@ public static class InvoiceMapExtension
             SigningDate = doc.Nky?.ToLocalTime(),
             IssueDate = doc.Ncma?.ToLocalTime(),
             Risk = doc.Risk ?? false,
+            Fees = doc.Thttlphi.Count > 0 ? doc.Thttlphi.Select(x => new Fee()
+            {
+                FeeName = x.Tlphi ?? string.Empty,
+                FeeAmount = x.Tphi ?? 0
+            }).ToList() : [],
             Status = doc.Tthai switch
             {
                 1 => "Hóa đơn mới",
@@ -57,20 +62,22 @@ public static class InvoiceMapExtension
                 _ => null
             },
             InvoiceTypeNumber = doc.Ttxly,
-            GoodsDetail = doc.Hdhhdvu == null ? [] : doc.Hdhhdvu.Select(g => new Goods
-            {
-                Name = g.Ten,
-                UnitCount = g.Dvtinh,
-                UnitPrice = g.Dgia,
-                Quantity = g.Sluong,
-                PreTaxPrice = g.Thtien,
-                Rate = g.Tsuat,
-                Discount = g.Stckhau,
-                Tax = g.Thtien is null || g.Tsuat is null
-                    ? 0
-                    : Math.Round(g.Thtien.Value * g.Tsuat.Value, 0),
-                TaxType = g.Ltsuat
-            }).ToList(),
+            GoodsDetail = doc.Hdhhdvu == null
+                ? []
+                : doc.Hdhhdvu.Select(g => new Goods
+                {
+                    Name = g.Ten,
+                    UnitCount = g.Dvtinh,
+                    UnitPrice = g.Dgia,
+                    Quantity = g.Sluong,
+                    PreTaxPrice = g.Thtien,
+                    Rate = g.Tsuat,
+                    Discount = g.Stckhau,
+                    Tax = g.Thtien is null || g.Tsuat is null
+                        ? 0
+                        : Math.Round(g.Thtien.Value * g.Tsuat.Value, 0),
+                    TaxType = g.Ltsuat
+                }).ToList(),
             SellerSignature = doc.Nbcks,
             LookUpUrl = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "PortalLink")?.Dlieu,
             LookUpCode = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "Fkey")?.Dlieu,
@@ -116,18 +123,22 @@ public static class InvoiceMapExtension
                 _ => string.Empty
             },
             InvoiceTypeNumber = doc.Ttxly,
-            GoodsDetail = doc.Hdhhdvu == null ? [] : doc.Hdhhdvu.Select(h => new Goods
-            {
-                Name = h.Ten,
-                UnitCount = h.Dvtinh,
-                UnitPrice = h.Dgia,
-                Quantity = h.Sluong,
-                PreTaxPrice = h.Thtien,
-                Rate = h.Tsuat,
-                Discount = h.Stckhau,
-                Tax = h is { Thtien: not null, Tsuat: not null } ? Math.Round(h.Thtien.Value * h.Tsuat.Value, 0) : 0,
-                TaxType = h.Ltsuat
-            }).ToList(),
+            GoodsDetail = doc.Hdhhdvu == null
+                ? []
+                : doc.Hdhhdvu.Select(h => new Goods
+                {
+                    Name = h.Ten,
+                    UnitCount = h.Dvtinh,
+                    UnitPrice = h.Dgia,
+                    Quantity = h.Sluong,
+                    PreTaxPrice = h.Thtien,
+                    Rate = h.Tsuat,
+                    Discount = h.Stckhau,
+                    Tax = h is { Thtien: not null, Tsuat: not null }
+                        ? Math.Round(h.Thtien.Value * h.Tsuat.Value, 0)
+                        : 0,
+                    TaxType = h.Ltsuat
+                }).ToList(),
             SellerSignature = doc.Nbcks,
             VerifyCode = doc.Mhdon,
             TotalInWord = doc.Tgtttbchu,

@@ -20,9 +20,9 @@ public class TemplateController(ITemplateAppService service,
     {
         try
         {
-            var (FileName, FileData) = await service.DownloadFile(fileId);
-            Response.Headers["X-Filename"] = FileName;
-            return File(FileData, ContentType.ApplicationOctetStream, FileName);
+            (string fileName, byte[] fileData) = await service.DownloadFile(fileId);
+            Response.Headers["X-Filename"] = fileName;
+            return File(fileData, ContentType.ApplicationOctetStream, fileName);
         }
         catch (Exception ex)
         {
