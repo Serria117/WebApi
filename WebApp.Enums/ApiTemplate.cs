@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace WebApp.Enums;
-public struct Api
+public struct ApiTemplate
 {
     public const string GetAll = "get-all";
     public const string Create = "create";

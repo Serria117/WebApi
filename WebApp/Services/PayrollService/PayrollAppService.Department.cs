@@ -23,13 +23,23 @@ public partial class PayrollAppService
         await DepartmentRepository.CreateAsync(newDep);
     }
 
-    public async Task<ResponseBase> GetDepartmentsAsync()
+    public async Task<ResponseBase> GetDepartmentsAsync(RequestParam requestParam)
     {
         var orgId = WorkingOrg.ToGuid();
         if (orgId == Guid.Empty)
             throw new InvalidOperationException("Working organization is not set.");
 
-        var departments = await DepartmentRepository.Find(d => d.OrganizationId == orgId).ToListAsync();
+        var query = DepartmentRepository.Find(d => d.OrganizationId == orgId && !d.Deleted);
+        if (requestParam.Keyword != null)
+        {
+            query = query.Where(d => d.Name.Contains(requestParam.Keyword));
+        }
+
+        var departments = await query.Select(d => new
+                                     {
+                                         d.Id, d.Name, d.Code
+                                     })
+                                     .ToListAsync();
         return ResponseBase.OkResult(departments);
     }
 
@@ -38,10 +48,15 @@ public partial class PayrollAppService
         var orgId = WorkingOrg.ToGuid();
         if (orgId == Guid.Empty)
             throw new InvalidOperationException("Working organization is not set.");
-        var department = await DepartmentRepository.Find(d => d.Id == id && d.OrganizationId == orgId).FirstOrDefaultAsync();
-        if (department == null)
-            return ResponseBase.Error404("Department not found.");
-
-        return ResponseBase.OkResult(department);
+        var department = await DepartmentRepository.Find(d => d.Id == id && d.OrganizationId == orgId)
+                                                   .FirstOrDefaultAsync();
+        return department == null
+            ? ResponseBase.Error404("Department not found.")
+            : ResponseBase.OkResult(department);
     }
+
+    public async Task<bool> IsDepartmentExistAsync(string name)
+        => await DepartmentRepository.ExistAsync(d => d.OrganizationId == WorkingOrg.ToGuid()
+                                                      && !d.Deleted
+                                                      && d.Name == name);
 }

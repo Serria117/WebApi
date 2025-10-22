@@ -24,8 +24,9 @@ public interface IPayrollAppService
     Task<ResponseBase> GetAllowanceTypes();
     Task<ResponseBase> CreateTimesheetsAsync(long periodId);
     Task CreateDepartmentAsync(DepartmentCreate dto);
-    Task<ResponseBase> GetDepartmentsAsync();
+    Task<ResponseBase> GetDepartmentsAsync(RequestParam requestParam);
     Task<ResponseBase> GetDepartmentByIdAsync(string id);
+    Task<bool> IsDepartmentExistAsync(string name);
 }
 
 public partial class PayrollAppService(IUserManager userManager,

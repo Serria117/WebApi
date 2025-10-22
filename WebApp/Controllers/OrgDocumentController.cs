@@ -28,7 +28,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="file">The list of file to be uploaded</param>
     /// <returns></returns>
-    [HttpPost(Api.Upload)]
+    [HttpPost(ApiTemplate.Upload)]
     public async Task<IActionResult> UploadDocument(List<IFormFile> file)
     {
         var allowedExt = file.Select(f => Path.GetExtension(f.FileName).ToLowerInvariant())
@@ -61,7 +61,7 @@ public class OrgDocumentController(IDocumentAppService documentService,
     /// </summary>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    [HttpGet(Api.Download)]
+    [HttpGet(ApiTemplate.Download)]
     [HasAuthority(Permissions.DocumentView)]
     public async Task<IActionResult> DownloadDocument([FromQuery] int documentId)
     {

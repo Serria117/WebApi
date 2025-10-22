@@ -32,7 +32,7 @@ public class OrganizationController(IOrganizationAppService orgService) : Contro
     /// </summary>
     /// <param name="input"></param>
     /// <returns></returns>
-    [HttpPost("create-many")]
+    [HttpPost("create-many")][HasAllAuthorities(Permissions.OrgCreate, Permissions.Admin)]
     public async Task<IActionResult> CreateMany(List<OrganizationInputDto> input)
     {
         var res = await orgService.CreateMany(input);

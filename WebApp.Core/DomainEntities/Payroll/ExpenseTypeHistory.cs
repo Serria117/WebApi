@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
@@ -10,7 +11,8 @@ namespace WebApp.Core.DomainEntities.Payroll;
 [Table("PR_ExpenseTypeHistory")]
 public class ExpenseTypeHistory: BaseEntity<string>
 {
-    public string ExpenseTypeId { get; set; } = string.Empty;
+    [MaxLength(26)]
+    public string ExpenseTypeId { get; set; } = Ulid.NewUlid().ToString();
 
     public DateTime EffectiveDate { get; set; }
     public DateTime? EndDate { get; set; }

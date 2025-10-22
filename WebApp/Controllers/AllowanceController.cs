@@ -8,7 +8,7 @@ namespace WebApp.Controllers;
 [ApiController][Route("/api/payroll/allowance")][Authorize]
 public class AllowanceController(IPayrollAppService service) : ControllerBase
 {
-    [HttpGet(Api.GetAll)]
+    [HttpGet(ApiTemplate.GetAll)]
     public async Task<IActionResult> GetAllowanceTypes()
     {
         var result = await service.GetAllowanceTypes();
@@ -20,7 +20,7 @@ public class AllowanceController(IPayrollAppService service) : ControllerBase
     /// </summary>
     /// <param name="input">Allowance detail informations</param>
     /// <returns></returns>
-    [HttpPost(Api.Create)]
+    [HttpPost(ApiTemplate.Create)]
     public async Task<IActionResult> CreateAllowanceType(AllowanceTypeCreate input)
     {
         var result = await service.CreateAllowanceType(input);
