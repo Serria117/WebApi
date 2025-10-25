@@ -100,6 +100,7 @@ public static class DependencyInjector
         s.AddScoped<IOrganizationAppService, OrganizationBaseAppService>();
         s.AddScoped<IInvoiceAppService, InvoiceAppService_Old>();
         s.AddScoped<IInvoiceService, InvoiceService>(); //the new invoice service
+        s.AddScoped<IInvoiceImportService, InvoiceImportService>();
         s.AddScoped<IRegionAppService, RegionAppService>();
         s.AddScoped<IRiskCompanyAppService, RiskCompanyBaseAppService>();
         s.AddScoped<IFinancialStatementAppService, FinancialStatementAppService>();
