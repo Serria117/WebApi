@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WebApp.Payloads;
 using WebApp.Services.UserService;
 using WebApp.Services.UserService.Dto;
@@ -7,7 +8,7 @@ using WebApp.Services.UserService.Dto;
 namespace WebApp.Controllers;
 
 [ApiController, Route("/api/auth")]
-public class AuthController(IUserAppService userAppService, 
+public class AuthController(IUserAppService userAppService,
                             IPermissionAppService permissionAppService) : ControllerBase
 {
     /// <summary>
@@ -22,21 +23,66 @@ public class AuthController(IUserAppService userAppService,
 
         if (!res.Success)
         {
-            return Unauthorized(res);
+            return Ok(res);
+        }
+
+        if (res.TwoStepVerificationRequired)
+        {
+            return Ok(res);
         }
 
         // Add refresh token to the response cookies:
-        Response.Cookies.Append("refreshToken", res.RefreshToken!, new CookieOptions
+        if (res.RefreshToken is not null)
         {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Path = "/",
-            Expires = res.ExpireAt!.Value.AddDays(30)
-        });
+            Response.Cookies.Append("refreshToken", res.RefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/",
+                Expires = res.ExpireAt!.Value.AddDays(30)
+            });
+        }
+
         // Remove refresh token from the response body:
         res.RefreshToken = null;
         return Ok(res);
+    }
+
+    [HttpPost("two-step-login")]
+    public async Task<IActionResult> TwoStepLogin(UserLoginWithVerifyCodeDto login)
+    {
+        var result = await userAppService.Authenticate2Step(login);
+        if (!result.Success)
+        {
+            return Ok(result);
+        }
+
+        // Add refresh token to the response cookies:
+        if (result.RefreshToken is not null)
+            Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/",
+                Expires = result.ExpireAt!.Value.AddDays(30)
+            });
+        // Remove refresh token from the response body:
+        result.RefreshToken = null;
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Allow user to create a new verification code.
+    /// </summary>
+    /// <param name="key"></param>
+    /// <returns></returns>
+    [HttpPost("send-verify-code/{key}")] [EnableRateLimiting("VerificationCodeLimit")]
+    public async Task<IActionResult> RefreshVerificationCode([FromRoute] string key)
+    {
+        var result = await userAppService.RefreshVerificationCode(key);
+        return Ok(result);
     }
 
     /// <summary>
@@ -81,7 +127,7 @@ public class AuthController(IUserAppService userAppService,
         {
             return Unauthorized("Missing tokens.");
         }
-        
+
         // Call service:
         await userAppService.Logout(accessToken, refreshToken);
         return Ok();
@@ -99,12 +145,14 @@ public class AuthController(IUserAppService userAppService,
         {
             return BadRequest("You must provide an org id.");
         }
+
         // Get current refresh token:
         var refreshToken = Request.Cookies["refreshToken"];
         if (string.IsNullOrEmpty(refreshToken))
         {
             return Unauthorized("Missing refresh token.");
         }
+
         // Call service:
         var res = await userAppService.ChangeWorkingOrganization(request.OrgId, refreshToken);
         if (!res.Success)

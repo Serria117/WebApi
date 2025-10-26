@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Security.Cryptography;
 using MailKit.Net.Imap;
+using MailKit.Net.Smtp;
 using MailKit.Search;
 using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,9 @@ public interface IEmailAppService
     /// </summary>
     /// <returns></returns>
     Task AutoSyncEmailsAsync();
+
     Task<ResponseBase> FindEmailsAsync(EmailFilterRequest request);
+    Task SendEmailAsync(string subject, string body, string recipient);
 }
 
 public class EmailAppService(IConfiguration config,
@@ -33,6 +36,37 @@ public class EmailAppService(IConfiguration config,
                              IAppRepository<EmailConfig, int> emailConfigRepository,
                              IUserManager userManager) : BaseAppService(userManager), IEmailAppService
 {
+    public async Task SendEmailAsync(string subject, string body, string recipient)
+    {
+        var adminEmail = "ketoan.sline@gmail.com";
+        var emailConfig = await emailConfigRepository.Find(x => x.Email == adminEmail)
+                                                     .FirstOrDefaultAsync();
+        if (emailConfig is null) throw new NotFoundException("Email configuration not found");
+        if (string.IsNullOrEmpty(body)) throw new InvalidActionException("Email body cannot be empty");
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("Sline admin", emailConfig.Email));
+        message.To.Add(new MailboxAddress("", recipient));
+        message.Subject = subject;
+        var bodyBuilder = new BodyBuilder
+        {
+            HtmlBody = body
+        };
+        message.Body = bodyBuilder.ToMessageBody();
+        using var client = new SmtpClient();
+        try
+        {
+            await client.ConnectAsync("smtp.gmail.com", 587, SecureSocketOptions.StartTls);
+            await client.AuthenticateAsync(emailConfig!.Email, emailConfig.AppPassword);
+            await client.SendAsync(message);
+            await client.DisconnectAsync(true);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
     public async Task AutoSyncEmailsAsync()
     {
         var senders = await senderRepository.Find(s => s.Deleted == false)
@@ -72,7 +106,6 @@ public class EmailAppService(IConfiguration config,
                 }
             }
         }
-
     }
 
     public async Task<ResponseBase> FindEmailsAsync(EmailFilterRequest request)
@@ -95,13 +128,15 @@ public class EmailAppService(IConfiguration config,
             {
                 query = query.And(SearchQuery.SubjectContains(request.Subject));
             }
+
             if (request.Body is not null)
             {
                 query = query.And(SearchQuery.BodyContains(request.Body));
             }
+
             //filter by date:
             query = query.And(SearchQuery.DeliveredAfter(request.From?.AddDays(-1) ?? new DateTime(2020, 1, 1))
-                         .And(SearchQuery.DeliveredBefore(request.To?.AddDays(1) ?? DateTime.Now)));
+                                         .And(SearchQuery.DeliveredBefore(request.To?.AddDays(1) ?? DateTime.Now)));
 
             var uids = await inbox.SearchAsync(query);
 
@@ -134,7 +169,6 @@ public class EmailAppService(IConfiguration config,
 
     private async Task<int> SaveAttachmentsAsync(MimeMessage message, string fileExtension)
     {
-
         if (WorkingOrg.ToGuid() == Guid.Empty) throw new InvalidActionException("User has no organization");
         var from = message.From.Mailboxes.FirstOrDefault();
         var fromName = from?.Address ?? "NON_SENDER_NAME";
@@ -157,6 +191,7 @@ public class EmailAppService(IConfiguration config,
                 logger.LogInformation($"Attachment {part.FileName} already downloaded for message {message.MessageId}");
                 continue;
             }
+
             string fileName = Path.Combine(saveDir, $"{message.MessageId}-F{countAttachment}.{fileExtension}");
             await using var stream = File.Create(fileName);
             await part.Content.DecodeToAsync(stream);
@@ -171,6 +206,7 @@ public class EmailAppService(IConfiguration config,
             });
             countAttachment++;
         }
+
         return countAttachment;
     }
 

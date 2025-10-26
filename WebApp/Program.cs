@@ -1,9 +1,11 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -54,6 +56,23 @@ services.AddDbContext<AppDbContext>((serviceProvider, options) =>
     var auditInterceptor = serviceProvider.GetService<AuditableEntityInterceptor>()!;
     options.UseSqlServer(connectionString: config.GetConnectionString("SqlServer"))
            .AddInterceptors(auditInterceptor);
+});
+
+//polling rate config:
+services.AddRateLimiter(op =>
+{
+    op.AddFixedWindowLimiter("VerificationCodeLimit", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+    op.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429;
+        await context.HttpContext.Response.WriteAsync("Too many request. Try again later.", cancellationToken: token);
+    };
 });
 
 // Handle JSON cycles:
@@ -114,6 +133,8 @@ services.AddAuthentication(options =>
                 }
             };
         });
+
+
 
 // Custom authorization handlers:
 services.AddAuthorization();
@@ -222,6 +243,8 @@ app.UseCors(op =>
 app.UseWebSockets();
 app.UseMiddleware<ExceptionHandlerMiddleware>();
 app.UseStaticFiles();
+app.UseRouting();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -232,9 +255,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
+
 app.MapControllers();
 
 app.MapHub<AppHub>("/progressHub");

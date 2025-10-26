@@ -14,5 +14,6 @@ public class AuthenticationResponse
     public string? WorkingOrgId { get; set; }
     public string? WorkingOrgFullName { get; set; }
     public string? WorkingOrgShortName { get; set; }
-    
+    public bool TwoStepVerificationRequired { get; set; } = false;
+
 }

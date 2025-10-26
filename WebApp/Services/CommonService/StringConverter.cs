@@ -401,4 +401,20 @@ public static partial class StringConverter
     
         return current?.ToNonNullString() ?? string.Empty;
     }
+    
+    public static string RandomString(int length)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var random = new Random();
+        return new string(Enumerable.Repeat(chars, length)
+                                   .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+    
+    public static string RandomNumber(int length)
+    {
+        const string chars = "0123456789";
+        var random = new Random();
+        return new string(Enumerable.Repeat(chars, length)
+                                   .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
 }

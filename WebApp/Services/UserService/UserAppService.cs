@@ -10,6 +10,7 @@ using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.CommonService;
+using WebApp.Services.EmailService;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService.Dto;
 using X.Extensions.PagedList.EF;
@@ -108,6 +109,8 @@ namespace WebApp.Services.UserService
         Task<ResponseBase> FindUserById(Guid id);
         Task<ResponseBase> ResetPassword(Guid id, string newPassword);
         Task<ResponseBase> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input);
+        Task<AuthenticationResponse> Authenticate2Step(UserLoginWithVerifyCodeDto login);
+        Task<AuthenticationResponse> RefreshVerificationCode(string key);
     }
 
     public class UserBaseAppBaseAppService(IAppRepository<User, Guid> userRepository,
@@ -115,13 +118,16 @@ namespace WebApp.Services.UserService
                                            ILockedUserMongoRepository lockRepository,
                                            IAppRepository<Organization, Guid> organizationRepository,
                                            IBlacklistedTokenMongoRepository blacklistedTokenRepository,
+                                           IAppRepository<UserVerification, long> userVerificationRepository,
                                            JwtService jwtService,
+                                           IEmailAppService emailService,
                                            IConfiguration configuration,
                                            IAppRepository<Role, int> roleRepository,
                                            IHttpContextAccessor http,
                                            ILogger<UserBaseAppBaseAppService> logger,
                                            IUserManager userManager) : BaseAppService(userManager), IUserAppService
     {
+        private readonly string _defaultEmail = "ketoan.sline@gmail.com";
         public async Task<ResponseBase> GetAllUsers(PageRequest page)
         {
             try
@@ -213,43 +219,41 @@ namespace WebApp.Services.UserService
         public async Task<AuthenticationResponse> Authenticate(UserLoginDto login)
         {
             var stopWatch = Stopwatch.StartNew();
-            var foundUser = await FindUserByUserName(login.Username);
-            bool passwordMatch = false;
+            var verifyPasswordResult = await VerifyUserPassword(login.Username, login.Password);
 
             Console.WriteLine($"found user in db took: {stopWatch.ElapsedMilliseconds} ms");
 
-            if (foundUser.User is not null)
-            {
-                passwordMatch = login.Password.PasswordVerify(foundUser.User.Password);
-            }
-            else
+            if (!verifyPasswordResult.IsValid)
             {
                 return new AuthenticationResponse
                 {
-                    Message = "Invalid username or password."
+                    Success = false,
+                    Message = verifyPasswordResult.Message,
                 };
             }
-
-            if (!passwordMatch)
-            {
-                await LoginFailureHandler(foundUser.User);
-                return new AuthenticationResponse
-                {
-                    Message = "Invalid username or password."
-                };
-            }
-
-            if (foundUser.User.Locked)
-            {
-                return new AuthenticationResponse
-                {
-                    Message = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với quản trị viên để được hỗ trợ."
-                };
-            }
-
+            
+            var foundUser = await FindUserByUserName(login.Username);
+            
             //reset failed login attempts if user is not locked
-            if (foundUser.User is { LogInFailedCount: > 0, Locked: false }) await ResetAccount(foundUser.User);
+            if (foundUser.User is { LogInFailedCount: > 0, Locked: false }) 
+                await ResetLockCount(foundUser.User);
 
+            if (foundUser.User!.VerificationRequired)
+            {
+                var verificator = await CreateVerificationCode(foundUser.User.Id, 
+                                                               foundUser.User.Username, 
+                                                               foundUser.User.Email ?? _defaultEmail); //fallback to default email if user has not registered an email yet
+                await SendVerificationCodeEmail(verificator);
+                return new AuthenticationResponse
+                {
+                    Success = true,
+                    AccessToken = verificator.VerificationKey,
+                    TwoStepVerificationRequired = true,
+                    Id = verifyPasswordResult.Id!.Value,
+                    Username = verificator.Username
+                };
+            }
+            
             var orgId = string.Empty;
             var orgLists = foundUser.User.Organizations.Select(o => o.Id).ToList();
 
@@ -296,6 +300,85 @@ namespace WebApp.Services.UserService
                 WorkingTaxId = org is null ? string.Empty : org.TaxId,
                 WorkingOrgShortName = org is null ? string.Empty : org.ShortName,
                 WorkingOrgFullName = org is null ? string.Empty : org.FullName,
+            };
+        }
+
+        public async Task<AuthenticationResponse> Authenticate2Step(UserLoginWithVerifyCodeDto login)
+        {
+            var loginResult = await VerifyUser2StepLogin(login);
+            if (!loginResult.IsValid || loginResult.Code is null)
+            {
+                return new AuthenticationResponse
+                {
+                    Success = false,
+                    Message = "Mã xác thực không đúng hoặc đã quá hạn. Vui lòng thử lại."
+                };
+            }
+            
+            var issuedAt = DateTime.UtcNow.ToLocalTime();
+            
+            var user = await userRepository.Find(x => x.Id == login.UserId)
+                                           .Include(x => x.Organizations)
+                                           .Include(u => u.Roles)
+                                           .ThenInclude(r => r.Permissions)
+                                           .AsSplitQuery()
+                                           .AsNoTracking()
+                                           .FirstOrDefaultAsync();
+
+            if (user is null)
+            {
+                return new AuthenticationResponse
+                {
+                    Success = false,
+                    Message = "User không tồn tại."
+                };
+            }
+
+            await InvalidateVerificationCode(user.Id);
+            var orgId = string.Empty;
+            var workingOrg = user.Organizations.FirstOrDefault(o => o.Id == user.LastWorkingOrg) 
+                             ?? user.Organizations.FirstOrDefault();
+            var permissions = user.Roles.SelectMany(r => r.Permissions.Where(p => !p.Deleted))
+                                  .Select(p => p.PermissionName).ToHashSet();
+            //generate new tokens
+            var token = await jwtService.GenerateTokenAsync(user, permissions, issuedAt, orgId);
+            return new AuthenticationResponse
+            {
+                Success = true,
+                Message = "Success",
+                Username = user.Username,
+                Id = user.Id,
+                AccessToken = token.AccessToken,
+                RefreshToken = token.RefreshToken,
+                IssueAt = issuedAt,
+                ExpireAt = jwtService.GetExpiration(token.AccessToken),
+                WorkingOrgId = workingOrg is null ? string.Empty : workingOrg.Id.ToString(),
+                WorkingTaxId = workingOrg is null ? string.Empty : workingOrg.TaxId,
+                WorkingOrgShortName = workingOrg is null ? string.Empty : workingOrg.ShortName,
+                WorkingOrgFullName = workingOrg is null ? string.Empty : workingOrg.FullName,
+            };
+        }
+
+        public async Task<AuthenticationResponse> RefreshVerificationCode(string key)
+        {
+            var verificator = await userVerificationRepository.Find(x => x.VerificationKey == key)
+                                                              .FirstOrDefaultAsync();
+            if (verificator is null)
+                return new AuthenticationResponse { Success = false, Message = "Failed to refresh your code" };
+            
+            
+            //create new verification code
+            var newVerificator = await CreateVerificationCode(verificator.UserId, verificator.Username, verificator.Email);
+            //remove old verification code
+            await userVerificationRepository.HardDeleteAsync(verificator.Id);
+            await SendVerificationCodeEmail(newVerificator);
+            return new AuthenticationResponse
+            {
+                Success = true,
+                AccessToken = newVerificator.VerificationKey,
+                TwoStepVerificationRequired = true,
+                Id = newVerificator.UserId,
+                Username = newVerificator.Username
             };
         }
 
@@ -454,6 +537,7 @@ namespace WebApp.Services.UserService
         {
             var user = await userRepository.Find(u => u.Username == username && !u.Deleted,
                                                  include: [nameof(User.Organizations), nameof(User.Roles)])
+                                           .AsSplitQuery()
                                            .FirstOrDefaultAsync();
             HashSet<string> userPermissions = [];
             //Get user permissions if user exists
@@ -612,7 +696,7 @@ namespace WebApp.Services.UserService
             await userRepository.UpdateAsync(user);
         }
 
-        private async Task ResetAccount(User user)
+        private async Task ResetLockCount(User user)
         {
             user.LogInFailedCount = 0;
             user.Locked = false;
@@ -627,6 +711,90 @@ namespace WebApp.Services.UserService
         private async Task UnlockInMongo(Guid userId)
         {
             await lockRepository.UnlockUser(userId);
+        }
+
+        /// <summary>
+        /// Create verification code for 2nd step login.
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="username"></param>
+        /// <param name="email"></param>
+        /// <returns></returns>
+        private async Task<UserVerification> CreateVerificationCode(Guid userId,string username, string email)
+        {
+            var verificationKey = Ulid.NewUlid().ToString();
+            var verificationCode = StringConverter.RandomString(4);
+            var limitTime = configuration["SecureLogin:VerificationCodeLifetime"] ?? "120";
+            var expirationTime = DateTime.Now.AddSeconds(int.Parse(limitTime));
+            var code = new UserVerification
+            {
+                VerificationKey = verificationKey,
+                VerificationCode = verificationCode,
+                VerificationCodeExpiration = expirationTime,
+                UserId = userId,
+                Username = username,
+                Email = email
+            };
+            return await userVerificationRepository.CreateAsync(code);
+        }
+
+        /// <summary>
+        /// Validate verification code from user input.
+        /// </summary>
+        /// <param name="login"></param>
+        /// <returns></returns>
+        private async Task<(bool IsValid, UserVerification? Code)> VerifyUser2StepLogin(UserLoginWithVerifyCodeDto login)
+        {
+            var verificationCode = await userVerificationRepository
+                                         .Find(c => c.UserId == login.UserId &&
+                                                    c.VerificationCode == login.Code &&
+                                                    c.VerificationKey == login.Key)
+                                         .AsNoTracking()
+                                         .FirstOrDefaultAsync();
+            if (verificationCode is null || verificationCode.VerificationCodeExpiration <= DateTime.Now)
+                return (false, verificationCode);
+            return (true, verificationCode);
+        }
+        
+        /// <summary>
+        /// Remove the verification code after user has used it.
+        /// </summary>
+        /// <param name="userId"></param>
+        private async Task InvalidateVerificationCode(Guid userId)
+        {
+            var ids = await userVerificationRepository.Find(x => x.UserId == userId)
+                                            .Select(x => x.Id)
+                                            .ToListAsync();
+            await userVerificationRepository.HardDeleteManyAsync(ids);
+        }
+
+        private async Task SendVerificationCodeEmail(UserVerification verificator)
+        {
+            var emailBody = $"""
+                             <div style='font-family: Arial, sans-serif;'>
+                             <p>Tài khoản <b>{verificator.Username}</b> của bạn có 1 yêu cầu xác thực đăng nhập vào lúc {DateTime.Now:dd/MM/yyyy HH:mm:ss}.</p><br/>
+                             <p>Mã xác thực của bạn là: <b style='color:red; font-size:25px'>{verificator.VerificationCode}<b></p><br/>
+                             <p>Hãy sử dụng mã này trong vòng 2 phút để đăng nhập vào SLINE.</p>
+                             <p>Hãy bỏ qua tin nhắn này nếu bạn không phải là người yêu cầu mã xác thực.</p>
+                             <p>Vui lòng không trả lời email này. Xin cảm ơn!</p>
+                             <div>
+                             """;
+            await emailService.SendEmailAsync("SLINE - Mã xác thực", emailBody, verificator.Email);
+        }
+
+        private async Task<(bool IsValid, string? Message, Guid? Id)> VerifyUserPassword(string username, string password)
+        {
+            var user = await userRepository.Find(x => x.Username == username && !x.Deleted)
+                                           .FirstOrDefaultAsync();
+            if (user is null) return (false, "Invalid username or password", null);
+            var checkpass = password.PasswordVerify(user.Password);
+            if (!checkpass)
+            {
+                await LoginFailureHandler(user);
+                return (false, "Invalid username or password", null);
+            }
+            if (user.Locked) return (false, "Your account has been locked.", null);
+            return (true, null, user.Id);
         }
     }
 }

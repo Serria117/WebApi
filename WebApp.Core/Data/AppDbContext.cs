@@ -10,6 +10,7 @@ namespace WebApp.Core.Data;
 public class AppDbContext(DbContextOptions op) : DbContext(op)
 {
     public DbSet<User> Users { get; set; }
+    public DbSet<UserVerification> UserVerifications { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<Permission> Permissions { get; set; }
 
@@ -92,31 +93,7 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
         modelBuilder.HasSequence<int>(name: "CommonSeq", schema: "dbo")
                     .StartsAt(1)
                     .IncrementsBy(1);
-
-        //modelBuilder.Entity<BalanceSheetDetail>()
-        //            .Property(b => b.Id)
-        //            .HasDefaultValueSql("NEXT VALUE FOR dbo.CommonSeq");
-
-        //modelBuilder.Entity<BalanceSheet>()
-        //            .HasMany<BalanceSheetDetail>(b => b.Details)
-        //            .WithOne(b => b.BalanceSheet)
-        //            .HasForeignKey("BlId").OnDelete(DeleteBehavior.Cascade);
-
-        //modelBuilder.Entity<ImportedBalanceSheet>()
-        //            .HasMany<ImportedBalanceSheetDetail>(b => b.Details)
-        //            .WithOne(b => b.ImportedBalanceSheet)
-        //            .HasForeignKey("BlId").OnDelete(DeleteBehavior.Cascade);
-
-        //modelBuilder.Entity<BalanceSheet>()
-        //            .HasOne<ImportedBalanceSheet>(b => b.ImportedBalanceSheet)
-        //            .WithOne(ib => ib.BalanceSheet)
-        //            .HasForeignKey<ImportedBalanceSheet>(i => i.BalanceSheetId)
-        //            .OnDelete(DeleteBehavior.Cascade);
-
-        //modelBuilder.Entity<Account>()
-        //            .Property(a => a.Id)
-        //            .ValueGeneratedNever();
-
+        
         modelBuilder.Entity<District>()
                     .Navigation(d => d.Province)
                     .AutoInclude();

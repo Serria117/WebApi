@@ -11,8 +11,7 @@ namespace WebApp.Core.DomainEntities.Payroll;
 [Table("PR_ExpenseTypeHistory")]
 public class ExpenseTypeHistory: BaseEntity<string>
 {
-    [MaxLength(26)]
-    public string ExpenseTypeId { get; set; } = Ulid.NewUlid().ToString();
+    public string ExpenseTypeId { get; set; } = null!;
 
     public DateTime EffectiveDate { get; set; }
     public DateTime? EndDate { get; set; }

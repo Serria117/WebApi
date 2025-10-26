@@ -6,3 +6,10 @@ public class UserLoginDto
     public string Password { get; set; } = string.Empty;
     public string? OrgId { get; set; }
 }
+
+public class UserLoginWithVerifyCodeDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
+}
