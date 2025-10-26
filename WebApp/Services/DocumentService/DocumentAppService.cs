@@ -137,7 +137,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         if (org is null) return ResponseBase.Error404("Organization not found");
         var uploadFiles = new List<OrgDocument>();
         var uploadDir = Path.Combine(env.ContentRootPath, _uploadFolder, org.TaxId);
-        var relativeUploadDir = Path.Combine("Uploads", org.TaxId);
+        var relativeUploadDir = Path.Combine(_uploadFolder, org.TaxId);
         if (!Directory.Exists(uploadDir))
         {
             Directory.CreateDirectory(uploadDir);
