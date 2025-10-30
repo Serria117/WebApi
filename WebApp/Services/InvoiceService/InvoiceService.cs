@@ -518,166 +518,169 @@ public partial class InvoiceService(IUserManager userManager,
 
         #region PURCHASE INVOICE PROCESSING
 
-        foreach (var inv in purchaseList)
+        if (purchaseList.Count > 0)
         {
-            #region Purchase Summary
-
-            shPurchaseSummary.Range[purchaseSummaryRow, 1].Value2 = inv.InvoiceNumber;
-            shPurchaseSummary.Range[purchaseSummaryRow, 2].Value2 = inv.InvoiceNotation;
-            shPurchaseSummary.Range[purchaseSummaryRow, 3].Text = inv.SellerTaxCode;
-            shPurchaseSummary.Range[purchaseSummaryRow, 4].Value2 = inv.SellerName;
-            shPurchaseSummary.Range[purchaseSummaryRow, 5].Value2 = inv.CreationDate?.ToLocalTime();
-            shPurchaseSummary.Range[purchaseSummaryRow, 5].Style.NumberFormat = "dd/mm/yyyy";
-            shPurchaseSummary.Range[purchaseSummaryRow, 6].Value2 = inv.SigningDate?.ToLocalTime();
-            shPurchaseSummary.Range[purchaseSummaryRow, 6].Style.NumberFormat = "dd/mm/yyyy";
-            shPurchaseSummary.Range[purchaseSummaryRow, 7].Value2 = inv.IssueDate?.ToLocalTime();
-            shPurchaseSummary.Range[purchaseSummaryRow, 7].Style.NumberFormat = "dd/mm/yyyy";
-            shPurchaseSummary.Range[purchaseSummaryRow, 8].Value2 = inv.TotalPrice;
-            shPurchaseSummary.Range[purchaseSummaryRow, 8].NumberFormat = "#,##0";
-
-            shPurchaseSummary.Range[purchaseSummaryRow, 9].Value2 = inv.Vat;
-            shPurchaseSummary.Range[purchaseSummaryRow, 9].NumberFormat = "#,##0";
-
-            shPurchaseSummary.Range[purchaseSummaryRow, 10].Value2 = inv.ChietKhau;
-            shPurchaseSummary.Range[purchaseSummaryRow, 10].NumberFormat = "#,##0";
-
-            shPurchaseSummary.Range[purchaseSummaryRow, 11].Value2 = inv.Phi;
-            shPurchaseSummary.Range[purchaseSummaryRow, 11].NumberFormat = "#,##0";
-
-            shPurchaseSummary.Range[purchaseSummaryRow, 12].Value2 = inv.TotalPriceVat;
-            shPurchaseSummary.Range[purchaseSummaryRow, 12].NumberFormat = "#,##0";
-
-            shPurchaseSummary.Range[purchaseSummaryRow, 13].Value2 = inv.Status;
-            shPurchaseSummary.Range[purchaseSummaryRow, 14].Value2 = inv.InvoiceType;
-            shPurchaseSummary.Range[purchaseSummaryRow, 15].Value2 = inv.Risk is null or false ? "OK" : "Rủi ro";
-            shPurchaseSummary.Range[purchaseSummaryRow, 16].Value2 = inv.LookUpUrl;
-            shPurchaseSummary.Range[purchaseSummaryRow, 17].Value2 = inv.LookUpCode;
-
-            #endregion
-
-            #region Purchase Detail
-
-            if (inv.GoodsDetail
-                   .IsNullOrEmpty()) //If good detail is empty, fill the detail sheet with basic invoice data
+            foreach (var inv in purchaseList)
             {
-                purchaseSummaryRow++;
+                #region Purchase Summary
 
-                shPurchaseDetail.Range[detailRow, 1].Value2 = inv.InvoiceNumber;
-                shPurchaseDetail.Range[detailRow, 2].Value2 = inv.InvoiceNotation;
-                shPurchaseDetail.Range[detailRow, 3].Text = inv.SellerTaxCode;
-                shPurchaseDetail.Range[detailRow, 4].Value2 = inv.SellerName;
-                shPurchaseDetail.Range[detailRow, 5].Value2 = string.Empty;
-                shPurchaseDetail.Range[detailRow, 6].Value2 = string.Empty;
+                shPurchaseSummary.Range[purchaseSummaryRow, 1].Value2 = inv.InvoiceNumber;
+                shPurchaseSummary.Range[purchaseSummaryRow, 2].Value2 = inv.InvoiceNotation;
+                shPurchaseSummary.Range[purchaseSummaryRow, 3].Text = inv.SellerTaxCode;
+                shPurchaseSummary.Range[purchaseSummaryRow, 4].Value2 = inv.SellerName;
+                shPurchaseSummary.Range[purchaseSummaryRow, 5].Value2 = inv.CreationDate?.ToLocalTime();
+                shPurchaseSummary.Range[purchaseSummaryRow, 5].Style.NumberFormat = "dd/mm/yyyy";
+                shPurchaseSummary.Range[purchaseSummaryRow, 6].Value2 = inv.SigningDate?.ToLocalTime();
+                shPurchaseSummary.Range[purchaseSummaryRow, 6].Style.NumberFormat = "dd/mm/yyyy";
+                shPurchaseSummary.Range[purchaseSummaryRow, 7].Value2 = inv.IssueDate?.ToLocalTime();
+                shPurchaseSummary.Range[purchaseSummaryRow, 7].Style.NumberFormat = "dd/mm/yyyy";
+                shPurchaseSummary.Range[purchaseSummaryRow, 8].Value2 = inv.TotalPrice;
+                shPurchaseSummary.Range[purchaseSummaryRow, 8].NumberFormat = "#,##0";
 
-                shPurchaseDetail.Range[detailRow, 7].Value2 = null;
-                //shPurchaseDetail.Range[detailRow, 7].NumberFormat = "#,##0";
+                shPurchaseSummary.Range[purchaseSummaryRow, 9].Value2 = inv.Vat;
+                shPurchaseSummary.Range[purchaseSummaryRow, 9].NumberFormat = "#,##0";
 
-                shPurchaseDetail.Range[detailRow, 8].Value2 = null;
-                //shPurchaseDetail.Range[detailRow, 8].NumberFormat = "#,##0";
+                shPurchaseSummary.Range[purchaseSummaryRow, 10].Value2 = inv.ChietKhau;
+                shPurchaseSummary.Range[purchaseSummaryRow, 10].NumberFormat = "#,##0";
 
-                shPurchaseDetail.Range[detailRow, 9].Value2 = inv.TotalPrice;
-                shPurchaseDetail.Range[detailRow, 9].NumberFormat = "#,##0";
+                shPurchaseSummary.Range[purchaseSummaryRow, 11].Value2 = inv.Phi;
+                shPurchaseSummary.Range[purchaseSummaryRow, 11].NumberFormat = "#,##0";
 
-                // shPurchaseDetail.Range[detailRow, 10].Value2 = item.Rate;
-                // shPurchaseDetail.Range[detailRow, 10].NumberFormat = "0.0%";
+                shPurchaseSummary.Range[purchaseSummaryRow, 12].Value2 = inv.TotalPriceVat;
+                shPurchaseSummary.Range[purchaseSummaryRow, 12].NumberFormat = "#,##0";
 
-                shPurchaseDetail.Range[detailRow, 12].Value2 = inv.Vat;
-                shPurchaseDetail.Range[detailRow, 12].NumberFormat = "#,##0";
-                shPurchaseDetail.Range[detailRow, 13].Value2 = inv.CreationDate?.ToLocalTime();
-                shPurchaseDetail.Range[detailRow, 13].Style.NumberFormat = "dd/mm/yyyy";
+                shPurchaseSummary.Range[purchaseSummaryRow, 13].Value2 = inv.Status;
+                shPurchaseSummary.Range[purchaseSummaryRow, 14].Value2 = inv.InvoiceType;
+                shPurchaseSummary.Range[purchaseSummaryRow, 15].Value2 = inv.Risk is null or false ? "OK" : "Rủi ro";
+                shPurchaseSummary.Range[purchaseSummaryRow, 16].Value2 = inv.LookUpUrl;
+                shPurchaseSummary.Range[purchaseSummaryRow, 17].Value2 = inv.LookUpCode;
 
-                shPurchaseDetail.Range[detailRow, 14].Value2 = inv.SigningDate?.ToLocalTime();
-                shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+                #endregion
 
-                shPurchaseDetail.Range[detailRow, 15].Value2 = inv.IssueDate?.ToLocalTime();
-                shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+                #region Purchase Detail
 
-                shPurchaseDetail.Range[detailRow, 16].Value2 = inv.Status;
-                shPurchaseDetail.Range[detailRow, 17].Value2 = inv.InvoiceType;
-                //shPurchaseDetail.Range[detailRow, 18].Value2 = item.TaxType;
-                detailRow++;
-                continue;
-            }
-
-            var goodAndFee = new List<Goods>();
-
-            //Add goods and fees to a single list of details:
-            goodAndFee.AddRange(inv.GoodsDetail);
-            if (inv.Fees.Count > 0)
-            {
-                goodAndFee.AddRange(inv.Fees.Select(f => new Goods()
+                if (inv.GoodsDetail
+                       .IsNullOrEmpty()) //If good detail is empty, fill the detail sheet with basic invoice data
                 {
-                    Name = f.FeeName,
-                    UnitPrice = (double)f.FeeAmount,
-                    Quantity = 1,
-                    Discount = null,
-                    PreTaxPrice = f.FeeAmount,
-                }));
-            }
+                    purchaseSummaryRow++;
 
-            foreach (var item in goodAndFee)
-            {
-                var unitPrice = item.UnitPrice;
-                var preTaxPrice = item.PreTaxPrice;
-                var vat = item.Tax;
-                if (item.Name is not null
-                    && (item.Name.Contains("chiết khấu", StringComparison.CurrentCultureIgnoreCase)
-                        || item.Name.Contains("giảm giá", StringComparison.CurrentCultureIgnoreCase)))
-                {
-                    unitPrice = -unitPrice;
-                    preTaxPrice = -preTaxPrice;
-                    vat = -vat;
+                    shPurchaseDetail.Range[detailRow, 1].Value2 = inv.InvoiceNumber;
+                    shPurchaseDetail.Range[detailRow, 2].Value2 = inv.InvoiceNotation;
+                    shPurchaseDetail.Range[detailRow, 3].Text = inv.SellerTaxCode;
+                    shPurchaseDetail.Range[detailRow, 4].Value2 = inv.SellerName;
+                    shPurchaseDetail.Range[detailRow, 5].Value2 = string.Empty;
+                    shPurchaseDetail.Range[detailRow, 6].Value2 = string.Empty;
+
+                    shPurchaseDetail.Range[detailRow, 7].Value2 = null;
+                    //shPurchaseDetail.Range[detailRow, 7].NumberFormat = "#,##0";
+
+                    shPurchaseDetail.Range[detailRow, 8].Value2 = null;
+                    //shPurchaseDetail.Range[detailRow, 8].NumberFormat = "#,##0";
+
+                    shPurchaseDetail.Range[detailRow, 9].Value2 = inv.TotalPrice;
+                    shPurchaseDetail.Range[detailRow, 9].NumberFormat = "#,##0";
+
+                    // shPurchaseDetail.Range[detailRow, 10].Value2 = item.Rate;
+                    // shPurchaseDetail.Range[detailRow, 10].NumberFormat = "0.0%";
+
+                    shPurchaseDetail.Range[detailRow, 12].Value2 = inv.Vat;
+                    shPurchaseDetail.Range[detailRow, 12].NumberFormat = "#,##0";
+                    shPurchaseDetail.Range[detailRow, 13].Value2 = inv.CreationDate?.ToLocalTime();
+                    shPurchaseDetail.Range[detailRow, 13].Style.NumberFormat = "dd/mm/yyyy";
+
+                    shPurchaseDetail.Range[detailRow, 14].Value2 = inv.SigningDate?.ToLocalTime();
+                    shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+
+                    shPurchaseDetail.Range[detailRow, 15].Value2 = inv.IssueDate?.ToLocalTime();
+                    shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+
+                    shPurchaseDetail.Range[detailRow, 16].Value2 = inv.Status;
+                    shPurchaseDetail.Range[detailRow, 17].Value2 = inv.InvoiceType;
+                    //shPurchaseDetail.Range[detailRow, 18].Value2 = item.TaxType;
+                    detailRow++;
+                    continue;
                 }
 
-                shPurchaseDetail.Range[detailRow, 1].Value2 = inv.InvoiceNumber;
-                shPurchaseDetail.Range[detailRow, 2].Value2 = inv.InvoiceNotation;
-                shPurchaseDetail.Range[detailRow, 3].Text = inv.SellerTaxCode;
-                shPurchaseDetail.Range[detailRow, 4].Value2 = inv.SellerName;
-                shPurchaseDetail.Range[detailRow, 5].Value2 = item.Name;
-                shPurchaseDetail.Range[detailRow, 6].Value2 = item.UnitCount;
+                var goodAndFee = new List<Goods>();
 
-                shPurchaseDetail.Range[detailRow, 7].Value2 = unitPrice;
-                shPurchaseDetail.Range[detailRow, 7].NumberFormat = "#,##0";
+                //Add goods and fees to a single list of details:
+                goodAndFee.AddRange(inv.GoodsDetail);
+                if (inv.Fees.Count > 0)
+                {
+                    goodAndFee.AddRange(inv.Fees.Select(f => new Goods()
+                    {
+                        Name = f.FeeName,
+                        UnitPrice = (double)f.FeeAmount,
+                        Quantity = 1,
+                        Discount = null,
+                        PreTaxPrice = f.FeeAmount,
+                    }));
+                }
 
-                shPurchaseDetail.Range[detailRow, 8].Value2 = item.Quantity;
-                shPurchaseDetail.Range[detailRow, 8].NumberFormat = "#,##0";
+                foreach (var item in goodAndFee)
+                {
+                    var unitPrice = item.UnitPrice;
+                    var preTaxPrice = item.PreTaxPrice;
+                    var vat = item.Tax;
+                    if (item.Name is not null
+                        && (item.Name.Contains("chiết khấu", StringComparison.CurrentCultureIgnoreCase)
+                            || item.Name.Contains("giảm giá", StringComparison.CurrentCultureIgnoreCase)))
+                    {
+                        unitPrice = -unitPrice;
+                        preTaxPrice = -preTaxPrice;
+                        vat = -vat;
+                    }
 
-                shPurchaseDetail.Range[detailRow, 9].Value2 = preTaxPrice;
-                shPurchaseDetail.Range[detailRow, 9].NumberFormat = "#,##0";
+                    shPurchaseDetail.Range[detailRow, 1].Value2 = inv.InvoiceNumber;
+                    shPurchaseDetail.Range[detailRow, 2].Value2 = inv.InvoiceNotation;
+                    shPurchaseDetail.Range[detailRow, 3].Text = inv.SellerTaxCode;
+                    shPurchaseDetail.Range[detailRow, 4].Value2 = inv.SellerName;
+                    shPurchaseDetail.Range[detailRow, 5].Value2 = item.Name;
+                    shPurchaseDetail.Range[detailRow, 6].Value2 = item.UnitCount;
 
-                shPurchaseDetail.Range[detailRow, 10].Value2 = item.Rate;
-                shPurchaseDetail.Range[detailRow, 10].NumberFormat = "0.0%";
+                    shPurchaseDetail.Range[detailRow, 7].Value2 = unitPrice;
+                    shPurchaseDetail.Range[detailRow, 7].NumberFormat = "#,##0";
 
-                shPurchaseDetail.Range[detailRow, 11].Value2 = item.Discount;
+                    shPurchaseDetail.Range[detailRow, 8].Value2 = item.Quantity;
+                    shPurchaseDetail.Range[detailRow, 8].NumberFormat = "#,##0";
 
-                shPurchaseDetail.Range[detailRow, 12].Value2 = vat;
-                shPurchaseDetail.Range[detailRow, 12].NumberFormat = "#,##0";
-                shPurchaseDetail.Range[detailRow, 13].Value2 = inv.CreationDate?.ToLocalTime();
-                shPurchaseDetail.Range[detailRow, 13].Style.NumberFormat = "dd/mm/yyyy";
+                    shPurchaseDetail.Range[detailRow, 9].Value2 = preTaxPrice;
+                    shPurchaseDetail.Range[detailRow, 9].NumberFormat = "#,##0";
 
-                shPurchaseDetail.Range[detailRow, 14].Value2 = inv.SigningDate?.ToLocalTime();
-                shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+                    shPurchaseDetail.Range[detailRow, 10].Value2 = item.Rate;
+                    shPurchaseDetail.Range[detailRow, 10].NumberFormat = "0.0%";
 
-                shPurchaseDetail.Range[detailRow, 15].Value2 = inv.IssueDate?.ToLocalTime();
-                shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+                    shPurchaseDetail.Range[detailRow, 11].Value2 = item.Discount;
 
-                shPurchaseDetail.Range[detailRow, 16].Value2 = inv.Status;
-                shPurchaseDetail.Range[detailRow, 17].Value2 = inv.InvoiceType;
-                shPurchaseDetail.Range[detailRow, 18].Value2 = item.TaxType;
+                    shPurchaseDetail.Range[detailRow, 12].Value2 = vat;
+                    shPurchaseDetail.Range[detailRow, 12].NumberFormat = "#,##0";
+                    shPurchaseDetail.Range[detailRow, 13].Value2 = inv.CreationDate?.ToLocalTime();
+                    shPurchaseDetail.Range[detailRow, 13].Style.NumberFormat = "dd/mm/yyyy";
 
-                detailRow++;
+                    shPurchaseDetail.Range[detailRow, 14].Value2 = inv.SigningDate?.ToLocalTime();
+                    shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+
+                    shPurchaseDetail.Range[detailRow, 15].Value2 = inv.IssueDate?.ToLocalTime();
+                    shPurchaseDetail.Range[detailRow, 14].Style.NumberFormat = "dd/mm/yyyy";
+
+                    shPurchaseDetail.Range[detailRow, 16].Value2 = inv.Status;
+                    shPurchaseDetail.Range[detailRow, 17].Value2 = inv.InvoiceType;
+                    shPurchaseDetail.Range[detailRow, 18].Value2 = item.TaxType;
+
+                    detailRow++;
+                }
+
+                purchaseSummaryRow++;
+
+                #endregion
             }
-
-            purchaseSummaryRow++;
-
-            #endregion
         }
 
         #endregion
 
-
+        
         #region SOLD INVOICE PROCESSING
-
+        
         if (soldList.Count > 0)
         {
             foreach (var inv in soldList)
