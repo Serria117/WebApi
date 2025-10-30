@@ -227,7 +227,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         var basedQuery = docRepository.FindAndSort(filter: x => x.Organization.Id == oId
                                                                 && req.DocumentTypes.Contains(x.DocumentType),
                                                    include: [],
-                                                   sortBy: [$"{nameof(OrgDocument.DocumentDate)} {SortOrder.ASC}"]);
+                                                   sortBy: [$"{nameof(OrgDocument.DocumentDate)} {SortOrder.DESC}"]);
         var filteredQuery = basedQuery;
 
         if (param is { To: not null, From: not null })

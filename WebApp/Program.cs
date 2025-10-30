@@ -71,7 +71,8 @@ services.AddRateLimiter(op =>
     op.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = 429;
-        await context.HttpContext.Response.WriteAsync("Too many request. Try again later.", cancellationToken: token);
+        await context.HttpContext.Response.WriteAsync("Too many request. Try again later.", 
+                                                      cancellationToken: token);
     };
 });
 
