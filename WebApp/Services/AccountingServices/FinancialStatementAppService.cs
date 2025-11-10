@@ -21,36 +21,36 @@ namespace WebApp.Services.AccountingServices;
 
 public interface IFinancialStatementAppService
 {
-    Task<ResponseBase> GetAccountList(int regulationId);
-    Task<ResponseBase> CreateUserInputTrialBalance(UserInputTrialBalanceDto input);
+    Task<ResponseEntity> GetAccountList(int regulationId);
+    Task<ResponseEntity> CreateUserInputTrialBalance(UserInputTrialBalanceDto input);
     Task CreateFinancialReportWork(FinancialReportWorkDto dto);
-    Task<ResponseBase> GetFinancialReportList(int? fromYear, int? toYear);
+    Task<ResponseEntity> GetFinancialReportList(int? fromYear, int? toYear);
 
     /// <summary>
     /// Get a single Financial Report to display
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    Task<ResponseBase> GetFinancialReportById(string id);
+    Task<ResponseEntity> GetFinancialReportById(string id);
 
-    Task<ResponseBase> MapUserTrialBalance(string reportId);
+    Task<ResponseEntity> MapUserTrialBalance(string reportId);
 
     /// <summary>
     /// Extract the user input excel file and return the list of trial balance entries.<br/>
     /// </summary>
     /// <param name="input">The body parameters that contains the xlsx file to extract data.</param>
     /// <returns></returns>
-    Task<ResponseBase> ImportUserInputTrialBalanceFromExcelFile(UserInputExcelFile input);
+    Task<ResponseEntity> ImportUserInputTrialBalanceFromExcelFile(UserInputExcelFile input);
 
-    Task<ResponseBase> MapIncomeStatementFromTrialBalance(string reportId);
-    Task<ResponseBase> GetLastYearReports(int curentReportId);
-    Task<ResponseBase> ClearAllUserInputTrialEntries(string reportId);
-    Task<ResponseBase> SoftDeleteReport(string reportId);
-    Task<ResponseBase> HardDeleteReport(string reportId);
-    Task<ResponseBase> UpdateUserInputTrialBalance(string reportId, List<UserBalanceEntryUpdate> entries);
-    Task<ResponseBase> DeleteUserInputTrialBalance(long[] ids);
-    Task<ResponseBase> GetRegulationList();
-    Task<ResponseBase> ResetReport(string reportId);
+    Task<ResponseEntity> MapIncomeStatementFromTrialBalance(string reportId);
+    Task<ResponseEntity> GetLastYearReports(int curentReportId);
+    Task<ResponseEntity> ClearAllUserInputTrialEntries(string reportId);
+    Task<ResponseEntity> SoftDeleteReport(string reportId);
+    Task<ResponseEntity> HardDeleteReport(string reportId);
+    Task<ResponseEntity> UpdateUserInputTrialBalance(string reportId, List<UserBalanceEntryUpdate> entries);
+    Task<ResponseEntity> DeleteUserInputTrialBalance(long[] ids);
+    Task<ResponseEntity> GetRegulationList();
+    Task<ResponseEntity> ResetReport(string reportId);
 
     /// <summary>
     /// Reset the Income Statement's values to zezo
@@ -58,11 +58,11 @@ public interface IFinancialStatementAppService
     /// <param name="reportId"></param>
     /// <returns></returns>
     /// <exception cref="NotFoundException"></exception>
-    Task<ResponseBase> ResetIncomeStatement(string reportId);
+    Task<ResponseEntity> ResetIncomeStatement(string reportId);
 
     Task<(string FileName, byte[] File)> DownloadXmlDocument(string reportId);
-    Task<ResponseBase> CreateOrUpdateXmlDocument(string reportId);
-    Task<ResponseBase> CalculateFinancialStatement(string reportId);
+    Task<ResponseEntity> CreateOrUpdateXmlDocument(string reportId);
+    Task<ResponseEntity> CalculateFinancialStatement(string reportId);
     Task<(string FileName, byte[] File)> ExportReportNoteExcel(string reportId);
     Task<(string FileName, byte[] File)> DownloadTrialBalanceTemplate();
 }
@@ -82,7 +82,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     private const string ExportTemplateFolder = "ExportTemplates";
     private const string ImportTemplateFOlder = "ImportTemplates";
 
-    public async Task<ResponseBase> GetRegulationList()
+    public async Task<ResponseEntity> GetRegulationList()
     {
         var result = await dbContext.AccountingRegulations
                                     .Where(r => !r.Deleted 
@@ -93,16 +93,16 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                     })
                                     .AsNoTracking()
                                     .ToListAsync();
-        return ResponseBase.OkResult(result);
+        return ResponseEntity.OkResult(result);
     }
 
-    public async Task<ResponseBase> GetAccountList(int regulationId)
+    public async Task<ResponseEntity> GetAccountList(int regulationId)
     {
         var result = await accountRepo.Find(a => a.AccountingRegulationId == regulationId && !a.Deleted)
                                       .OrderBy(a => a.Code)
                                       .AsNoTracking()
                                       .ToListAsync();
-        return ResponseBase.OkResult(result.Select(a => new
+        return ResponseEntity.OkResult(result.Select(a => new
         {
             a.Id,
             a.Name,
@@ -192,7 +192,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         await reportRepo.CreateAsync(reportWork);
     }
 
-    public async Task<ResponseBase> GetFinancialReportList(int? fromYear, int? toYear)
+    public async Task<ResponseEntity> GetFinancialReportList(int? fromYear, int? toYear)
     {
         var query = reportRepo.Find(r => r.OrganizationId == WorkingOrg.ToGuid()
                                          && !r.Deleted);
@@ -220,10 +220,10 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                 })
                                 .AsNoTracking()
                                 .ToListAsync();
-        return ResponseBase.OkResult(result);
+        return ResponseEntity.OkResult(result);
     }
 
-    public async Task<ResponseBase> GetFinancialReportById(string id)
+    public async Task<ResponseEntity> GetFinancialReportById(string id)
     {
         var result = await reportRepo.Find(r => r.Id == id 
                                                 && r.OrganizationId == WorkingOrg.ToGuid() 
@@ -236,8 +236,8 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                      .AsSplitQuery()
                                      .FirstOrDefaultAsync();
         return result is null
-            ? ResponseBase.Error404("Id not found")
-            : ResponseBase.OkResult(result);
+            ? ResponseEntity.Error404("Id not found")
+            : ResponseEntity.OkResult(result);
     }
 
 
@@ -250,7 +250,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <param name="input">Input object contains report Id and collection of balance entries</param>
     /// <returns>Value object contain the validation result and the trial balance</returns>
     /// <exception cref="NotFoundException"></exception>
-    public async Task<ResponseBase> CreateUserInputTrialBalance(UserInputTrialBalanceDto input)
+    public async Task<ResponseEntity> CreateUserInputTrialBalance(UserInputTrialBalanceDto input)
     {
         var report = await reportRepo.Find(r => r.Id == input.FinancialReportId && !r.Deleted)
                                      .Include(r => r.UserInput).ThenInclude(u => u!.Entries)
@@ -300,7 +300,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
         var updateResult = await reportRepo.UpdateAsync(report);
 
-        return new ResponseBase
+        return new ResponseEntity
         {
             Code = "200",
             Success = true,
@@ -316,7 +316,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// </summary>
     /// <param name="reportId"></param>
     /// <returns></returns>
-    public async Task<ResponseBase> MapUserTrialBalance(string reportId)
+    public async Task<ResponseEntity> MapUserTrialBalance(string reportId)
     {
         var report = await reportRepo.Find(r => r.Id == reportId && !r.Deleted)
                                      .Include(r => r.UserInput).ThenInclude(r => r!.Entries)
@@ -369,7 +369,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                      .AddRange(report.TrialBalanceEntries
                                      .Where(entry => !entry.MappedSuccess));
 
-        return ResponseBase.OkResult(new
+        return ResponseEntity.OkResult(new
         {
             Report = updatedReport.ToDisplayDto(),
             Errors = mappingResult
@@ -381,7 +381,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// </summary>
     /// <param name="input">The body parameters that contains the xlsx file to extract data.</param>
     /// <returns>The colection of balance entries that were imported.</returns>
-    public async Task<ResponseBase> ImportUserInputTrialBalanceFromExcelFile(UserInputExcelFile input)
+    public async Task<ResponseEntity> ImportUserInputTrialBalanceFromExcelFile(UserInputExcelFile input)
     {
         var report = await reportRepo.Find(r => r.Id == input.FinancialReportId && !r.Deleted)
                                      .Include(r => r.UserInput)
@@ -484,7 +484,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
         await reportRepo.UpdateAsync(report);
 
-        return ResponseBase.OkResult(new
+        return ResponseEntity.OkResult(new
         {
             Entries = report.UserInput?.Entries.Select(e => new
             {
@@ -500,10 +500,10 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         });
     }
 
-    public async Task<ResponseBase> DeleteUserInputTrialBalance(long[] ids)
+    public async Task<ResponseEntity> DeleteUserInputTrialBalance(long[] ids)
     {
         var result = await trialBalanceEntryRepo.SoftDeleteManyAsync(ids);
-        return ResponseBase.OkResult(result);
+        return ResponseEntity.OkResult(result);
     }
 
     /// <summary>
@@ -516,7 +516,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// </param>
     /// <returns></returns>
     /// <exception cref="NotFoundException">will be throw if report Id does not exist.</exception>
-    public async Task<ResponseBase> UpdateUserInputTrialBalance(string reportId,
+    public async Task<ResponseEntity> UpdateUserInputTrialBalance(string reportId,
                                                                 List<UserBalanceEntryUpdate> entries)
     {
         try
@@ -557,7 +557,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             if(updateCount == 0) throw new NotFoundException("No entries updated because not matched Id.");
             dbContext.TrialBalanceEntries.UpdateRange(updatingEntries);
             await dbContext.SaveChangesAsync();
-            return ResponseBase.Ok();
+            return ResponseEntity.Ok();
         }
         catch (NotFoundException e)
         {
@@ -572,7 +572,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         }
     }
 
-    public async Task<ResponseBase> CalculateFinancialStatement(string reportId)
+    public async Task<ResponseEntity> CalculateFinancialStatement(string reportId)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
         try
@@ -597,7 +597,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
             await dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
-            return ResponseBase.OkResult(report);
+            return ResponseEntity.OkResult(report);
         }
         catch (Exception)
         {
@@ -606,7 +606,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         }
     }
 
-    public async Task<ResponseBase> ResetReport(string reportId)
+    public async Task<ResponseEntity> ResetReport(string reportId)
     {
         var report = await reportRepo.Find(r => r.Id == reportId && !r.Deleted
                                                                  && r.OrganizationId == WorkingOrg.ToGuid())
@@ -626,7 +626,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         //If all values equal zero, stop:
         if (sumBl + sumIncome + sumTrial == 0)
         {
-            return ResponseBase.Ok();
+            return ResponseEntity.Ok();
         }
 
         foreach (var b in report.BalanceSheetEntries)
@@ -652,13 +652,13 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         }
 
         await reportRepo.UpdateAsync(report);
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
-    public async Task<ResponseBase> MapIncomeStatementFromTrialBalance(string reportId)
+    public async Task<ResponseEntity> MapIncomeStatementFromTrialBalance(string reportId)
     {
         //await MapIncomeStatementAsync(reportId);
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
 
@@ -668,7 +668,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <param name="reportId"></param>
     /// <returns></returns>
     /// <exception cref="NotFoundException"></exception>
-    public async Task<ResponseBase> ResetIncomeStatement(string reportId)
+    public async Task<ResponseEntity> ResetIncomeStatement(string reportId)
     {
         var report = await reportRepo.Find(r => r.Id == reportId && r.OrganizationId == WorkingOrg.ToGuid())
                                      .Include(r => r.IncomeStatementEntries)
@@ -682,7 +682,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         }
 
         await reportRepo.UpdateAsync(report);
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
     /// <summary>
@@ -691,7 +691,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <param name="currentYear"></param>
     /// <returns></returns>
     /// <exception cref="NotFoundException"></exception>
-    public async Task<ResponseBase> GetLastYearReports(int currentYear)
+    public async Task<ResponseEntity> GetLastYearReports(int currentYear)
     {
         var lastYearReport = await reportRepo.Find(r => r.OrganizationId == WorkingOrg.ToGuid()
                                                         && r.Year == currentYear - 1
@@ -702,7 +702,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                                  r.ReportDate, r.CreateAt
                                              })
                                              .ToListAsync();
-        return ResponseBase.OkResult(lastYearReport);
+        return ResponseEntity.OkResult(lastYearReport);
     }
 
     /// <summary>
@@ -713,7 +713,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <param name="lastYearReportId"></param>
     /// <returns></returns>
     /// <exception cref="NotFoundException"></exception>
-    public async Task<ResponseBase> SelectLastYearReport(string curentReportId, string lastYearReportId)
+    public async Task<ResponseEntity> SelectLastYearReport(string curentReportId, string lastYearReportId)
     {
         var reports = await reportRepo.Find(r => (r.Id == curentReportId || r.Id == lastYearReportId)
                                                  && !r.Deleted
@@ -740,11 +740,11 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
         //TODO: check opening balances with last year closing balances in trial balance
         await reportRepo.UpdateAsync(currentReport);
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
 
-    public async Task<ResponseBase> SoftDeleteReport(string reportId)
+    public async Task<ResponseEntity> SoftDeleteReport(string reportId)
     {
         var report = await reportRepo.Find(r => r.Id == reportId
                                                 && !r.Deleted
@@ -753,7 +753,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                      ?? throw new NotFoundException("Report not found");
         report.Deleted = true;
         await reportRepo.UpdateAsync(report);
-        return ResponseBase.Ok($"Report {report.Name} deleted successfully");
+        return ResponseEntity.Ok($"Report {report.Name} deleted successfully");
     }
 
     /// <summary>
@@ -762,7 +762,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <param name="reportId">The id of the report to be removed.</param>
     /// <returns></returns>
     /// <exception cref="NotFoundException">If the report is not found in the database.</exception>
-    public async Task<ResponseBase> HardDeleteReport(string reportId)
+    public async Task<ResponseEntity> HardDeleteReport(string reportId)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
         try
@@ -792,15 +792,15 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         {
             logger.LogErrorFormatted(exception: e);
             await transaction.RollbackAsync();
-            return ResponseBase.Error(
+            return ResponseEntity.Error(
                 "An error has orcured while attemping to delete the entities. " +
                 "See inner exception for details.");
         }
 
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
-    public async Task<ResponseBase> ClearAllUserInputTrialEntries(string reportId)
+    public async Task<ResponseEntity> ClearAllUserInputTrialEntries(string reportId)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
         try
@@ -848,11 +848,11 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         {
             logger.LogErrorFormatted(exception: e);
             await transaction.RollbackAsync();
-            return ResponseBase.Error(
+            return ResponseEntity.Error(
                 "An error has orcured while attemping to delete the entities. See inner exception for details.");
         }
 
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
     public async Task<(string FileName, byte[] File)> DownloadXmlDocument(string reportId)
@@ -885,7 +885,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         return (report.Xml?.FileName ?? fileName, file);
     }
 
-    public async Task<ResponseBase> CreateOrUpdateXmlDocument(string reportId)
+    public async Task<ResponseEntity> CreateOrUpdateXmlDocument(string reportId)
     {
         var report = await reportRepo.Find(x => x.Id == reportId
                                                 && x.OrganizationId == WorkingOrg.ToGuid())
@@ -903,13 +903,13 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                 Content = content.ToString()
             };
             await reportRepo.UpdateAsync(report);
-            return ResponseBase.Ok();
+            return ResponseEntity.Ok();
         }
 
         //Update content if exist
         report.Xml.Content = content.ToString();
         await reportRepo.UpdateAsync(report);
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
     public async Task<(string FileName, byte[] File)> ExportReportNoteExcel(string reportId)
@@ -1019,13 +1019,13 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             xmlDoc.GetChildElementByPath(root + "TTinChung/TTinTKhaiThue/TKhaiThue/KyKKhaiThue");
         kyKKhaiThue?.Element(ns + "kyKKhai")?.SetValue(report.Year.ToString());
         kyKKhaiThue?.Element(ns + "kyKKhaiTuNgay")?.SetValue(report.BeginDate.ToString("dd/MM/yyyy"));
-        kyKKhaiThue?.Element(ns + "kyKKhaiTuNgay")?.SetValue(report.EndDate.ToString("dd/MM/yyyy"));
+        kyKKhaiThue?.Element(ns + "kyKKhaiDenNgay")?.SetValue(report.EndDate.ToString("dd/MM/yyyy"));
 
         var tTkhaiThue = xmlDoc.GetChildElementByPath(root + "TTinChung/TTinTKhaiThue/TKhaiThue");
         tTkhaiThue?.Element(ns + "maCQTNoiNop")?.SetValue(report.TaxAgencyCode);
         tTkhaiThue?.Element(ns + "tenCQTNoiNop")?.SetValue(report.TaxAgencyName);
-        tTkhaiThue?.Element(ns + "ngayLapTKhai")?.SetValue(report.ReportDate.ToString("yyyy/MM/dd"));
-        tTkhaiThue?.Element(ns + "ngayKy")?.SetValue(report.ReportDate.ToString("yyyy/MM/dd"));
+        tTkhaiThue?.Element(ns + "ngayLapTKhai")?.SetValue(report.ReportDate.ToString("yyyy-MM-dd"));
+        tTkhaiThue?.Element(ns + "ngayKy")?.SetValue(report.ReportDate.ToString("yyyy-MM-dd"));
 
         var nnt = xmlDoc.GetChildElementByPath(root + "TTinChung/TTinTKhaiThue/NNT");
         nnt?.Element(ns + "maTinhNNT")?.SetValue(report.Province.Code);

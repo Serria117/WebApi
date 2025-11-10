@@ -12,20 +12,20 @@ namespace WebApp.Services.TaxProcedureService;
 
 public interface ITaxProcedureAppService
 {
-    Task<ResponseBase> CreateTaxProcedure(TaxProcedureCreateDto dto);
-    Task<ResponseBase> CreateManyTaxProcedures(ICollection<TaxProcedureCreateDto> dtos);
-    Task<ResponseBase> DeleteManyTaxProcedures(int[] ids);
-    Task<ResponseBase> DeleteTaxProcedure(int id);
-    Task<ResponseBase> FindTaxProcedureById(int id);
-    Task<ResponseBase> GetAllTaxProcedures(string? keyword);
-    Task<ResponseBase> UpdateTaxProcedure(TaxProcedureUpdateDto dto);
+    Task<ResponseEntity> CreateTaxProcedure(TaxProcedureCreateDto dto);
+    Task<ResponseEntity> CreateManyTaxProcedures(ICollection<TaxProcedureCreateDto> dtos);
+    Task<ResponseEntity> DeleteManyTaxProcedures(int[] ids);
+    Task<ResponseEntity> DeleteTaxProcedure(int id);
+    Task<ResponseEntity> FindTaxProcedureById(int id);
+    Task<ResponseEntity> GetAllTaxProcedures(string? keyword);
+    Task<ResponseEntity> UpdateTaxProcedure(TaxProcedureUpdateDto dto);
 }
 
 public class TaxProcedureAppService(IAppRepository<TaxProcedure, int> taxProcedureRepository,
                                     IUserManager userManager)
     : BaseAppService(userManager), ITaxProcedureAppService
 {
-    public async Task<ResponseBase> CreateTaxProcedure(TaxProcedureCreateDto dto)
+    public async Task<ResponseEntity> CreateTaxProcedure(TaxProcedureCreateDto dto)
     {
         var taxProcedure = new TaxProcedure
         {
@@ -36,10 +36,10 @@ public class TaxProcedureAppService(IAppRepository<TaxProcedure, int> taxProcedu
             Description = dto.Description
         };
         await taxProcedureRepository.CreateAsync(taxProcedure);
-        return ResponseBase.OkResult(taxProcedure);
+        return ResponseEntity.OkResult(taxProcedure);
     }
 
-    public async Task<ResponseBase> CreateManyTaxProcedures(ICollection<TaxProcedureCreateDto> dtos)
+    public async Task<ResponseEntity> CreateManyTaxProcedures(ICollection<TaxProcedureCreateDto> dtos)
     {
         var validationResults = new List<ValidationResult>();
         var validDtos = new List<TaxProcedureCreateDto>();
@@ -69,14 +69,14 @@ public class TaxProcedureAppService(IAppRepository<TaxProcedure, int> taxProcedu
         }).ToList();
         await taxProcedureRepository.CreateManyAsync(taxProcedures);
 
-        return ResponseBase.OkResult(new
+        return ResponseEntity.OkResult(new
         {
             Success = validDtos,
             Errors = invalidDtos.Count > 0 ? invalidDtos : null,
         });
     }
 
-    public async Task<ResponseBase> GetAllTaxProcedures(string? keyword)
+    public async Task<ResponseEntity> GetAllTaxProcedures(string? keyword)
     {
         keyword = keyword.RemoveSpace();
         var taxProcedures = await taxProcedureRepository.Find(x => !x.Deleted)
@@ -93,10 +93,10 @@ public class TaxProcedureAppService(IAppRepository<TaxProcedure, int> taxProcedu
                                                             Description = x.Description,
                                                             Order = x.Order
                                                         }).ToListAsync();
-        return ResponseBase.OkResult(taxProcedures);
+        return ResponseEntity.OkResult(taxProcedures);
     }
 
-    public async Task<ResponseBase> FindTaxProcedureById(int id)
+    public async Task<ResponseEntity> FindTaxProcedureById(int id)
     {
         var found = await taxProcedureRepository.Find(x => x.Id == id && !x.Deleted)
                                                 .Select(x => new TaxProcedureDisplayDto
@@ -107,21 +107,21 @@ public class TaxProcedureAppService(IAppRepository<TaxProcedure, int> taxProcedu
                                                     Description = x.Description,
                                                     Order = x.Order
                                                 }).FirstOrDefaultAsync();
-        if (found is null) return ResponseBase.Error404("Tax procedure not found");
-        return ResponseBase.OkResult(found);
+        if (found is null) return ResponseEntity.Error404("Tax procedure not found");
+        return ResponseEntity.OkResult(found);
     }
 
-    public async Task<ResponseBase> UpdateTaxProcedure(TaxProcedureUpdateDto dto)
+    public async Task<ResponseEntity> UpdateTaxProcedure(TaxProcedureUpdateDto dto)
     {
         var found = await taxProcedureRepository.Find(x => x.Id == dto.Id && !x.Deleted).FirstOrDefaultAsync();
-        if (found is null) return ResponseBase.Error404("Tax procedure not found");
+        if (found is null) return ResponseEntity.Error404("Tax procedure not found");
         found.Name = dto.Name;
         found.Code = dto.Code;
         found.Order = dto.Order;
         found.Description = dto.Description;
         found.UnsignName = $"{dto.Code} - {dto.Name.UnSign()}";
         await taxProcedureRepository.UpdateAsync(found);
-        return ResponseBase.OkResult(new TaxProcedureDisplayDto
+        return ResponseEntity.OkResult(new TaxProcedureDisplayDto
         {
             Id = found.Id,
             Name = found.Name,
@@ -131,17 +131,17 @@ public class TaxProcedureAppService(IAppRepository<TaxProcedure, int> taxProcedu
         });
     }
 
-    public async Task<ResponseBase> DeleteTaxProcedure(int id)
+    public async Task<ResponseEntity> DeleteTaxProcedure(int id)
     {
         var deleteResult = await taxProcedureRepository.SoftDeleteAsync(id);
-        return deleteResult ? ResponseBase.OkResult("Tax procedure deleted successfully")
-                            : ResponseBase.Error404("Tax procedure not found");
+        return deleteResult ? ResponseEntity.OkResult("Tax procedure deleted successfully")
+                            : ResponseEntity.Error404("Tax procedure not found");
     }
 
-    public async Task<ResponseBase> DeleteManyTaxProcedures(int[] ids)
+    public async Task<ResponseEntity> DeleteManyTaxProcedures(int[] ids)
     {
         var deleteResult = await taxProcedureRepository.SoftDeleteManyAsync(ids);
-        return deleteResult ? ResponseBase.OkResult("Tax procedure deleted successfully")
-                            : ResponseBase.Error404("Tax procedure not found");
+        return deleteResult ? ResponseEntity.OkResult("Tax procedure deleted successfully")
+                            : ResponseEntity.Error404("Tax procedure not found");
     }
 }

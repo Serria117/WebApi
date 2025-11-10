@@ -1,0 +1,229 @@
+{
+    "checksum": "da24a3477d1cb4101b80132f183062c8be7cb61c561bab8cac9810872f8c2440",
+    "data": {
+    "id": "9348b3b2-96f8-46ee-9c72-d08212ddb26f",
+    "createdAt": 1762494921474,
+    "updatedAt": 1762494925917,
+    "title": "Duties Update Logic Optimization",
+    "messages": [
+        {
+            "id": "c2c580bb-6f63-4521-8b29-f1eb1b950152",
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Check if the item in dutiesToUpdate got change\nthen keep it, otherwise remove it from the list"
+                },
+                {
+                    "type": "text",
+                    "text": "Currently selected file, line number: 160"
+                }
+            ],
+            "context": {
+                "currentFile": {
+                    "path": "D:\\Personal\\WebApi\\WebApp\\Services\\TaxDutyServices\\TaxDutyAppService.cs",
+                    "fsPath": "D:/Personal/WebApi/WebApp/Services/TaxDutyServices/TaxDutyAppService.cs",
+                    "content": "using Microsoft.EntityFrameworkCore;\nusing WebApp.Core.Data;\nusing WebApp.Core.DomainEntities;\nusing WebApp.Payloads;\nusing WebApp.Services.TaxDutyServices.Dto;\nusing WebApp.Services.UserService;\nusing X.Extensions.PagedList.EF;\n\nnamespace WebApp.Services.TaxDutyServices;\n\npublic interface ITaxDutyAppService\n{\n    Task<ResponseEntity> CreateTaxDuty(TaxDutyDto input);\n    Task<ResponseEntity> FindTaxDuties(RequestParam req);\n    Task<ResponseEntity> GetTaxDutyById(int id);\n    Task<ResponseEntity> UpdateTaxDutyById(int id, TaxDutyDto input);\n    Task<ResponseEntity> SoftDeleteTaxDutyById(int id);\n    Task<ResponseEntity> AddTaxDutyToOrganization(OrganizationTaxDutiesDto input);\n    Task<ResponseEntity> GetTaxDutiesByOrganizationId(Guid orgId);\n}\n\npublic class TaxDutyAppService(IUserManager userManager,\n                               AppDbContext dbContext,\n                               ILogger<TaxDutyAppService> logger)\n    : BaseAppService(userManager), ITaxDutyAppService\n{\n    public async Task<ResponseEntity> CreateTaxDuty(TaxDutyDto input)\n    {\n        var newTaxDuty = await dbContext.TaxReportDuties.AddAsync(new TaxReportDuty\n        {\n            Name = input.Name,\n            Code = input.Code,\n            Description = input.Description,\n            Order = input.Order,\n            TaxDutyCategoryId = input.CategoryId\n        });\n\n        return ResponseEntity.OkResult(new TaxDutyDisplayDto\n        {\n            Id = newTaxDuty.Entity.Id,\n            Name = newTaxDuty.Entity.Name,\n            Code = newTaxDuty.Entity.Code,\n            Description = newTaxDuty.Entity.Description,\n            Order = newTaxDuty.Entity.Order,\n            CategoryId = input.CategoryId\n        });\n    }\n\n    public async Task<ResponseEntity> FindTaxDuties(RequestParam req)\n    {\n        req.Valid();\n        var taxDutiesQuery = dbContext.TaxReportDuties\n                                      .Where(x => !x.Deleted)\n                                      .OrderBy(x => x.TaxDutyCategoryId).ThenBy(x => x.Order)\n                                      .AsNoTracking()\n                                      .AsSplitQuery()\n                                      .Select(x => new TaxDutyDisplayDto\n                                      {\n                                          Id = x.Id,\n                                          Code = x.Code,\n                                          Name = x.Name,\n                                          Description = x.Description,\n                                          Order = x.Order,\n                                          CategoryId = x.TaxDutyCategoryId,\n                                          CategoryName = x.Category.Name\n                                      });\n        if (!string.IsNullOrEmpty(req.Keyword))\n        {\n            taxDutiesQuery = taxDutiesQuery.Where(x => x.Name.Contains(req.Keyword)\n                                                       || x.Code.Contains(req.Keyword)\n                                                       || (x.Description != null &&\n                                                           x.Description.Contains(req.Keyword)));\n        }\n\n        if (req is { Page: not null, Size: not null })\n        {\n            var resultPage = await taxDutiesQuery.ToPagedListAsync(req.Page.Value, req.Size.Value);\n            return ResponseEntity.OkResult(resultPage);\n        }\n\n        var result = await taxDutiesQuery.ToListAsync();\n        return ResponseEntity.OkResult(result);\n    }\n\n    public async Task<ResponseEntity> GetTaxDutyById(int id)\n    {\n        var found = await dbContext.TaxReportDuties.FindAsync(id);\n        if (found == null || found.Deleted)\n            return ResponseEntity.Error404(\"Entity not found or has been removed\");\n        return ResponseEntity.OkResult(new TaxDutyDisplayDto\n        {\n            Id = found.Id, Name = found.Name, Code = found.Code,\n            Description = found.Description, Order = found.Order\n        });\n    }\n\n    public async Task<ResponseEntity> UpdateTaxDutyById(int id, TaxDutyDto input)\n    {\n        var found = await dbContext.TaxReportDuties.FindAsync(id);\n        if (found == null || found.Deleted)\n            return ResponseEntity.Error404(\"Entity not found or has been removed\");\n        found.Name = input.Name;\n        found.Code = input.Code;\n        found.Description = input.Description;\n        found.Order = input.Order;\n        await dbContext.SaveChangesAsync();\n        return ResponseEntity.Ok();\n    }\n\n    public async Task<ResponseEntity> SoftDeleteTaxDutyById(int id)\n    {\n        var found = await dbContext.TaxReportDuties.FindAsync(id);\n        if (found == null || found.Deleted)\n            return ResponseEntity.Error404(\"Entity not found or has been removed\");\n        found.Deleted = true;\n        await dbContext.SaveChangesAsync();\n        return ResponseEntity.Ok();\n    }\n\n    public async Task<ResponseEntity> AddTaxDutyToOrganization(OrganizationTaxDutiesDto input)\n    {\n        var organizationFound = await dbContext.Organizations\n                                               .AnyAsync(x => x.Id == input.OrganizationId && !x.Deleted);\n\n        if (!organizationFound)\n            return ResponseEntity.Error404(\"Organization not found or has been deleted\");\n\n        // check duty exists and not added to the organization yet\n        var existDuties = await dbContext.OrganizationTaxDuties\n                                         .Where(x => x.OrganizationId == input.OrganizationId && !x.Deleted)\n                                         .ToHashSetAsync();\n\n        // get all existing duties from database\n        var availableDuties = await dbContext.TaxReportDuties\n                                             .Where(x => !x.Deleted)\n                                             .Select(x => x.Id)\n                                             .ToHashSetAsync();\n\n        List<OrganizationTaxDuty> dutiesToAdd = [];\n        List<OrganizationTaxDuty> dutiesToRemove = [];\n        \n        dutiesToAdd.AddRange(input.Duties\n                                  .Where(d => availableDuties.Contains(\n                                             d.TaxReportDutyId)) // filter out non-existing duties\n                                  .Where(d => !existDuties.Select(x => x.TaxReportDutyId)\n                                                          .ToHashSet()\n                                                          .Contains(d.TaxReportDutyId))\n                                  .Select(d => new OrganizationTaxDuty\n                                  {\n                                      OrganizationId = input.OrganizationId,\n                                      TaxReportDutyId = d.TaxReportDutyId,\n                                      DutyPeriodType = d.DutyPeriodType\n                                  }));\n\n        dutiesToRemove.AddRange(existDuties.Where(e => !input.Duties\n                                                             .Select(d => d.TaxReportDutyId)\n                                                             .ToHashSet()\n                                                             .Contains(e.TaxReportDutyId)));\n        existDuties.ExceptWith(dutiesToRemove);\n        List<OrganizationTaxDuty> dutiesToUpdate = [.. existDuties];\n        \n        //TODO: update duty period type here\n        dbContext.OrganizationTaxDuties.UpdateRange(dutiesToUpdate);\n        dbContext.OrganizationTaxDuties.RemoveRange(dutiesToRemove);\n        await dbContext.OrganizationTaxDuties.AddRangeAsync(dutiesToAdd);\n        await dbContext.SaveChangesAsync();\n        return ResponseEntity.Ok();\n    }\n\n    public async Task<ResponseEntity> GetTaxDutiesByOrganizationId(Guid orgId)\n    {\n        var orgFound = await dbContext.Organizations.AnyAsync(x => x.Id == orgId && !x.Deleted);\n\n        if (!orgFound) return ResponseEntity.Error404(\"Organization not found\");\n\n        var duties = await dbContext.OrganizationTaxDuties\n                                    .Where(x => x.OrganizationId == orgId && !x.Deleted)\n                                    .ToListAsync();\n\n        return ResponseEntity.OkResult(duties);\n    }\n}",
+                    "language": "c#"
+                },
+                "usedRules": [
+                    "zen-rules://repo/.zencoder/rules/repo.md"
+                ]
+            },
+            "createdAt": 1762494921498,
+            "isInternal": false,
+            "rawContent": {
+                "type": "doc",
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Check if the item in dutiesToUpdate got change\nthen keep it, otherwise remove it from the list"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Currently selected file, line number: 160"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "autoAppliedRules": [
+                {
+                    "name": "Repository Information Overview",
+                    "description": "Repository Information Overview",
+                    "uri": "zen-rules://repo/.zencoder/rules/repo.md",
+                    "mimeType": "text/markdown",
+                    "content": "# SLine Web API Information\r\n\r\n## Summary\r\nA .NET 8.0 Web API application providing backend services for the SLine application. The API includes authentication, authorization, data management, and various business logic services including invoice processing, payroll management, and document handling.\r\n\r\n## Structure\r\n- **Controllers**: API endpoints organized by domain functionality\r\n- **Services**: Business logic implementation and service layer\r\n- **Repositories**: Data access layer components\r\n- **Authentication**: JWT-based authentication and permission-based authorization\r\n- **Configuration**: Application configuration and dependency injection\r\n- **Payloads**: Request/response models and DTOs\r\n- **Utils**: Common utility functions and extensions\r\n- **ScheduleTask**: Background job scheduling using Quartz\r\n- **GlobalExceptionHandler**: Centralized exception handling middleware\r\n\r\n## Language & Runtime\r\n**Language**: C#\r\n**Version**: .NET 8.0 (SDK 8.0.20)\r\n**Build System**: MSBuild\r\n**Package Manager**: NuGet\r\n\r\n## Dependencies\r\n**Main Dependencies**:\r\n- Microsoft.AspNetCore.Authentication.JwtBearer (8.0.20)\r\n- Microsoft.EntityFrameworkCore.Design (9.0.9)\r\n- Quartz.Extensions.Hosting (3.15.0)\r\n- RestSharp (112.1.0)\r\n- Serilog (4.3.0)\r\n- Swashbuckle.AspNetCore (6.9.0)\r\n- BCrypt.Net-Next (4.0.3)\r\n- FreeSpire.XLS (14.2.0)\r\n- MailKit (4.13.0)\r\n\r\n**Project References**:\r\n- WebApp.Core\r\n- WebApp.Enums\r\n- WebApp.Mongo\r\n\r\n## Build & Installation\r\n```bash\r\ndotnet restore WebApp.sln\r\ndotnet build WebApp.sln --configuration Release\r\ndotnet publish WebApp.csproj -c Release -o ./publish\r\n```\r\n\r\n## Testing\r\nNo explicit testing framework was identified in the project. The application appears to use Swagger for API documentation and testing.\r\n\r\n## Database\r\n**Primary Database**: SQL Server (Entity Framework Core)\r\n**Secondary Database**: MongoDB (for specific features)\r\n**Configuration**: Connection strings defined in application settings\r\n\r\n## API Features\r\n- **Authentication**: JWT-based authentication with refresh tokens\r\n- **Authorization**: Custom permission-based authorization\r\n- **SignalR**: Real-time communication via WebSockets\r\n- **Swagger**: API documentation and testing interface\r\n- **Background Jobs**: Scheduled tasks using Quartz\r\n- **Exception Handling**: Global exception middleware\r\n- **Logging**: Structured logging with Serilog\r\n- **File Operations**: Document templates and export functionality\r\n\r\n## Deployment\r\n**Hosting**: Supports IIS Express and Kestrel\r\n**Environment**: Development/Production configurations\r\n**Port**: 24894 (default development port)",
+                    "alwaysApply": true
+                }
+            ]
+        },
+        {
+            "id": "2da2dbde-b332-4da9-8c5d-e87e249d2f96",
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "thought",
+                    "text": "**Checking repository rules file**"
+                },
+                {
+                    "type": "toolCall",
+                    "toolCallId": "call_9Ve83o1jzWHQ5bZvFESyFUZB",
+                    "statusText": "Viewed file (lines 1:73)",
+                    "status": "SUCCESS",
+                    "context": {
+                        "files": [
+                            {
+                                "path": ".zencoder/rules/repo.md",
+                                "fsPath": "D:/Personal/WebApi/WebApp/.zencoder/rules/repo.md"
+                            }
+                        ]
+                    },
+                    "isHidden": false
+                },
+                {
+                    "type": "thought",
+                    "text": "**Analyzing dutiesToUpdate modification logic**"
+                },
+                {
+                    "type": "toolCall",
+                    "toolCallId": "call_7rCbb1pXfto0mpX5wuTK28HN",
+                    "title": "File search",
+                    "statusText": "Done",
+                    "status": "SUCCESS",
+                    "isHidden": false
+                },
+                {
+                    "type": "thought",
+                    "text": "**Searching for DTO files**"
+                },
+                {
+                    "type": "toolCall",
+                    "toolCallId": "call_e54mcuXgb73rT0JYv8Ce0gaO",
+                    "statusText": "Viewed directory",
+                    "status": "SUCCESS",
+                    "context": {
+                        "files": [
+                            {
+                                "path": "Services/TaxDutyServices",
+                                "fsPath": "D:/Personal/WebApi/WebApp/Services/TaxDutyServices"
+                            }
+                        ]
+                    },
+                    "isHidden": false
+                },
+                {
+                    "type": "toolCall",
+                    "toolCallId": "call_n4KV9EipDdFykIYe3VJ3Vgbr",
+                    "statusText": "Viewed file (lines 1:22)",
+                    "status": "SUCCESS",
+                    "context": {
+                        "files": [
+                            {
+                                "path": "Services/TaxDutyServices/Dto/OrganizationTaxDutyDto.cs",
+                                "fsPath": "D:/Personal/WebApi/WebApp/Services/TaxDutyServices/Dto/OrganizationTaxDutyDto.cs"
+                            }
+                        ]
+                    },
+                    "isHidden": false
+                },
+                {
+                    "type": "thought",
+                    "text": "**Optimizing duty update logic**"
+                },
+                {
+                    "type": "toolCall",
+                    "toolCallId": "call_9aOKirFy7TJ1bCJ5v3F5Evxq",
+                    "title": "",
+                    "statusText": "Text to replace not found",
+                    "status": "WARNING",
+                    "context": {
+                        "files": [
+                            {
+                                "path": "Services/TaxDutyServices/TaxDutyAppService.cs",
+                                "fsPath": "D:/Personal/WebApi/WebApp/Services/TaxDutyServices/TaxDutyAppService.cs"
+                            }
+                        ]
+                    },
+                    "isHidden": false
+                },
+                {
+                    "type": "toolCall",
+                    "toolCallId": "call_ufJMYwLq4pwELahrkHWrVzqo",
+                    "statusText": "Viewed file (line 120 and onwards)",
+                    "status": "SUCCESS",
+                    "context": {
+                        "files": [
+                            {
+                                "path": "Services/TaxDutyServices/TaxDutyAppService.cs",
+                                "fsPath": "D:/Personal/WebApi/WebApp/Services/TaxDutyServices/TaxDutyAppService.cs"
+                            }
+                        ]
+                    },
+                    "isHidden": false
+                },
+                {
+                    "type": "toolCall",
+                    "toolCallId": "call_8x8RBDMl1LZU9LvvR0tFTQOd",
+                    "statusText": "Change generated",
+                    "status": "SUCCESS",
+                    "context": {
+                        "files": [
+                            {
+                                "path": "Services/TaxDutyServices/TaxDutyAppService.cs",
+                                "fsPath": "D:/Personal/WebApi/WebApp/Services/TaxDutyServices/TaxDutyAppService.cs"
+                            }
+                        ]
+                    },
+                    "isHidden": false
+                },
+                {
+                    "type": "codeHunk",
+                    "lineBasedDiff": "--- D:/Personal/WebApi/WebApp/Services/TaxDutyServices/TaxDutyAppService.cs\n+++ D:/Personal/WebApi/WebApp/Services/TaxDutyServices/TaxDutyAppService.cs\n@@ -136,30 +136,41 @@\n                                              .Select(x => x.Id)\n                                              .ToHashSetAsync();\n \n+        var validInputDutyLookup = input.Duties\n+                                         .Where(d => availableDuties.Contains(d.TaxReportDutyId))\n+                                         .GroupBy(d => d.TaxReportDutyId)\n+                                         .ToDictionary(group => group.Key, group => group.First());\n+\n         List<OrganizationTaxDuty> dutiesToAdd = [];\n         List<OrganizationTaxDuty> dutiesToRemove = [];\n-        \n-        dutiesToAdd.AddRange(input.Duties\n-                                  .Where(d => availableDuties.Contains(\n-                                             d.TaxReportDutyId)) // filter out non-existing duties\n-                                  .Where(d => !existDuties.Select(x => x.TaxReportDutyId)\n-                                                          .ToHashSet()\n-                                                          .Contains(d.TaxReportDutyId))\n-                                  .Select(d => new OrganizationTaxDuty\n-                                  {\n-                                      OrganizationId = input.OrganizationId,\n-                                      TaxReportDutyId = d.TaxReportDutyId,\n-                                      DutyPeriodType = d.DutyPeriodType\n-                                  }));\n \n-        dutiesToRemove.AddRange(existDuties.Where(e => !input.Duties\n-                                                             .Select(d => d.TaxReportDutyId)\n-                                                             .ToHashSet()\n-                                                             .Contains(e.TaxReportDutyId)));\n+        var existingDutyIds = existDuties.Select(x => x.TaxReportDutyId).ToHashSet();\n+\n+        dutiesToAdd.AddRange(validInputDutyLookup.Values\n+                                      .Where(d => !existingDutyIds.Contains(d.TaxReportDutyId))\n+                                      .Select(d => new OrganizationTaxDuty\n+                                      {\n+                                          OrganizationId = input.OrganizationId,\n+                                          TaxReportDutyId = d.TaxReportDutyId,\n+                                          DutyPeriodType = d.DutyPeriodType\n+                                      }));\n+\n+        dutiesToRemove.AddRange(existDuties.Where(e => !validInputDutyLookup.ContainsKey(e.TaxReportDutyId)));\n         existDuties.ExceptWith(dutiesToRemove);\n-        List<OrganizationTaxDuty> dutiesToUpdate = [.. existDuties];\n-        \n-        //TODO: update duty period type here\n+\n+        List<OrganizationTaxDuty> dutiesToUpdate = [];\n+        foreach (var duty in existDuties)\n+        {\n+            if (!validInputDutyLookup.TryGetValue(duty.TaxReportDutyId, out var inputDuty))\n+                continue;\n+\n+            if (duty.DutyPeriodType != inputDuty.DutyPeriodType)\n+            {\n+                duty.DutyPeriodType = inputDuty.DutyPeriodType;\n+                dutiesToUpdate.Add(duty);\n+            }\n+        }\n+\n         dbContext.OrganizationTaxDuties.UpdateRange(dutiesToUpdate);\n         dbContext.OrganizationTaxDuties.RemoveRange(dutiesToRemove);\n         await dbContext.OrganizationTaxDuties.AddRangeAsync(dutiesToAdd);",
+                    "refToolCallId": "call_8x8RBDMl1LZU9LvvR0tFTQOd"
+                },
+                {
+                    "type": "text",
+                    "text": "# Changes Completed\n\n## Summary\n- Built a lookup (`validInputDutyLookup`) of valid input duties filtered to existing duty IDs.\n- Simplified addition logic, ensuring only new duties get added.\n- Identified duties to remove when no longer present in the request.\n- Updated `DutyPeriodType` only when the value actually changed, keeping stable entries untouched.\n\n## Result\n- Duties that remain unchanged are no longer updated unnecessarily.\n- Duties with modified period types are updated.\n- Duties absent from the request are removed.\n- Newly provided duties are inserted.\n\nLet me know if you'd like to add validation, logging, or unit tests around this flow."
+                },
+                {
+                    "type": "codePatch",
+                    "diffs": [
+                        {
+                            "path": "Services/TaxDutyServices/TaxDutyAppService.cs",
+                            "fsPath": "D:/Personal/WebApi/WebApp/Services/TaxDutyServices/TaxDutyAppService.cs",
+                            "patch": "@@ -6037,162 +6037,57 @@\n     \n-List%3COrganizationTaxDuty%3E dutiesToAdd = %5B%5D;%0D%0A        List%3COrganizationTaxDuty%3E dutiesToRemove = %5B%5D;%0D%0A        %0D%0A        dutiesToAdd.AddRange(input.Duties%0D%0A\n+var validInputDutyLookup = input.Duties%0D%0A        \n     \n@@ -6107,33 +6107,32 @@\n                 \n- \n .Where(d =%3E avai\n@@ -6152,16 +6152,35 @@\n ontains(\n+d.TaxReportDutyId))\n %0D%0A      \n@@ -6214,19 +6214,29 @@\n         \n-   \n+.GroupBy(d =%3E\n  d.TaxRe\n@@ -6250,194 +6250,296 @@\n yId)\n-) // filter out non-existing duties%0D%0A                                  .Where(d =%3E !existDuties.Select(x =%3E x.TaxReportDutyId)%0D%0A                                                          \n+%0D%0A                                         .ToDictionary(group =%3E group.Key, group =%3E group.First());%0D%0A%0D%0A        List%3COrganizationTaxDuty%3E dutiesToAdd = %5B%5D;%0D%0A        List%3COrganizationTaxDuty%3E dutiesToRemove = %5B%5D;%0D%0A%0D%0A        var existingDutyIds = existDuties.Select(x =%3E x.TaxReportDutyId)\n .ToH\n@@ -6538,32 +6538,35 @@\n yId).ToHashSet()\n+;%0D%0A\n %0D%0A              \n@@ -6555,34 +6555,74 @@\n %0D%0A%0D%0A        \n-          \n+dutiesToAdd.AddRange(validInputDutyLookup.Values%0D%0A\n             \n@@ -6639,34 +6639,60 @@\n                 \n-  \n+.Where(d =%3E !existingDutyIds\n .Contains(d.TaxR\n@@ -6698,32 +6698,36 @@\n ReportDutyId))%0D%0A\n+    \n                 \n@@ -6808,35 +6808,43 @@\n                 \n+  \n+  \n %7B%0D%0A\n+    \n                 \n@@ -6943,16 +6943,20 @@\n         \n+  \n+  \n TaxRepor\n@@ -7023,16 +7023,20 @@\n         \n+    \n DutyPeri\n@@ -7096,16 +7096,20 @@\n         \n+   \n+ \n %7D));%0D%0A%0D%0A\n@@ -7168,70 +7168,222 @@\n =%3E !\n-i\n+validI\n nput\n-.\n Dut\n-ies%0D%0A                                        \n+yLookup.ContainsKey(e.TaxReportDutyId)));%0D%0A        existDuties.ExceptWith(dutiesToRemove);%0D%0A%0D%0A        List%3COrganizationTaxDuty%3E dutiesToUpdate = %5B%5D;%0D%0A        foreach (var duty in existDuties)%0D%0A\n         \n     \n@@ -7370,32 +7370,35 @@\n uties)%0D%0A        \n+%7B%0D%0A\n              .Se\n@@ -7397,72 +7397,89 @@\n     \n- .Select(d =%3E d.TaxReportDutyId)%0D%0A                              \n+if (!validInputDutyLookup.TryGetValue(duty.TaxReportDutyId, out var inputDuty))%0D%0A\n     \n@@ -7494,247 +7494,207 @@\n     \n-               .ToHashSet()%0D%0A                                                             .Contains(e.TaxReportDutyId)));%0D%0A        existDuties.ExceptWith(dutiesToRemove);%0D%0A        List%3COrganizationTaxDuty%3E dutiesToUpdate = %5B.. existDuties%5D\n+continue;%0D%0A%0D%0A            if (duty.DutyPeriodType != inputDuty.DutyPeriodType)%0D%0A            %7B%0D%0A                duty.DutyPeriodType = inputDuty.DutyPeriodType;%0D%0A                dutiesToUpdate.Add(duty)\n ;%0D%0A \n@@ -7704,54 +7704,26 @@\n     \n-%0D%0A \n     \n-   //TODO: update duty period type here\n+%7D%0D%0A        %7D%0D%0A\n %0D%0A  \n",
+                            "isNew": false,
+                            "isApplied": true,
+                            "isUnread": true,
+                            "timestamp": 1762494988392
+                        }
+                    ]
+                }
+            ],
+            "context": {
+                "author": "Code agent",
+                "operationId": "83d4106a-7ef2-4a1b-83f6-bcd6271426d3",
+                "usageStatistics": {
+                    "llmCallsUsedForAnswer": 8.0,
+                    "llmCallsUsedTotal": 8.0,
+                    "llmCallsLimit": 30.0,
+                    "limitRenewalMillisecondTimestamp": 1762495681237
+                }
+            },
+            "createdAt": 1762494925917,
+            "isInternal": false
+        }
+    ],
+    "isAgent": true,
+    "isNameGenerated": true
+}
+}

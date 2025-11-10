@@ -31,50 +31,50 @@ public interface IDocumentAppService
     /// </summary>
     /// <param name="req">The type of the document to filter by.</param>
     /// <returns>
-    /// An <see cref="ResponseBase"/> containing a paginated list of documents that match the specified criteria.
+    /// An <see cref="ResponseEntity"/> containing a paginated list of documents that match the specified criteria.
     /// </returns>
-    Task<ResponseBase> FindDocumentsAsync(DocumentRequestParam req);
+    Task<ResponseEntity> FindDocumentsAsync(DocumentRequestParam req);
 
     /// <summary>
     /// Asynchronously uploads document files for a specified organization.
     /// </summary>
     /// <param name="files">A list of files to be uploaded.</param>
-    /// <returns>An <see cref="ResponseBase"/> indicating the result of the operation, including the number of files uploaded successfully and any validation errors.</returns>
+    /// <returns>An <see cref="ResponseEntity"/> indicating the result of the operation, including the number of files uploaded successfully and any validation errors.</returns>
     /// <remarks>
     /// Validates each file against the organization's criteria, saves them to a designated directory,
     /// and extracts metadata from the files for further processing. If no files are provided or the organization is not found,
     /// an error response is returned.
     /// </remarks>
-    Task<ResponseBase> UploadDocFileAsync(List<IFormFile> files);
+    Task<ResponseEntity> UploadDocFileAsync(List<IFormFile> files);
 
     /// <summary>
     /// Asynchronously retrieves a file path by its document ID for the current working organization.
     /// </summary>
     /// <param name="documentId">The ID of the document to retrieve.</param>
     /// <returns>
-    /// An <see cref="ResponseBase"/> containing the file path if found, 
+    /// An <see cref="ResponseEntity"/> containing the file path if found, 
     /// or a 404 error response if the document is not found.
     /// </returns>
-    Task<ResponseBase> GetDocumentByIdAsync(int documentId);
+    Task<ResponseEntity> GetDocumentByIdAsync(int documentId);
 
     /// <summary>
     /// Deletes a document file by its ID.
     /// </summary>
     /// <param name="documentId">The ID of the document to delete.</param>
-    /// <returns>An <see cref="ResponseBase"/> indicating the result of the operation.
+    /// <returns>An <see cref="ResponseEntity"/> indicating the result of the operation.
     /// Returns a 404 error if the document is not found, a 500 error if an exception occurs,
     /// or a success response if the file is deleted successfully.</returns>
-    Task<ResponseBase> DeleteFileByIdAsync(int documentId);
+    Task<ResponseEntity> DeleteFileByIdAsync(int documentId);
 
     /// <summary>
     /// Reads and processes the 01GTGT XML document by its document ID.
     /// </summary>
     /// <param name="docId">The ID of the document to read.</param>
     /// <returns>
-    /// An <see cref="ResponseBase"/> containing the processed data if the document is found and valid,
+    /// An <see cref="ResponseEntity"/> containing the processed data if the document is found and valid,
     /// or an error response if the document is not found or invalid.
     /// </returns>
-    Task<ResponseBase> ReadDocumentFromFileAsync(int docId);
+    Task<ResponseEntity> ReadDocumentFromFileAsync(int docId);
 
     Task<(string FileName, byte[] File)> Summarize_01Gtkt_Documents(List<int> ids);
 
@@ -95,7 +95,7 @@ public interface IDocumentAppService
     /// <returns>Collection of duplicate hashes</returns>
     Task<List<string>> CheckMultiFilesForDuplicated(List<string> hashes);
 
-    Task<ResponseBase> ReadXmlToStringAsync(int id);
+    Task<ResponseEntity> ReadXmlToStringAsync(int id);
 
     /// <summary>
     /// Summarizing multiple BCTC_200 documents into a single Excel file
@@ -124,17 +124,17 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
     private const string _templateFolder = "ExportTemplates";
     private const string _uploadFolder = "Uploads";
 
-    public async Task<ResponseBase> UploadDocFileAsync(List<IFormFile> files)
+    public async Task<ResponseEntity> UploadDocFileAsync(List<IFormFile> files)
     {
-        if (files.Count == 0) return ResponseBase.Error("No file uploaded");
+        if (files.Count == 0) return ResponseEntity.Error("No file uploaded");
         var oId = WorkingOrg.ToGuid();
         if (oId == Guid.Empty)
         {
-            return ResponseBase.Error400("You must select working organization first");
+            return ResponseEntity.Error400("You must select working organization first");
         }
 
         var org = await orgRepository.FindByIdAsync(oId);
-        if (org is null) return ResponseBase.Error404("Organization not found");
+        if (org is null) return ResponseEntity.Error404("Organization not found");
         var uploadFiles = new List<OrgDocument>();
         var uploadDir = Path.Combine(env.ContentRootPath, _uploadFolder, org.TaxId);
         var relativeUploadDir = Path.Combine(_uploadFolder, org.TaxId);
@@ -199,7 +199,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
 
         var total = uploadFiles.Count;
         await docRepository.CreateManyAsync(uploadFiles);
-        return ResponseBase.OkResult(new
+        return ResponseEntity.OkResult(new
         {
             message = $"{total} file(s) uploaded successfully.",
             total,
@@ -208,12 +208,12 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         });
     }
 
-    public async Task<ResponseBase> FindDocumentsAsync(DocumentRequestParam req)
+    public async Task<ResponseEntity> FindDocumentsAsync(DocumentRequestParam req)
     {
         var oId = WorkingOrg.ToGuid();
         if (oId == Guid.Empty)
         {
-            return ResponseBase.Error400("You must select working organization first");
+            return ResponseEntity.Error400("You must select working organization first");
         }
 
         var param = PageRequest.FromParams(req);
@@ -222,7 +222,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         int toYear;
 
         var org = await orgRepository.FindByIdAsync(oId);
-        if (org is null) return ResponseBase.Error404("Organization not found");
+        if (org is null) return ResponseEntity.Error404("Organization not found");
 
         var basedQuery = docRepository.FindAndSort(filter: x => x.Organization.Id == oId
                                                                 && req.DocumentTypes.Contains(x.DocumentType),
@@ -254,21 +254,21 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             DocumentDate = f.DocumentDate ?? DateTime.Now,
             AdjustmentType = f.AdjustmentType
         });
-        return ResponseBase.OkResult(dtoList);
+        return ResponseEntity.OkResult(dtoList);
     }
 
-    public async Task<ResponseBase> GetDocumentByIdAsync(int documentId)
+    public async Task<ResponseEntity> GetDocumentByIdAsync(int documentId)
     {
         var file = await docRepository
                          .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == documentId,
                                include: nameof(OrgDocument.Organization))
                          .FirstOrDefaultAsync();
         return file is not null
-            ? ResponseBase.OkResult(file.FilePath)
-            : ResponseBase.Error404("Document not found");
+            ? ResponseEntity.OkResult(file.FilePath)
+            : ResponseEntity.Error404("Document not found");
     }
 
-    public async Task<ResponseBase> ReadXmlToStringAsync(int id)
+    public async Task<ResponseEntity> ReadXmlToStringAsync(int id)
     {
         var file = await docRepository
                          .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == id,
@@ -278,10 +278,10 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         var filePath = GetFilePath(file);
         using var stream = new FileStream(filePath, FileMode.Open);
         var xmlDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
-        return ResponseBase.OkResult(xmlDocument.ToString());
+        return ResponseEntity.OkResult(xmlDocument.ToString());
     }
 
-    public async Task<ResponseBase> DeleteFileByIdAsync(int documentId)
+    public async Task<ResponseEntity> DeleteFileByIdAsync(int documentId)
     {
         try
         {
@@ -291,7 +291,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                                          .FirstOrDefaultAsync();
             if (doc is null)
             {
-                return ResponseBase.Error404("Document not found");
+                return ResponseEntity.Error404("Document not found");
             }
 
             var filePath = Path.Combine(env.ContentRootPath, doc.FilePath);
@@ -301,25 +301,25 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             }
 
             return (await docRepository.HardDeleteAsync(documentId))
-                ? ResponseBase.Ok()
-                : ResponseBase.Error500("Something went wrong");
+                ? ResponseEntity.Ok()
+                : ResponseEntity.Error500("Something went wrong");
         }
         catch (Exception e)
         {
-            return ResponseBase.Error500("Error while deleting file", e.Message);
+            return ResponseEntity.Error500("Error while deleting file", e.Message);
         }
     }
 
-    public async Task<ResponseBase> ReadDocumentFromFileAsync(int docId)
+    public async Task<ResponseEntity> ReadDocumentFromFileAsync(int docId)
     {
         try
         {
             var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg && f.Id == docId,
                                                nameof(OrgDocument.Organization))
                                          .FirstOrDefaultAsync();
-            if (doc is null) return ResponseBase.Error404("Document Id doesn't exist");
+            if (doc is null) return ResponseEntity.Error404("Document Id doesn't exist");
             var filePath = GetFilePath(doc);
-            if (!File.Exists(filePath)) return ResponseBase.Error404("The Document may have been deleted or moved");
+            if (!File.Exists(filePath)) return ResponseEntity.Error404("The Document may have been deleted or moved");
 
             var docType = doc.DocumentType;
 
@@ -334,13 +334,13 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             };
 
             return data is not null
-                ? ResponseBase.OkResult(data)
-                : ResponseBase.Error400("Document type is not supported");
+                ? ResponseEntity.OkResult(data)
+                : ResponseEntity.Error400("Document type is not supported");
         }
         catch (Exception e)
         {
             logger.LogError(e, e.Message);
-            return ResponseBase.Error400("Can not find the document");
+            return ResponseEntity.Error400("Can not find the document");
         }
     }
 

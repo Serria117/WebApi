@@ -30,8 +30,8 @@ namespace WebApp.Services.InvoiceService;
 
 public interface IInvoiceService
 {
-    Task<ResponseBase> DeletePurchaseInvoicesAsync(List<string> ids);
-    Task<ResponseBase> DeleteSoldInvoicesAsync(List<string> ids);
+    Task<ResponseEntity> DeletePurchaseInvoicesAsync(List<string> ids);
+    Task<ResponseEntity> DeleteSoldInvoicesAsync(List<string> ids);
 
     // Define methods for the InvoiceService here
     /// <summary>
@@ -50,9 +50,9 @@ public interface IInvoiceService
     /// <param name="from">Start date</param>
     /// <param name="to">End date</param>
     /// <returns></returns>
-    Task<ResponseBase> ExtractPurchaseInvoices(string token, string from, string to, int[]? invoiceTypes);
+    Task<ResponseEntity> ExtractPurchaseInvoices(string token, string from, string to, int[]? invoiceTypes);
 
-    Task<ResponseBase> GetSoldInvoiceFromService(string token, string from, string to);
+    Task<ResponseEntity> GetSoldInvoiceFromService(string token, string from, string to);
 
     /// <summary>
     /// Query purchase invoices of a given company's taxId
@@ -60,14 +60,14 @@ public interface IInvoiceService
     /// <param name="taxCode">The company's taxId</param>
     /// <param name="invoiceParams">Request parameters to build the filter for query</param>
     /// <returns></returns>
-    Task<ResponseBase> QueryPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams);
+    Task<ResponseEntity> QueryPurchaseInvoices(string taxCode, InvoiceRequestParam invoiceParams);
 
     /// <summary>
     /// Upload purchase invoice from xml files
     /// </summary>
     /// <param name="files"></param>
     /// <returns></returns>
-    Task<ResponseBase> UploadPurchaseInvoices(List<IFormFile> files);
+    Task<ResponseEntity> UploadPurchaseInvoices(List<IFormFile> files);
 }
 
 //TODO: refactor this service class to replace the old InvoiceAppService
@@ -240,7 +240,7 @@ public partial class InvoiceService(IUserManager userManager,
 
 
     //TODO: separate this method into two methods: one for deserializable invoices and one for un-deserializable invoices
-    private async Task<ResponseBase> WriteInvoices(List<InvoiceDetailModel> deserializedInvoices,
+    private async Task<ResponseEntity> WriteInvoices(List<InvoiceDetailModel> deserializedInvoices,
                                                    List<string> unDeserializedInvoices, int total)
     {
         var totalSync = deserializedInvoices.Count + unDeserializedInvoices.Count;
@@ -310,7 +310,7 @@ public partial class InvoiceService(IUserManager userManager,
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage, message + errorMessage);
 
             var isInserted = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert); //Insert into DB
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = isInserted,
                 Code = totalSync == total ? "200" : "207",
@@ -331,7 +331,7 @@ public partial class InvoiceService(IUserManager userManager,
         catch (Exception e)
         {
             logger.LogError("Failed with Error: {mess}", e.Message);
-            return ResponseBase.Error500(
+            return ResponseEntity.Error500(
                 "Warning: saving invoices to database unsuccessfully due to an error occured.");
         }
     }

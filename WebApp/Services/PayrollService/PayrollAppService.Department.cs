@@ -23,7 +23,7 @@ public partial class PayrollAppService
         await DepartmentRepository.CreateAsync(newDep);
     }
 
-    public async Task<ResponseBase> GetDepartmentsAsync(RequestParam requestParam)
+    public async Task<ResponseEntity> GetDepartmentsAsync(RequestParam requestParam)
     {
         var orgId = WorkingOrg.ToGuid();
         if (orgId == Guid.Empty)
@@ -40,10 +40,10 @@ public partial class PayrollAppService
                                          d.Id, d.Name, d.Code
                                      })
                                      .ToListAsync();
-        return ResponseBase.OkResult(departments);
+        return ResponseEntity.OkResult(departments);
     }
 
-    public async Task<ResponseBase> GetDepartmentByIdAsync(string id)
+    public async Task<ResponseEntity> GetDepartmentByIdAsync(string id)
     {
         var orgId = WorkingOrg.ToGuid();
         if (orgId == Guid.Empty)
@@ -51,8 +51,8 @@ public partial class PayrollAppService
         var department = await DepartmentRepository.Find(d => d.Id == id && d.OrganizationId == orgId)
                                                    .FirstOrDefaultAsync();
         return department == null
-            ? ResponseBase.Error404("Department not found.")
-            : ResponseBase.OkResult(department);
+            ? ResponseEntity.Error404("Department not found.")
+            : ResponseEntity.OkResult(department);
     }
 
     public async Task<bool> IsDepartmentExistAsync(string name)

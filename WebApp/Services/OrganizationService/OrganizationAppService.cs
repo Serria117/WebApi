@@ -21,13 +21,13 @@ namespace WebApp.Services.OrganizationService;
 
 public interface IOrganizationAppService
 {
-    Task<ResponseBase> Create(OrganizationInputDto dto);
-    Task<ResponseBase> CreateMany(List<OrganizationInputDto> dto);
-    Task<ResponseBase> GetAllOrgByCurrentUserAsync(PageRequest req);
-    Task<ResponseBase> GetOneById(Guid id);
-    Task<ResponseBase> CheckTaxIdExist(string taxId);
-    Task<ResponseBase> Update(Guid orgId, OrganizationInputDto updateDto);
-    Task<ResponseBase> GetAllOrgForAdmin(PageRequest req);
+    Task<ResponseEntity> Create(OrganizationInputDto dto);
+    Task<ResponseEntity> CreateMany(List<OrganizationInputDto> dto);
+    Task<ResponseEntity> GetAllOrgByCurrentUserAsync(PageRequest req);
+    Task<ResponseEntity> GetOneById(Guid id);
+    Task<ResponseEntity> CheckTaxIdExist(string taxId);
+    Task<ResponseEntity> Update(Guid orgId, OrganizationInputDto updateDto);
+    Task<ResponseEntity> GetAllOrgForAdmin(PageRequest req);
 }
 
 public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRepo,
@@ -40,13 +40,13 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                     IOrgMongoRepository orgMongoRepository,
                                     IUserManager userManager) : BaseAppService(userManager), IOrganizationAppService
 {
-    public async Task<ResponseBase> Create(OrganizationInputDto dto)
+    public async Task<ResponseEntity> Create(OrganizationInputDto dto)
     {
         if (await TaxIdExist(dto.TaxId))
-            return ResponseBase.Error("Tax Id has already existed.");
+            return ResponseEntity.Error("Tax Id has already existed.");
 
         var invalidMessage = await ValidInputDto(dto);
-        if (!invalidMessage.IsNullOrEmpty()) return ResponseBase.Error("Invalid input", invalidMessage);
+        if (!invalidMessage.IsNullOrEmpty()) return ResponseEntity.Error("Invalid input", invalidMessage);
 
         var newOrg = dto.ToEntity();
 
@@ -63,10 +63,10 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         var saved = await orgRepo.CreateAsync(newOrg);
         //store new Id in mongo:
         //await orgMongoRepository.InsertOrgId(new OrgDoc { OrgId = saved.Id.ToString() });
-        return ResponseBase.OkResult(saved.ToDisplayDto());
+        return ResponseEntity.OkResult(saved.ToDisplayDto());
     }
 
-    public async Task<ResponseBase> CreateMany(List<OrganizationInputDto> input)
+    public async Task<ResponseEntity> CreateMany(List<OrganizationInputDto> input)
     {
         var duplicateTaxIds = input.GroupBy(o => o.TaxId)
                                    .Where(c => c.Count() > 1)
@@ -93,7 +93,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         var validDtos = validTaxIds.Except(invalidTaxOfficeIds).Except(invalidDistrictIds).ToList();
 
         if (validDtos.IsNullOrEmpty())
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Message = "All inputs are invalid",
                 Success = false,
@@ -122,7 +122,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         await orgRepo.CreateManyAsync(entitiesToSave);
 
 
-        return new ResponseBase
+        return new ResponseEntity
         {
             Success = true,
             Message =
@@ -142,14 +142,14 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         };
     }
 
-    public async Task<ResponseBase> CheckTaxIdExist(string taxId)
+    public async Task<ResponseEntity> CheckTaxIdExist(string taxId)
     {
         return await TaxIdExist(taxId)
-            ? new ResponseBase { Success = false, Message = "TaxId has already existed" }
-            : new ResponseBase { Success = true, Message = "OK" };
+            ? new ResponseEntity { Success = false, Message = "TaxId has already existed" }
+            : new ResponseEntity { Success = true, Message = "OK" };
     }
 
-    public async Task<ResponseBase> GetAllOrgForAdmin(PageRequest req)
+    public async Task<ResponseEntity> GetAllOrgForAdmin(PageRequest req)
     {
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
         var result = (await orgRepo.Find(filter: o => !o.Deleted &&
@@ -169,11 +169,11 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                   .AsNoTracking()
                                   .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto()); ;
         return req.Fields.Length == 0
-            ? ResponseBase.OkResult(result) //If no fields are specified, return all fields
-            : ResponseBase.OkResult(result.ProjectPagedList(req.Fields)); //return only specified fields
+            ? ResponseEntity.OkResult(result) //If no fields are specified, return all fields
+            : ResponseEntity.OkResult(result.ProjectPagedList(req.Fields)); //return only specified fields
     }
 
-    public async Task<ResponseBase> GetAllOrgByCurrentUserAsync(PageRequest req)
+    public async Task<ResponseEntity> GetAllOrgByCurrentUserAsync(PageRequest req)
     {
         var userId = UserId;
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
@@ -196,14 +196,14 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                   .ToPagedListAsync(req.Page, req.Size);
 
         return req.Fields.Length == 0
-            ? ResponseBase.OkResult(query.MapPagedList(x => x.ToDisplayDto()))
-            : ResponseBase.OkResult(query.ProjectPagedList(req.Fields));
+            ? ResponseEntity.OkResult(query.MapPagedList(x => x.ToDisplayDto()))
+            : ResponseEntity.OkResult(query.ProjectPagedList(req.Fields));
     }
 
-    public async Task<ResponseBase> Update(Guid orgId, OrganizationInputDto updateDto)
+    public async Task<ResponseEntity> Update(Guid orgId, OrganizationInputDto updateDto)
     {
         var invalidMessage = await ValidInputDto(updateDto);
-        if (!invalidMessage.IsNullOrEmpty()) return ResponseBase.Error("Invalid input", invalidMessage);
+        if (!invalidMessage.IsNullOrEmpty()) return ResponseEntity.Error("Invalid input", invalidMessage);
 
         var foundOrg = await orgRepo.Find(o => o.Id == orgId && !o.Deleted,
                                           include: nameof(Organization.OrganizationLoginInfos))
@@ -211,12 +211,12 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         if (foundOrg is null)
         {
-            return new ResponseBase { Success = false, Message = "Organization Id not found" };
+            return new ResponseEntity { Success = false, Message = "Organization Id not found" };
         }
 
         if (await TaxIdExist(updateDto.TaxId) && updateDto.TaxId != foundOrg.TaxId)
         {
-            return new ResponseBase { Success = false, Message = "The TaxId you enter has already existed" };
+            return new ResponseEntity { Success = false, Message = "The TaxId you enter has already existed" };
         }
 
         updateDto.UpdateEntity(foundOrg);
@@ -273,10 +273,10 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         //add new items into existList:
         foundOrg.OrganizationLoginInfos = updateList.ToHashSet();
         var saved = await orgRepo.UpdateAsync(foundOrg);
-        return new ResponseBase { Success = true, Data = saved.Id, Message = "Update successfully" };
+        return new ResponseEntity { Success = true, Data = saved.Id, Message = "Update successfully" };
     }
 
-    public async Task<ResponseBase> GetOneById(Guid id)
+    public async Task<ResponseEntity> GetOneById(Guid id)
     {
         var org = await orgRepo.Find(filter: x => x.Id == id,
                                      include: [nameof(Organization.OrganizationLoginInfos)])
@@ -284,8 +284,8 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
                                .Include(x => x.TaxOffice2)
                                .FirstOrDefaultAsync();
         return org == null
-            ? ResponseBase.Error(ResponseMessage.NotFound)
-            : ResponseBase.OkResult(org.ToDisplayDto());
+            ? ResponseEntity.Error(ResponseMessage.NotFound)
+            : ResponseEntity.OkResult(org.ToDisplayDto());
     }
 
     private async Task<bool> TaxIdExist(string taxId)

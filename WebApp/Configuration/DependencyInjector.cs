@@ -18,6 +18,7 @@ using WebApp.Services.PayrollService;
 using WebApp.Services.RegionService;
 using WebApp.Services.RestService;
 using WebApp.Services.RiskCompanyService;
+using WebApp.Services.TaxDutyServices;
 using WebApp.Services.TaxProcedureService;
 using WebApp.Services.TemplateServices;
 using WebApp.Services.UserService;
@@ -114,5 +115,8 @@ public static class DependencyInjector
         s.AddScoped<IEmailAppService, EmailAppService>();
         s.AddScoped<ITaxProcedureAppService, TaxProcedureAppService>();
         s.AddScoped<ITemplateAppService, TemplateAppService>();
+        s.AddScoped<ITaxDutyAppService, TaxDutyAppService>();
+        s.AddScoped<ITaxDutyRecordAppService, TaxDutyRecordAppService>();
+        s.AddScoped<ITaxDutyCategoryAppService, TaxDutyCategoryAppService>();
     }
 }

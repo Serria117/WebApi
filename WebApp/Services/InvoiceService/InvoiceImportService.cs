@@ -16,7 +16,7 @@ namespace WebApp.Services.InvoiceService;
 
 public interface IInvoiceImportService
 {
-    Task<ResponseBase> ImportPurchaseInvoice(List<IFormFile> files);
+    Task<ResponseEntity> ImportPurchaseInvoice(List<IFormFile> files);
 }
 
 public class InvoiceImportService(IUserManager userManager,
@@ -28,7 +28,7 @@ public class InvoiceImportService(IUserManager userManager,
 {
     private const string UploadFolder = "Uploads";
     private const string PurchaseInvoiceFolder = "PurchaseInvoices";
-    public async Task<ResponseBase> ImportPurchaseInvoice(List<IFormFile> files)
+    public async Task<ResponseEntity> ImportPurchaseInvoice(List<IFormFile> files)
     {
         if (!files.Any())
         {
@@ -90,7 +90,7 @@ public class InvoiceImportService(IUserManager userManager,
             }
 
         }
-        return ResponseBase.OkResult(docs);
+        return ResponseEntity.OkResult(docs);
     }
 
     private InvoiceDetailDoc MapToInvoiceDoc(XDocument xml)

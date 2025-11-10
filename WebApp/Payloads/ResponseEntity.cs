@@ -8,7 +8,7 @@ namespace WebApp.Payloads;
 /// <summary>
 /// Basic response wrapper object
 /// </summary>
-public class ResponseBase
+public class ResponseEntity
 {
     public string? Code { get; set; }
     public bool Success { get; set; } = true;
@@ -19,23 +19,23 @@ public class ResponseBase
     public long? TotalCount { get; set; }
     public object? Data { get; set; }
 
-    public static ResponseBase Ok()
+    public static ResponseEntity Ok()
     {
-        return new ResponseBase { Code = "200", Success = true };
+        return new ResponseEntity { Code = "200", Success = true };
     }
 
-    public static ResponseBase Ok(string message)
+    public static ResponseEntity Ok(string message)
     {
-        return new ResponseBase { Code = "200", Success = true, Message = message };
+        return new ResponseEntity { Code = "200", Success = true, Message = message };
     }
 
-    public static ResponseBase Ok(string code, string message)
+    public static ResponseEntity Ok(string code, string message)
     {
-        return new ResponseBase { Success = true, Message = message, Code = code };
+        return new ResponseEntity { Success = true, Message = message, Code = code };
     }
-    public static ResponseBase OkResult(object data)
+    public static ResponseEntity OkResult(object data)
     {
-        ResponseBase response = new()
+        ResponseEntity response = new()
         {
             Code = "200",
             Message = "OK",
@@ -64,9 +64,9 @@ public class ResponseBase
         return response;
     }
 
-    public static ResponseBase Error(string mesage, params string[] details)
+    public static ResponseEntity Error(string mesage, params string[] details)
     {
-        return new ResponseBase
+        return new ResponseEntity
         {
             Success = false,
             Message = mesage,
@@ -75,9 +75,9 @@ public class ResponseBase
         };
     }
 
-    public static ResponseBase Error(string mesage, List<string> details)
+    public static ResponseEntity Error(string mesage, List<string> details)
     {
-        return new ResponseBase
+        return new ResponseEntity
         {
             Success = false,
             Message = mesage,
@@ -85,9 +85,9 @@ public class ResponseBase
         };
     }
 
-    public static ResponseBase Error400(string message, params string[] details)
+    public static ResponseEntity Error400(string message, params string[] details)
     {
-        return new ResponseBase
+        return new ResponseEntity
         {
             Code = "400",
             Success = false,
@@ -96,9 +96,9 @@ public class ResponseBase
         };
     }
     
-    public static ResponseBase Error404(string message, params string[] details)
+    public static ResponseEntity Error404(string message, params string[] details)
     {
-        return new ResponseBase
+        return new ResponseEntity
         {
             Code = "404",
             Success = false,
@@ -107,9 +107,9 @@ public class ResponseBase
         };
     }
 
-    public static ResponseBase Error500(string message, params string[] details)
+    public static ResponseEntity Error500(string message, params string[] details)
     {
-        return new ResponseBase
+        return new ResponseEntity
         {
             Code = "500",
             Success = false,

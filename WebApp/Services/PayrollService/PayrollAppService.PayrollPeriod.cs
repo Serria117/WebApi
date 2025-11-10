@@ -12,14 +12,14 @@ namespace WebApp.Services.PayrollService;
 
 public partial class PayrollAppService
 {
-    public async Task<ResponseBase> CreatePayrollPeriodsAsync(int year, Weekend weekend)
+    public async Task<ResponseEntity> CreatePayrollPeriodsAsync(int year, Weekend weekend)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(year, 1990);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(year, DateTime.Now.Year);
 
         var org = await OrganizationRepository.Find(o => o.Id == WorkingOrg.ToGuid())
                                               .FirstOrDefaultAsync();
-        if (org is null) return ResponseBase.Error404("Organization not found.");
+        if (org is null) return ResponseEntity.Error404("Organization not found.");
         var previousVersion = await PayrollPeriodRepository
                                     .Find(p => !p.Deleted && p.OrganizationId == WorkingOrg.ToGuid())
                                     .Select(p => p.Version)
@@ -45,19 +45,19 @@ public partial class PayrollAppService
         }
 
         if (periods.Count > 0) await PayrollPeriodRepository.CreateManyAsync(periods);
-        return ResponseBase.Ok();
+        return ResponseEntity.Ok();
     }
 
-    public async Task<ResponseBase> GetPayrollPeriodAsync(long pId)
+    public async Task<ResponseEntity> GetPayrollPeriodAsync(long pId)
     {
         var result = await GetPayrollPeriod(pId);
         return result is null
-            ? ResponseBase.Error404("PayrollPeriod not found.")
-            : ResponseBase.OkResult(result);
+            ? ResponseEntity.Error404("PayrollPeriod not found.")
+            : ResponseEntity.OkResult(result);
     }
 
     // Retrieve the list of payroll periods
-    public async Task<ResponseBase> GetYearPayrollPeriod(PayrollPeriodQuery query)
+    public async Task<ResponseEntity> GetYearPayrollPeriod(PayrollPeriodQuery query)
     {
         try
         {
@@ -68,12 +68,12 @@ public partial class PayrollAppService
                                 .OrderBy(p => p.Year).ThenBy(p => p.Version)
                                 .ToListAsync();
             
-            return ResponseBase.OkResult(periods.Select(x => x.ToDisplayDto()).ToList());
+            return ResponseEntity.OkResult(periods.Select(x => x.ToDisplayDto()).ToList());
         }
         catch (Exception e)
         {
             logger.LogErrorFormatted(exception: e);
-            return ResponseBase.Error(ResponseMessage.Error);
+            return ResponseEntity.Error(ResponseMessage.Error);
         }
     }
     

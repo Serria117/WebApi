@@ -14,17 +14,17 @@ namespace WebApp.Services.InvoiceService;
 
 public partial class InvoiceService
 {
-    public async Task<ResponseBase> DeleteSoldInvoicesAsync(List<string> ids)
+    public async Task<ResponseEntity> DeleteSoldInvoicesAsync(List<string> ids)
     {
         var result = await soldInvoiceDetailRepository.DeleteSoldInvoice(ids);
-        return result ? ResponseBase.Ok() : ResponseBase.Error("Failed to delete invoices");
+        return result ? ResponseEntity.Ok() : ResponseEntity.Error("Failed to delete invoices");
     }
 
-    public async Task<ResponseBase> GetSoldInvoiceFromService(string token, string from, string to)
+    public async Task<ResponseEntity> GetSoldInvoiceFromService(string token, string from, string to)
     {
         var response = await restService.GetSoldInvoiceInRangeAsync(token, from, to);
         var countFromResponse = response.TotalCount ?? 0;
-        if (countFromResponse == 0) return new ResponseBase
+        if (countFromResponse == 0) return new ResponseEntity
         {
             TotalCount = countFromResponse,
             Message = $"Không có hóa đơn bán hàng phát sinh từ ngày {from} đến ngày {to}"
@@ -32,7 +32,7 @@ public partial class InvoiceService
 
         if (response is not { Success: true, Data: not null })
         {
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = false,
                 Message = "Đã xảy ra lỗi trong quá trình tải hóa đơn. Hãy thử lại sau!"
@@ -60,7 +60,7 @@ public partial class InvoiceService
 
         if (invoiceList.Count == 0)
         {
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = true,
                 Message = "Không có hóa đơn mới cần tải về"
@@ -236,7 +236,7 @@ public partial class InvoiceService
             logger.LogInfoFormatted($"Inserted remaining {deserializedList.Count} invoices. Total {insertedCount} invoices have been saved.");
         }
 
-        return new ResponseBase
+        return new ResponseEntity
         {
             Success = true,
             Code = "200",

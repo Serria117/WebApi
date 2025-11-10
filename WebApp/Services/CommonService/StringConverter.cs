@@ -365,14 +365,14 @@ public static partial class StringConverter
         if (token == null) return string.Empty;
         return (string)token!;
     }
-    
+
     public static string GetJsonValue(this JObject? jObject, string key)
     {
         if (jObject == null || string.IsNullOrEmpty(key)) return string.Empty;
-    
+
         var parts = key.Split('/', StringSplitOptions.RemoveEmptyEntries);
         JToken? current = jObject;
-    
+
         foreach (var part in parts)
         {
             if (current is JObject obj)
@@ -398,23 +398,49 @@ public static partial class StringConverter
                 return string.Empty;
             }
         }
-    
+
         return current?.ToNonNullString() ?? string.Empty;
     }
-    
+
     public static string RandomString(int length)
     {
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         var random = new Random();
         return new string(Enumerable.Repeat(chars, length)
-                                   .Select(s => s[random.Next(s.Length)]).ToArray());
+                                    .Select(s => s[random.Next(s.Length)]).ToArray());
     }
-    
+
     public static string RandomNumber(int length)
     {
         const string chars = "0123456789";
         var random = new Random();
         return new string(Enumerable.Repeat(chars, length)
-                                   .Select(s => s[random.Next(s.Length)]).ToArray());
+                                    .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    public static DateTime GetQuarterEndDate(int quarter, int year)
+    {
+        if (quarter is <= 0 or > 4) throw new ArgumentException("Invalid quarter");
+        if (year <= 0) throw new ArgumentException("Invalid year");
+        return quarter switch
+        {
+            1 => new DateTime(year, 3, 31),
+            2 => new DateTime(year, 6, 30),
+            3 => new DateTime(year, 9, 30),
+            _ => new DateTime(year, 12, 31)
+        };
+    }
+
+    /// <summary>
+    /// Update the target string with source string if it's not null or empty
+    /// </summary>
+    /// <param name="target">The original string to update</param>
+    /// <param name="source">The string to use as a replacement</param>
+    /// <returns>The updated string</returns>
+    public static string UpdateNotNull(this string target, string? source)
+    {
+        if (string.IsNullOrEmpty(source)) return target;
+        target = source;
+        return target;
     }
 }

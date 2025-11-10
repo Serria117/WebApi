@@ -87,6 +87,11 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<ReportTemplateXml> ReportTemplateXml { get; set; }
     public DbSet<ReportContentXml> ReportContentXml { get; set; }
     public DbSet<FinancialStatementNote> FinancialStatementNotes { get; set; }
+    
+    public DbSet<TaxReportDuty> TaxReportDuties { get; set; }
+    public DbSet<TaxDutyRecord> TaxDutyRecords { get; set; }
+    public DbSet<OrganizationTaxDuty> OrganizationTaxDuties { get; set; }
+    public DbSet<TaxDutyCategory> TaxDutyCategories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

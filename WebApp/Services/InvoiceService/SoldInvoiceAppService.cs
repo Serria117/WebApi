@@ -27,8 +27,8 @@ public interface ISoldInvoiceAppService
     /// <param name="token">The authentication token used to access the service.</param>
     /// <param name="from">The start date of the range in which to retrieve sold invoices.</param>
     /// <param name="to">The end date of the range in which to retrieve sold invoices.</param>
-    /// <returns>An <see cref="ResponseBase"/> containing the result of the operation, including success status and retrieved data.</returns>
-    Task<ResponseBase> GetInvoiceFromService(string token, string from, string to);
+    /// <returns>An <see cref="ResponseEntity"/> containing the result of the operation, including success status and retrieved data.</returns>
+    Task<ResponseEntity> GetInvoiceFromService(string token, string from, string to);
 }
 
 /// <summary>
@@ -43,7 +43,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
                                    INotificationAppService notificationService)
     : BaseAppService(userManager), ISoldInvoiceAppService
 {
-    public async Task<ResponseBase> GetInvoiceFromService(string token, string from, string to)
+    public async Task<ResponseEntity> GetInvoiceFromService(string token, string from, string to)
     {
         var response = await restService.GetSoldInvoiceInRangeAsync(token, from, to);
         var countFromResponse = response.TotalCount ?? 0;
@@ -51,14 +51,14 @@ public class SoldInvoiceAppService(IUserManager userManager,
         if (countFromResponse == 0)
         {
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "Không có hóa đơn mới cần tải về!");
-            return ResponseBase.OkResult("Không có hóa đơn mới cần tải về!");
+            return ResponseEntity.OkResult("Không có hóa đơn mới cần tải về!");
         }
         
         if (response is not { Success: true, Data: not null })
         {
             logger.LogWarning("Invoice not found. {message}", response.Message);
             //await notificationService.SendAsync(UserId, HubName.InvoiceMessage, "No invoice found");
-            return ResponseBase.Error($"Invoice not found. {response.Message}");
+            return ResponseEntity.Error($"Invoice not found. {response.Message}");
         }
 
         var responseData = (List<SoldInvoiceModel>)response.Data;
@@ -89,7 +89,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
         var total = invoiceList.Count;
         if (total == 0)
         {
-            return ResponseBase.OkResult("Không có hóa đơn mới cần tải về!");
+            return ResponseEntity.OkResult("Không có hóa đơn mới cần tải về!");
         }
 
         var deserializedList = new List<SoldInvoiceDetail>();
@@ -254,7 +254,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
                                                        totalSuccess: insertedCount,
                                                        type: SyncType.Sold);
 
-        return new ResponseBase
+        return new ResponseEntity
         {
             Success = true,
             Message = "Ok",

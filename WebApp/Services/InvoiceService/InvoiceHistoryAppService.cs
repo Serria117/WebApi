@@ -9,11 +9,11 @@ using X.Extensions.PagedList.EF;
 namespace WebApp.Services.InvoiceService;
 public interface IInvoiceHistoryAppService
 {
-    Task<ResponseBase> CreateHistoryAsync(DateTime from, DateTime to, 
+    Task<ResponseEntity> CreateHistoryAsync(DateTime from, DateTime to, 
                                          long totalFound, 
                                          long totalSuccess, 
                                          SyncType type, bool? success = true);
-    Task<ResponseBase> GetHistoryAsync(PageRequest req);
+    Task<ResponseEntity> GetHistoryAsync(PageRequest req);
 
 }
 
@@ -24,12 +24,12 @@ public class InvoiceHistoryAppService(IUserManager userManager,
     // For example, methods to retrieve, create, update, or delete invoice history records
     // It can utilize the UserManager for user-related operations if needed
 
-    public async Task<ResponseBase> GetHistoryAsync(PageRequest req)
+    public async Task<ResponseEntity> GetHistoryAsync(PageRequest req)
     {
         var orgId = WorkingOrg.ToGuid();
         if (orgId == Guid.Empty)
         {
-            return ResponseBase.Error("Organization ID is not set or invalid.");
+            return ResponseEntity.Error("Organization ID is not set or invalid.");
         }
 
         var result = await historyRepo
@@ -52,10 +52,10 @@ public class InvoiceHistoryAppService(IUserManager userManager,
             })
             .ToPagedListAsync(req.Page, req.Size);
 
-        return ResponseBase.OkResult(result);
+        return ResponseEntity.OkResult(result);
     }
 
-    public async Task<ResponseBase> CreateHistoryAsync(DateTime from, DateTime to, 
+    public async Task<ResponseEntity> CreateHistoryAsync(DateTime from, DateTime to, 
                                                       long totalFound, long totalSuccess, 
                                                       SyncType type, bool? success = true)
     {
@@ -72,6 +72,6 @@ public class InvoiceHistoryAppService(IUserManager userManager,
             Completed = success ?? totalFound == totalSuccess
         };
         await historyRepo.CreateAsync(history);
-        return ResponseBase.OkResult(history);
+        return ResponseEntity.OkResult(history);
     }
 }

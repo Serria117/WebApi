@@ -9,23 +9,23 @@ namespace WebApp.Services.PayrollService;
 
 public interface IPayrollAppService
 {
-    Task<ResponseBase> CreatePayrollPeriodsAsync(int year, Weekend weekend);
-    Task<ResponseBase> CreateEmployeeAsync(EmployeeCreateDto dto);
-    Task<ResponseBase> GetEmployeesAsync(EmployeeQuery query);
-    Task<ResponseBase> GetEmployeesInPeriod(long periodId);
-    Task<ResponseBase> GetPayrollPeriodAsync(long pId);
-    Task<ResponseBase> GetYearPayrollPeriod(PayrollPeriodQuery query);
-    Task<ResponseBase> UpdateEmployeeAsync(long id, EmployeeUpdate dto);
-    Task<ResponseBase> DeleteEmployeesAsync(List<long> idList);
-    Task<ResponseBase> AddSalaryToEmployeeAsync(SalaryCreate dto);
-    Task<ResponseBase> GetEmployeeById(long id);
-    Task<ResponseBase> EditDependentsInEmployeeAsync(long employeeId, ICollection<DependentCreateDto> dtoList);
-    Task<ResponseBase> CreateAllowanceType(AllowanceTypeCreate dto);
-    Task<ResponseBase> GetAllowanceTypes();
-    Task<ResponseBase> CreateTimesheetsAsync(long periodId);
+    Task<ResponseEntity> CreatePayrollPeriodsAsync(int year, Weekend weekend);
+    Task<ResponseEntity> CreateEmployeeAsync(EmployeeCreateDto dto);
+    Task<ResponseEntity> GetEmployeesAsync(EmployeeQuery query);
+    Task<ResponseEntity> GetEmployeesInPeriod(long periodId);
+    Task<ResponseEntity> GetPayrollPeriodAsync(long pId);
+    Task<ResponseEntity> GetYearPayrollPeriod(PayrollPeriodQuery query);
+    Task<ResponseEntity> UpdateEmployeeAsync(long id, EmployeeUpdate dto);
+    Task<ResponseEntity> DeleteEmployeesAsync(List<long> idList);
+    Task<ResponseEntity> AddSalaryToEmployeeAsync(SalaryCreate dto);
+    Task<ResponseEntity> GetEmployeeById(long id);
+    Task<ResponseEntity> EditDependentsInEmployeeAsync(long employeeId, ICollection<DependentCreateDto> dtoList);
+    Task<ResponseEntity> CreateAllowanceType(AllowanceTypeCreate dto);
+    Task<ResponseEntity> GetAllowanceTypes();
+    Task<ResponseEntity> CreateTimesheetsAsync(long periodId);
     Task CreateDepartmentAsync(DepartmentCreate dto);
-    Task<ResponseBase> GetDepartmentsAsync(RequestParam requestParam);
-    Task<ResponseBase> GetDepartmentByIdAsync(string id);
+    Task<ResponseEntity> GetDepartmentsAsync(RequestParam requestParam);
+    Task<ResponseEntity> GetDepartmentByIdAsync(string id);
     Task<bool> IsDepartmentExistAsync(string name);
 }
 

@@ -1311,6 +1311,33 @@ namespace WebApp.Core.Migrations
                     b.ToTable("OrganizationLoginInfos");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.OrganizationTaxDuty", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("DutyPeriodType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("TaxReportDutyId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "OrganizationId" }, "IX_Organizations_TaxDuties_OrganziationId");
+
+                    b.HasIndex(new[] { "TaxReportDutyId" }, "IX_Organizations_TaxDuties_TaxReportDutyId");
+
+                    b.ToTable("Organizations_TaxDuties");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.Allowance", b =>
                 {
                     b.Property<long>("Id")
@@ -1931,6 +1958,78 @@ namespace WebApp.Core.Migrations
                     b.ToTable("Roles");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxDutyCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("UnsignName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TaxDutyCategories");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxDutyRecord", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DutyPeriodType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Period")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TaxDutyId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TaxPayable")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TaxDutyRecords");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
                 {
                     b.Property<int>("Id")
@@ -2050,6 +2149,46 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("UnsignName");
 
                     b.ToTable("TaxProcedures");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxReportDuty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TaxDutyCategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("TaxDutyCategoryId");
+
+                    b.ToTable("TaxReportDuties");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Template", b =>
@@ -2259,6 +2398,8 @@ namespace WebApp.Core.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("VerificationKey");
 
                     b.ToTable("UserVerifications");
                 });
@@ -2715,6 +2856,17 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxReportDuty", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.TaxDutyCategory", "Category")
+                        .WithMany("TaxReportDuties")
+                        .HasForeignKey("TaxDutyCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.TemplateFile", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Template", null)
@@ -2823,6 +2975,11 @@ namespace WebApp.Core.Migrations
                     b.Navigation("TaxOffices");
 
                     b.Navigation("TaxOffices2");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxDutyCategory", b =>
+                {
+                    b.Navigation("TaxReportDuties");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>

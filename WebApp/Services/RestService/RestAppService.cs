@@ -23,10 +23,10 @@ namespace WebApp.Services.RestService;
 
 public interface IRestAppService
 {
-    Task<ResponseBase> Authenticate(InvoiceLoginModel login);
+    Task<ResponseEntity> Authenticate(InvoiceLoginModel login);
     Task<CaptchaModel?> GetCaptcha();
 
-    Task<ResponseBase> GetPurchaseInvoiceListInRange(string token, string from, string to, int[]? invoiceTypes = null);
+    Task<ResponseEntity> GetPurchaseInvoiceListInRange(string token, string from, string to, int[]? invoiceTypes = null);
 
     /// <summary>
     /// Attempt to get an invoice's detail of goods sold
@@ -34,9 +34,9 @@ public interface IRestAppService
     /// <param name="token">Bearer token to use in the request to hoadondientu service</param>
     /// <param name="invoiceModel"></param>
     /// <returns>A response object containing the result of the request</returns>
-    Task<ResponseBase> GetPurchaseInvoiceDetail(string token, InvoiceModel invoiceModel);
+    Task<ResponseEntity> GetPurchaseInvoiceDetail(string token, InvoiceModel invoiceModel);
 
-    Task<ResponseBase> GetSoldInvoiceInRangeAsync(string token, string from, string to);
+    Task<ResponseEntity> GetSoldInvoiceInRangeAsync(string token, string from, string to);
 
     /// <summary>
     /// Get a specific invoice's detail of goods sold
@@ -44,7 +44,7 @@ public interface IRestAppService
     /// <param name="token">jwt token to use in the request</param>
     /// <param name="invoice">The invoice object to get detail</param>
     /// <returns>The ResponseBase object containing the result of the request</returns>
-    Task<ResponseBase> GetSoldInvoiceDetail(string token, SoldInvoiceModel invoice);
+    Task<ResponseEntity> GetSoldInvoiceDetail(string token, SoldInvoiceModel invoice);
 }
 
 public class RestBaseAppService(IRestClient restClient,
@@ -70,7 +70,7 @@ public class RestBaseAppService(IRestClient restClient,
         return data;
     }
 
-    public async Task<ResponseBase> Authenticate(InvoiceLoginModel login)
+    public async Task<ResponseEntity> Authenticate(InvoiceLoginModel login)
     {
         var request = new RestRequest("/security-taxpayer/authenticate", Method.Post);
         request.AddHeader("Content-Type", "application/json");
@@ -95,7 +95,7 @@ public class RestBaseAppService(IRestClient restClient,
             if (expiredTime > DateTime.UtcNow)
             {
                 logger.LogInformation("found valid token in database");
-                return ResponseBase.OkResult(new InvoiceAuthenticationResponse
+                return ResponseEntity.OkResult(new InvoiceAuthenticationResponse
                 {
                     Token = token ?? string.Empty,
                     Success = true
@@ -108,9 +108,9 @@ public class RestBaseAppService(IRestClient restClient,
                 var newToken = response.Data;
                 foundToken.Token = newToken.Token;
                 await invoiceServiceTokenRepository.UpdateAsync(foundToken);
-                return ResponseBase.OkResult(response.Data);
+                return ResponseEntity.OkResult(response.Data);
             }
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = false,
                 Message = response.Data?.Message,
@@ -129,10 +129,10 @@ public class RestBaseAppService(IRestClient restClient,
                     TaxId = login.Username,
                     Token = response.Data.Token
                 });
-                return ResponseBase.OkResult(response.Data);
+                return ResponseEntity.OkResult(response.Data);
             }
             Console.WriteLine(response.Content);
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = false,
                 Message = response.Data?.Message,
@@ -145,7 +145,7 @@ public class RestBaseAppService(IRestClient restClient,
 
     #region SOLD INVOICE METHODS
 
-    public async Task<ResponseBase> GetSoldInvoiceInRangeAsync(string token, string from, string to)
+    public async Task<ResponseEntity> GetSoldInvoiceInRangeAsync(string token, string from, string to)
     {
         List<SoldInvoiceModel> invoicesList = [];
 
@@ -238,7 +238,7 @@ public class RestBaseAppService(IRestClient restClient,
         }
         Console.WriteLine($"InvoiceList count: {invoicesList.Count}");
         Console.WriteLine($"Count from response: {countFromResponse}");
-        return new ResponseBase
+        return new ResponseEntity
         {
             Code = "200",
             Success = true,
@@ -295,7 +295,7 @@ public class RestBaseAppService(IRestClient restClient,
         return default;
     }
 
-    public async Task<ResponseBase> GetSoldInvoiceDetail(string token, SoldInvoiceModel invoice)
+    public async Task<ResponseEntity> GetSoldInvoiceDetail(string token, SoldInvoiceModel invoice)
     {
         List<string> endpoints = ["/query/invoices/detail", "/sco-query/invoices/detail"];
 
@@ -334,7 +334,7 @@ public class RestBaseAppService(IRestClient restClient,
 
         if (retryCount > 5)
         {
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Code = "429",
                 Success = false,
@@ -347,7 +347,7 @@ public class RestBaseAppService(IRestClient restClient,
         {
             logger.LogWarning("Something wrong with the response {statuscode}", response.StatusCode.ToString());
             //logger.LogError("The content of error response:\n {content}", response.Content);
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = false,
                 Message = $"{response.StatusCode.ToString()} - {response.Content}",
@@ -357,7 +357,7 @@ public class RestBaseAppService(IRestClient restClient,
 
         if (response is { Content: not null, Data: null })
         {
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Code = "99", //Mark this case as success but content is empty
                 Success = true,
@@ -368,14 +368,14 @@ public class RestBaseAppService(IRestClient restClient,
         }
 
         //Console.WriteLine($"{response.Content} successfully retrieved");
-        return ResponseBase.OkResult(response.Data!);
+        return ResponseEntity.OkResult(response.Data!);
     }
 
     #endregion
 
     #region PURCHASE INVOICE METHODS
 
-    public async Task<ResponseBase> GetPurchaseInvoiceListInRange(string token, string from,
+    public async Task<ResponseEntity> GetPurchaseInvoiceListInRange(string token, string from,
                                                                  string to, int[]? invoiceTypes = null)
     {
         try
@@ -458,7 +458,7 @@ public class RestBaseAppService(IRestClient restClient,
 
             logger.LogInformation("Finished getting Invoice List at: {time}", DateTime.Now.ToLocalTime());
 
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Code = "200",
                 Success = true,
@@ -472,7 +472,7 @@ public class RestBaseAppService(IRestClient restClient,
         catch (Exception e)
         {
             logger.LogWarning("Interupted with error [{err}] at {time}", e.Message, DateTime.Now.ToLocalTime());
-            return ResponseBase.Error(e.Message);
+            return ResponseEntity.Error(e.Message);
         }
     }
 
@@ -529,7 +529,7 @@ public class RestBaseAppService(IRestClient restClient,
         }
     }
 
-    public async Task<ResponseBase> GetPurchaseInvoiceDetail(string token, InvoiceModel invoiceModel)
+    public async Task<ResponseEntity> GetPurchaseInvoiceDetail(string token, InvoiceModel invoiceModel)
     {
         var invoice = invoiceModel.ToDisplayModel();
         var endpoint = invoice.InvoiceTypeNumber switch
@@ -575,7 +575,7 @@ public class RestBaseAppService(IRestClient restClient,
 
         if (retryCount > 5)
         {
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Code = InvoiceDetailStatus.TooManyRequest.ToString(),
                 Success = false,
@@ -587,7 +587,7 @@ public class RestBaseAppService(IRestClient restClient,
         if (response.StatusCode != HttpStatusCode.OK)
         {
             logger.LogWarning("Something wrong with the response {}", response.StatusCode);
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = false,
                 Code = InvoiceDetailStatus.Failed.ToString(),
@@ -598,7 +598,7 @@ public class RestBaseAppService(IRestClient restClient,
 
         if (response is { Content: not null, Data: null })
         {
-            return new ResponseBase
+            return new ResponseEntity
             {
                 Success = true,
                 Code = InvoiceDetailStatus.Undeserializable.ToString(),
@@ -610,7 +610,7 @@ public class RestBaseAppService(IRestClient restClient,
             };
         }
 
-        return new ResponseBase
+        return new ResponseEntity
         {
             Data = response.Data,
             Success = true,

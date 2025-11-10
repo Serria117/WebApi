@@ -19,7 +19,7 @@ namespace WebApp.Services.UserService
 {
     public interface IUserAppService
     {
-        Task<ResponseBase> CreateUser(UserInputDto user);
+        Task<ResponseEntity> CreateUser(UserInputDto user);
 
         /// <summary>
         /// Authenticates the user with the provided login details.
@@ -44,13 +44,13 @@ namespace WebApp.Services.UserService
         /// </summary>
         /// <param name="page">The page request containing pagination details.</param>
         /// <returns>A paginated list of users.</returns>
-        Task<ResponseBase> GetAllUsers(PageRequest page);
+        Task<ResponseEntity> GetAllUsers(PageRequest page);
 
         /// <summary>
         /// Unlocks a user account.
         /// </summary>
         /// <param name="userId">The ID of the user to unlock.</param>
-        Task<ResponseBase> LockOrUnlockUser(Guid userId);
+        Task<ResponseEntity> LockOrUnlockUser(Guid userId);
 
         /// <summary>
         /// Changes the roles of a user.
@@ -58,7 +58,7 @@ namespace WebApp.Services.UserService
         /// <param name="id">The ID of the user.</param>
         /// <param name="roleIds">The list of role IDs to assign to the user.</param>
         /// <returns>A response indicating the result of the operation.</returns>
-        Task<ResponseBase> ChangeUserRoles(Guid id, List<int> roleIds);
+        Task<ResponseEntity> ChangeUserRoles(Guid id, List<int> roleIds);
 
         /// <summary>
         /// Allows a user to change their own password.
@@ -66,7 +66,7 @@ namespace WebApp.Services.UserService
         /// <param name="oldPassword">The current password of the user.</param>
         /// <param name="newPassword">The new password to set.</param>
         /// <returns>A response indicating the result of the operation.</returns>
-        Task<ResponseBase> SelfChangePassword(string oldPassword, string newPassword);
+        Task<ResponseEntity> SelfChangePassword(string oldPassword, string newPassword);
 
         /// <summary>
         /// Adds organizations to a user.
@@ -74,7 +74,7 @@ namespace WebApp.Services.UserService
         /// <param name="user">The ID of the user.</param>
         /// <param name="orgIds">The collection of organization IDs to add to the user.</param>
         /// <returns>A response indicating the result of the operation.</returns>
-        Task<ResponseBase> AddOrganizationToUser(Guid user, ICollection<Guid> orgIds);
+        Task<ResponseEntity> AddOrganizationToUser(Guid user, ICollection<Guid> orgIds);
 
         /// <summary>
         /// Changes the working organization for the user.
@@ -104,11 +104,11 @@ namespace WebApp.Services.UserService
         /// <summary>
         /// Retrieves a list of all users for use in another service.
         /// </summary>
-        /// <returns>An <see cref="ResponseBase"/> containing the list of users.</returns>
-        Task<ResponseBase> GetAllUserForOtherService();
-        Task<ResponseBase> FindUserById(Guid id);
-        Task<ResponseBase> ResetPassword(Guid id, string newPassword);
-        Task<ResponseBase> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input);
+        /// <returns>An <see cref="ResponseEntity"/> containing the list of users.</returns>
+        Task<ResponseEntity> GetAllUserForOtherService();
+        Task<ResponseEntity> FindUserById(Guid id);
+        Task<ResponseEntity> ResetPassword(Guid id, string newPassword);
+        Task<ResponseEntity> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input);
         Task<AuthenticationResponse> Authenticate2Step(UserLoginWithVerifyCodeDto login);
         Task<AuthenticationResponse> RefreshVerificationCode(string key);
     }
@@ -128,7 +128,7 @@ namespace WebApp.Services.UserService
                                            IUserManager userManager) : BaseAppService(userManager), IUserAppService
     {
         private readonly string _defaultEmail = "ketoan.sline@gmail.com";
-        public async Task<ResponseBase> GetAllUsers(PageRequest page)
+        public async Task<ResponseEntity> GetAllUsers(PageRequest page)
         {
             try
             {
@@ -141,19 +141,19 @@ namespace WebApp.Services.UserService
                                         .ToPagedListAsync(page.Page, page.Size);
                 var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
                 return page.Fields.Length > 0
-                    ? ResponseBase.OkResult(dtoResult.ProjectPagedList(page.Fields))
-                    : ResponseBase.OkResult(dtoResult);
+                    ? ResponseEntity.OkResult(dtoResult.ProjectPagedList(page.Fields))
+                    : ResponseEntity.OkResult(dtoResult);
             }
             catch (Exception ex)
             {
                 logger.LogError("Error in GetAllUsers: {Message}, caused by {ExceptionType}", ex.Message,
                                 ex.GetType().Name);
-                return ResponseBase.Error("Failed to retrieve users");
+                return ResponseEntity.Error("Failed to retrieve users");
             }
         }
 
 
-        public async Task<ResponseBase> FindUserById(Guid id)
+        public async Task<ResponseEntity> FindUserById(Guid id)
         {
             var foundUser = await userRepository.Find(u => u.Id == id && !u.Deleted)
                                                 .Include(u => u.Roles)
@@ -161,11 +161,11 @@ namespace WebApp.Services.UserService
                                                 .AsSplitQuery()
                                                 .FirstOrDefaultAsync();
             return foundUser is null
-                ? ResponseBase.Error404("User not found")
-                : ResponseBase.OkResult(foundUser.ToDisplayDto());
+                ? ResponseEntity.Error404("User not found")
+                : ResponseEntity.OkResult(foundUser.ToDisplayDto());
         }
 
-        public async Task<ResponseBase> GetAllUserForOtherService()
+        public async Task<ResponseEntity> GetAllUserForOtherService()
         {
             try
             {
@@ -177,17 +177,17 @@ namespace WebApp.Services.UserService
                                                 })
                                                 .OrderBy(x => x.Id)
                                                 .ToListAsync();
-                return ResponseBase.OkResult(users);
+                return ResponseEntity.OkResult(users);
             }
             catch (Exception ex)
             {
                 logger.LogError("Error in GetAllUserForOtherService: {Message}, caused by {ExceptionType}", ex.Message,
                                 ex.GetType().Name);
-                return ResponseBase.Error("Failed to retrieve users for other service");
+                return ResponseEntity.Error("Failed to retrieve users for other service");
             }
         }
 
-        public async Task<ResponseBase> CreateUser(UserInputDto userDto)
+        public async Task<ResponseEntity> CreateUser(UserInputDto userDto)
         {
             if (userDto == null)
                 throw new Exception("Invalid user input");
@@ -213,7 +213,7 @@ namespace WebApp.Services.UserService
 
             //await userMongoRepository.InsertUser(MapToMongo(createdUser));
 
-            return ResponseBase.OkResult(createdUser.ToDisplayDto());
+            return ResponseEntity.OkResult(createdUser.ToDisplayDto());
         }
 
         public async Task<AuthenticationResponse> Authenticate(UserLoginDto login)
@@ -430,86 +430,86 @@ namespace WebApp.Services.UserService
             await RevokeRefreshTokenAsync(refreshToken);
         }
 
-        public async Task<ResponseBase> SelfChangePassword(string oldPassword, string newPassword)
+        public async Task<ResponseEntity> SelfChangePassword(string oldPassword, string newPassword)
         {
             try
             {
                 var id = UserManager.CurrentUserId(); //get current user id
                 if (id is null)
-                    return ResponseBase.Error("Unauthorized access");
+                    return ResponseEntity.Error("Unauthorized access");
 
                 var user = await userRepository.FindByIdAsync(Guid.Parse(id));
                 if (user is null)
-                    return ResponseBase.Error("User not found");
+                    return ResponseEntity.Error("User not found");
 
                 var checkOldPassword = oldPassword.PasswordVerify(user.Password);
                 if (!checkOldPassword)
-                    return ResponseBase.Error("Invalid old password");
+                    return ResponseEntity.Error("Invalid old password");
 
                 user.Password = newPassword.BCryptHash();
                 await userRepository.UpdateAsync(user);
-                return ResponseBase.Ok("Password changed successfully");
+                return ResponseEntity.Ok("Password changed successfully");
             }
             catch (Exception e)
             {
                 logger.LogError("Error: {message}, caused by {exceptionType}", e.Message, e.GetType().Name);
-                return ResponseBase.Error("Failed to update password");
+                return ResponseEntity.Error("Failed to update password");
             }
         }
 
-        public async Task<ResponseBase> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input)
+        public async Task<ResponseEntity> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input)
         {
             var found = await userRepository.Find(u => !u.Deleted && u.Id == userId).FirstOrDefaultAsync();
-            if(found is null) return ResponseBase.Error404("User not found");
+            if(found is null) return ResponseEntity.Error404("User not found");
             found.FullName = input.FullName;
             found.Email = input.Email;
             await userRepository.UpdateAsync(found);
-            return ResponseBase.Ok();
+            return ResponseEntity.Ok();
         }
 
-        public async Task<ResponseBase> ResetPassword(Guid id, string newPassword)
+        public async Task<ResponseEntity> ResetPassword(Guid id, string newPassword)
         {
             try
             {
                 var foundUser = await userRepository.Find(u => u.Id == id && !u.Deleted)
                                                     .FirstOrDefaultAsync();
                 if (foundUser is null)
-                    return ResponseBase.Error404("User not found");
+                    return ResponseEntity.Error404("User not found");
                 if (newPassword.Length < 6)
-                    return ResponseBase.Error400("Password must be at least 6 characters long");
+                    return ResponseEntity.Error400("Password must be at least 6 characters long");
                 foundUser.Password = newPassword.BCryptHash();
                 await userRepository.UpdateAsync(foundUser);
-                return ResponseBase.Ok("Password changed successfully");
+                return ResponseEntity.Ok("Password changed successfully");
             }
             catch (Exception e)
             {
                 logger.LogError("Error: {message}, caused by {exceptionType}", e.Message, e.GetType().Name);
-                return ResponseBase.Error("Error while resetting password: " + e.Message);
+                return ResponseEntity.Error("Error while resetting password: " + e.Message);
             }
         }
 
 
-        public async Task<ResponseBase> ChangeUserRoles(Guid id, List<int> roleIds)
+        public async Task<ResponseEntity> ChangeUserRoles(Guid id, List<int> roleIds)
         {
             var user = await userRepository.Find(u => u.Id == id)
                                            .Include(u => u.Roles)
                                            .FirstOrDefaultAsync();
-            if (user is null) return new ResponseBase() { Success = false, Message = "User not found" };
+            if (user is null) return new ResponseEntity() { Success = false, Message = "User not found" };
             var roles = await roleRepository.Find(r => roleIds.Contains(r.Id)).ToListAsync();
-            if (roles.Count == 0) return new ResponseBase { Success = false, Message = "Role not found" };
+            if (roles.Count == 0) return new ResponseEntity { Success = false, Message = "Role not found" };
             user.Roles.Clear();
             user.Roles = roles.ToHashSet();
             await userRepository.UpdateAsync(user);
             // await UpdateUserWithMongo(user);
-            return new ResponseBase { Message = "OK" };
+            return new ResponseEntity { Message = "OK" };
         }
 
-        public async Task<ResponseBase> LockOrUnlockUser(Guid userId)
+        public async Task<ResponseEntity> LockOrUnlockUser(Guid userId)
         {
             var user = await userRepository.Find(u => u.Id == userId).FirstOrDefaultAsync();
             if (user is null) throw new Exception("User not found");
             if (user.Id.ToString() == UserId)
-                return ResponseBase.Error400("Quản trị viên không được phép khóa/mở khóa tài khoản của chính mình");
+                return ResponseEntity.Error400("Quản trị viên không được phép khóa/mở khóa tài khoản của chính mình");
             user.Locked = !user.Locked; // toggle lock status
             await userRepository.UpdateAsync(user);
 
@@ -523,7 +523,7 @@ namespace WebApp.Services.UserService
             }
 
             var message = user.Locked ? $"Khóa tài khoản {user.Username}" : $"Mở khóa tài khoản {user.Username}";
-            return ResponseBase.Ok(message);
+            return ResponseEntity.Ok(message);
         }
 
 
@@ -572,15 +572,15 @@ namespace WebApp.Services.UserService
             }
         }
 
-        public async Task<ResponseBase> AddOrganizationToUser(Guid userId, ICollection<Guid> orgIds)
+        public async Task<ResponseEntity> AddOrganizationToUser(Guid userId, ICollection<Guid> orgIds)
         {
             var user = await userRepository.Find(x => x.Id == userId, include: nameof(User.Organizations))
                                            .FirstOrDefaultAsync();
-            if (user is null) return ResponseBase.Error404("User not found");
+            if (user is null) return ResponseEntity.Error404("User not found");
             var org = await organizationRepository.Find(x => orgIds.Contains(x.Id)).ToListAsync();
             user.Organizations = org.ToHashSet();
             await userRepository.UpdateAsync(user);
-            return ResponseBase.Ok();
+            return ResponseEntity.Ok();
         }
 
         public async Task<AuthenticationResponse> ChangeWorkingOrganization(string orgId, string refreshToken)
@@ -723,7 +723,7 @@ namespace WebApp.Services.UserService
         private async Task<UserVerification> CreateVerificationCode(Guid userId,string username, string email)
         {
             var verificationKey = Ulid.NewUlid().ToString();
-            var verificationCode = StringConverter.RandomString(4);
+            var verificationCode = StringConverter.RandomNumber(length: 4);
             var limitTime = configuration["SecureLogin:VerificationCodeLifetime"] ?? "120";
             var expirationTime = DateTime.Now.AddSeconds(int.Parse(limitTime));
             var code = new UserVerification
