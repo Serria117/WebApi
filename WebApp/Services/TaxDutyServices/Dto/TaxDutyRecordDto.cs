@@ -25,3 +25,18 @@ public class TaxDutyRecordDisplayDto : TaxDutyRecordDto
 {
     public string Id { get; set; } = string.Empty;
 }
+
+public class TaxDutyRecordUpdateDto : TaxDutyRecordDto
+{
+    public string Id { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Create DTO for tax duty records
+/// </summary>
+public class TaxDutyRecordsCreateDto
+{
+    public ICollection<Guid> Organizations { get; set; } = [];
+    public DutyPeriodType DutyPeriodType { get; set; }
+    public string Period { get; set; } = string.Empty;
+}

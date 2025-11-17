@@ -30,7 +30,8 @@ public enum DutyPeriodType
 {
     Monthly,
     Quarterly,
-    Annual
+    Annual,
+    Other
 }
 
 public enum DutyStatus
@@ -44,5 +45,6 @@ public enum DutyStatus
 public enum TaxPaymentStatus
 {
     Unpaid,
-    Paid
+    Paid,
+    NoAmountDue
 }

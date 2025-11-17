@@ -50,4 +50,6 @@ public class TaxReportDutyController(ITaxDutyAppService service) : ControllerBas
         var result = await service.GetTaxDutiesByOrganizationId(organizationId);
         return Ok(result);
     }
+
+    
 }
