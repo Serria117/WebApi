@@ -123,6 +123,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                                          .ToDate(invoiceParams.To)
                                          .WithInvoiceNumber(invoiceParams.InvoiceNumber)
                                          .WithType(invoiceParams.InvoiceType)
+                                         .WithStatus(invoiceParams.Status)
                                          .Build<SoldInvoiceDetail>();
 
         var result = await soldInvoiceDetailRepository
@@ -737,7 +738,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
 
             #endregion
 
-            if (inv.GoodsDetail.IsNullOrEmpty())
+            if (inv.GoodsDetail.Count == 0)
             {
                 purchaseSummaryRow++;
 

@@ -279,10 +279,10 @@ public static class DataObjectMapExtension
         o.FullName = i.FullName.RemoveSpace() ?? o.FullName;
         o.ContactAddress = i.ContactAddress.RemoveSpace();
         o.ShortName = i.ShortName.RemoveSpace() ?? o.ShortName;
-        o.Emails = i.Emails.IsNullOrEmpty() ? [] : i.Emails.Select(x => x.RemoveSpace()!).ToList();
+        o.Emails = i.Emails.Count == 0 ? [] : i.Emails.Select(x => x.RemoveSpace()!).ToList();
         o.Address = i.Address.RemoveSpace();
         o.UnsignName = o.FullName.UnSign();
-        o.Phones = i.Phones.IsNullOrEmpty() ? [] : i.Phones.Select(x => x.RemoveSpace()!).ToList();
+        o.Phones = i.Phones.Count == 0 ? [] : i.Phones.Select(x => x.RemoveSpace()!).ToList();
         o.InvoicePwd = i.InvoicePwd.RemoveSpace();
         o.TaxIdPwd = i.TaxIdPwd.RemoveSpace();
         o.PinCode = i.PinCode.RemoveSpace();

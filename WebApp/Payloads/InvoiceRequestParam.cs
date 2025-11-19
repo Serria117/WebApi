@@ -3,7 +3,7 @@
 namespace WebApp.Payloads;
 
 /// <summary>
-/// Wraper for query invoice from mongodb
+/// Wrapper for query invoice from mongodb
 /// </summary>
 public class InvoiceRequestParam
 {

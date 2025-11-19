@@ -23,6 +23,9 @@ using WebApp.Configuration;
 using WebApp.GlobalExceptionHandler;
 using WebApp.ScheduleTask;
 using WebApp.Services;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 
 // Declare variables.
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +60,13 @@ services.AddDbContext<AppDbContext>((serviceProvider, options) =>
     options.UseSqlServer(connectionString: config.GetConnectionString("SqlServer"))
            .AddInterceptors(auditInterceptor);
 });
+
+// Đăng ký GuidSerializer
+BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.CSharpLegacy));
+
+// Nếu cần hỗ trợ mixed data (cũ + mới), thêm ObjectSerializer
+var objectSerializer = new ObjectSerializer(BsonSerializer.LookupDiscriminatorConvention(typeof(object)), GuidRepresentation.Standard);
+BsonSerializer.RegisterSerializer(objectSerializer);
 
 //polling rate config:
 services.AddRateLimiter(op =>
@@ -125,7 +135,7 @@ services.AddAuthentication(options =>
                 {
                     var accessToken = context.Request.Query["access_token"];
                     var path = context.HttpContext.Request.Path;
-                    if (!accessToken.IsNullOrEmpty() && path.StartsWithSegments("/progressHub"))
+                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/progressHub"))
                     {
                         context.Token = accessToken;
                     }

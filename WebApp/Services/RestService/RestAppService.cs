@@ -26,7 +26,8 @@ public interface IRestAppService
     Task<ResponseEntity> Authenticate(InvoiceLoginModel login);
     Task<CaptchaModel?> GetCaptcha();
 
-    Task<ResponseEntity> GetPurchaseInvoiceListInRange(string token, string from, string to, int[]? invoiceTypes = null);
+    Task<ResponseEntity>
+        GetPurchaseInvoiceListInRange(string token, string from, string to, int[]? invoiceTypes = null);
 
     /// <summary>
     /// Attempt to get an invoice's detail of goods sold
@@ -101,6 +102,7 @@ public class RestBaseAppService(IRestClient restClient,
                     Success = true
                 });
             }
+
             logger.LogInformation("found expired token in database, will try to refresh it");
             var response = await restClient.ExecuteAsync<InvoiceAuthenticationResponse>(request);
             if (response is { IsSuccessful: true, Data: not null })
@@ -110,6 +112,7 @@ public class RestBaseAppService(IRestClient restClient,
                 await invoiceServiceTokenRepository.UpdateAsync(foundToken);
                 return ResponseEntity.OkResult(response.Data);
             }
+
             return new ResponseEntity
             {
                 Success = false,
@@ -131,6 +134,7 @@ public class RestBaseAppService(IRestClient restClient,
                 });
                 return ResponseEntity.OkResult(response.Data);
             }
+
             Console.WriteLine(response.Content);
             return new ResponseEntity
             {
@@ -156,9 +160,11 @@ public class RestBaseAppService(IRestClient restClient,
 
         var dateRanges = CommonUtil.SplitDateRange(fromValue, toValue);
 
-        List<string> endpoints = ["/query/invoices/sold", 
-                                  "/sco-query/invoices/sold"
-         ];
+        List<string> endpoints =
+        [
+            "/query/invoices/sold",
+            "/sco-query/invoices/sold"
+        ];
         var countFromResponse = 0;
         foreach (string endpoint in endpoints)
         {
@@ -166,7 +172,8 @@ public class RestBaseAppService(IRestClient restClient,
             Console.WriteLine("---------------------------------");
             foreach (var dateRange in dateRanges)
             {
-                Console.WriteLine($"Getting purchase invoices from {dateRange.GetFromDate()} to {dateRange.GetToDate()}");
+                Console.WriteLine(
+                    $"Getting purchase invoices from {dateRange.GetFromDate()} to {dateRange.GetToDate()}");
                 var pageCount = 1;
                 var invoiceCount = 0;
                 await Task.Delay(2000);
@@ -203,14 +210,14 @@ public class RestBaseAppService(IRestClient restClient,
                 }
 
                 var nextState = result.State;
-                
+
                 while (true)
                 {
-                    if(nextState is not null)
+                    if (nextState is not null)
                     {
                         await Task.Delay(1000); //delay before each call to avoid rejection
                         pageCount++;
-                        var nextResult = await GetSoldInvoiceFromService(token, endpoint, 
+                        var nextResult = await GetSoldInvoiceFromService(token, endpoint,
                                                                          dateRange.GetFromDate(),
                                                                          dateRange.GetToDate(),
                                                                          state: nextState);
@@ -221,7 +228,8 @@ public class RestBaseAppService(IRestClient restClient,
                         countFromResponse += nextResult.Datas.Count;
                         if (nextResult.State == null) break;
                         nextState = nextResult.State;
-                    } else
+                    }
+                    else
                     {
                         break;
                     }
@@ -233,9 +241,9 @@ public class RestBaseAppService(IRestClient restClient,
                     .SendAsync(UserId, HubName.InvoiceMessage,
                                $"Tìm thấy {invoiceCount} hóa đơn từ ngày" +
                                $" {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}");
-
             }
         }
+
         Console.WriteLine($"InvoiceList count: {invoicesList.Count}");
         Console.WriteLine($"Count from response: {countFromResponse}");
         return new ResponseEntity
@@ -275,23 +283,25 @@ public class RestBaseAppService(IRestClient restClient,
         var response = await restClient.ExecuteAsync<SoldInvoiceResponseModel>(request);
         if (response.IsSuccessful)
         {
-            logger.LogInformation("Successfully retrieved {count}  invoices from {From} to {To}", 
-                response.Data!.Datas.Count, from, to);
-            
+            logger.LogInformation("Successfully retrieved {count}  invoices from {From} to {To}",
+                                  response.Data!.Datas.Count, from, to);
+
             return response.Data;
         }
+
         logger.LogInfoFormatted("Failed to deserialize response.");
 
         //if the response is not successful, try to deserialize the content
         var json = response.Content;
         Console.WriteLine("WARNING - Undeserializable content: " + json);
-        if(json is not null && response.StatusCode == HttpStatusCode.OK)
+        if (json is not null && response.StatusCode == HttpStatusCode.OK)
         {
             logger.LogInfoFormatted("Attempting to deserialize valid content");
             var data = JsonConvert.DeserializeObject<SoldInvoiceResponseModel>(json!);
             Console.WriteLine(response.ErrorMessage);
             return data;
         }
+
         return default;
     }
 
@@ -375,8 +385,10 @@ public class RestBaseAppService(IRestClient restClient,
 
     #region PURCHASE INVOICE METHODS
 
-    public async Task<ResponseEntity> GetPurchaseInvoiceListInRange(string token, string from,
-                                                                 string to, int[]? invoiceTypes = null)
+    public async Task<ResponseEntity> GetPurchaseInvoiceListInRange(string token,
+                                                                    string from,
+                                                                    string to,
+                                                                    int[]? invoiceTypes = null)
     {
         try
         {
@@ -411,38 +423,45 @@ public class RestBaseAppService(IRestClient restClient,
                     var pageCount = 1;
                     await Task.Delay(1000);
                     await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
-                                                        $"Tải thông tin {displayType} - Từ ngày: {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}\n Trang: {pageCount}");
+                                                        $"Tải thông tin {displayType} " +
+                                                        $"- Từ ngày: {dateRange.GetFromDate()} " +
+                                                        $"đến ngày {dateRange.GetToDate()}\n " +
+                                                        $"Trang: {pageCount}");
                     Console.WriteLine(
                         $"Get invoice type {type} of page {pageCount} - from {dateRange.GetFromDate()} to {dateRange.GetToDate()}");
                     try
                     {
-                        var result = await GetPurchaseInvoiceFromService(token, endpoint,
-                                                                     dateRange.GetFromDate(),
-                                                                     dateRange.GetToDate(), type);
-                        if (result == null) continue;
-                        countFromResponse += result.Total; //Total count of invoices from the response
-                        invoicesList.AddRange(result.Datas);
-                        if (result.State == null) continue;
-                        var nextState = result.State;
+                        var invoiceResponse = await GetPurchaseInvoiceFromService(token, endpoint,
+                            dateRange.GetFromDate(),
+                            dateRange.GetToDate(), type);
+                        if (invoiceResponse == null) continue;
+                        countFromResponse += invoiceResponse.Total; //Total count of invoices from the response
+                        invoicesList.AddRange(invoiceResponse.Datas);
+                        if (invoiceResponse.State == null) continue;
+                        var nextState = invoiceResponse.State;
                         while (true)
                         {
                             await Task.Delay(1000); //delay before each call to avoid rejection
                             pageCount++;
                             var nextResult = await GetPurchaseInvoiceFromService(token, endpoint,
-                                                                                 dateRange.GetFromDate(),
-                                                                                 dateRange.GetToDate(),
-                                                                                 type, nextState);
+                                dateRange.GetFromDate(),
+                                dateRange.GetToDate(),
+                                type, nextState);
                             await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
-                                                                $"Tải thông tin {displayType} - Từ ngày: {dateRange.GetFromDate()} đến ngày {dateRange.GetToDate()}\n Trang: {pageCount}");
+                                                                $"Tải thông tin {displayType} - " +
+                                                                $"Từ ngày: {dateRange.GetFromDate()} " +
+                                                                $"đến ngày {dateRange.GetToDate()}\n " +
+                                                                $"Trang: {pageCount}");
                             Console.WriteLine(
-                                $"Get invoice type {type} of page {pageCount} - from {dateRange.GetFromDate()} to {dateRange.GetToDate()}");
+                                $"Get invoice type {type} of page {pageCount} - " +
+                                $"from {dateRange.GetFromDate()} to {dateRange.GetToDate()}");
                             if (nextResult == null) break;
                             invoicesList.AddRange(nextResult.Datas);
                             if (nextResult.State == null) break;
                             nextState = nextResult.State;
                         }
                     }
-                    catch(RequestCanceledException)
+                    catch (RequestCanceledException)
                     {
                         logger.LogWarning("Request was canceled due to timeout at {time}", DateTime.Now.ToLocalTime());
                         continue;
@@ -466,8 +485,6 @@ public class RestBaseAppService(IRestClient restClient,
                 Message = $"Tìm thấy {countFromResponse} hóa đơn.",
                 Data = invoicesList
             };
-
-
         }
         catch (Exception e)
         {
@@ -480,7 +497,7 @@ public class RestBaseAppService(IRestClient restClient,
     /// Get the list of purchase invoice in date range that limited by the external service.
     /// The invoices in the list has no goods detail
     /// </summary>
-    /// <param name="token"></param>
+    /// <param name="token">Authorization token to access external service</param>
     /// <param name="endpoint"></param>
     /// <param name="from"></param>
     /// <param name="to"></param>
@@ -603,9 +620,9 @@ public class RestBaseAppService(IRestClient restClient,
                 Success = true,
                 Code = InvoiceDetailStatus.Undeserializable.ToString(),
                 Message = """
-                            99 - auto-deserialize failed. 
-                            Invoice object will be store as string and attempted to be deserialized using JSON converter
-                            """,
+                          99 - auto-deserialize failed. 
+                          Invoice object will be store as string and attempted to be deserialized using JSON converter
+                          """,
                 Data = response.Content,
             };
         }

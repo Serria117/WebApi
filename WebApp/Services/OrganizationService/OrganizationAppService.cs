@@ -31,14 +31,14 @@ public interface IOrganizationAppService
 }
 
 public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRepo,
-                                    IAppRepository<Province, int> provinceRepo,
-                                    IAppRepository<District, int> districtRepo,
-                                    IAppRepository<TaxOffice, int> taxOfficeRepo,
-                                    IAppRepository<TaxOffice2, int> taxOffice2Repo,
-                                    IAppRepository<User, Guid> userRepo,
-                                    IAppRepository<OrganizationLoginInfo, int> loginInfoRepo,
-                                    IOrgMongoRepository orgMongoRepository,
-                                    IUserManager userManager) : BaseAppService(userManager), IOrganizationAppService
+                                        IAppRepository<Province, int> provinceRepo,
+                                        IAppRepository<District, int> districtRepo,
+                                        IAppRepository<TaxOffice, int> taxOfficeRepo,
+                                        IAppRepository<TaxOffice2, int> taxOffice2Repo,
+                                        IAppRepository<User, Guid> userRepo,
+                                        IAppRepository<OrganizationLoginInfo, int> loginInfoRepo,
+                                        IOrgMongoRepository orgMongoRepository,
+                                        IUserManager userManager) : BaseAppService(userManager), IOrganizationAppService
 {
     public async Task<ResponseEntity> Create(OrganizationInputDto dto)
     {
@@ -46,7 +46,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
             return ResponseEntity.Error("Tax Id has already existed.");
 
         var invalidMessage = await ValidInputDto(dto);
-        if (!invalidMessage.IsNullOrEmpty()) return ResponseEntity.Error("Invalid input", invalidMessage);
+        if (invalidMessage.Count > 0) return ResponseEntity.Error("Invalid input", invalidMessage);
 
         var newOrg = dto.ToEntity();
 
@@ -92,7 +92,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         var validDtos = validTaxIds.Except(invalidTaxOfficeIds).Except(invalidDistrictIds).ToList();
 
-        if (validDtos.IsNullOrEmpty())
+        if (validDtos.Count == 0)
             return new ResponseEntity
             {
                 Message = "All inputs are invalid",
@@ -153,21 +153,22 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
     {
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
         var result = (await orgRepo.Find(filter: o => !o.Deleted &&
-                                                     (string.IsNullOrEmpty(keyword) ||
-                                                      o.UnsignName.Contains(keyword) ||
-                                                      (o.ShortName != null &&
-                                                       o.ShortName.Contains(keyword)) ||
-                                                      o.TaxId.Contains(keyword)),
-                                        sortBy: req.SortBy, order: req.OrderBy,
-                                        include:
-                                        [
-                                            nameof(Organization.TaxOffice),
-                                            nameof(Organization.District),
-                                            nameof(Organization.Users)
-                                        ])
-                                  .AsSplitQuery()
-                                  .AsNoTracking()
-                                  .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto()); ;
+                                                      (string.IsNullOrEmpty(keyword) ||
+                                                       o.UnsignName.Contains(keyword) ||
+                                                       (o.ShortName != null &&
+                                                        o.ShortName.Contains(keyword)) ||
+                                                       o.TaxId.Contains(keyword)),
+                                         sortBy: req.SortBy, order: req.OrderBy,
+                                         include:
+                                         [
+                                             nameof(Organization.TaxOffice),
+                                             nameof(Organization.District),
+                                             nameof(Organization.Users)
+                                         ])
+                                   .AsSplitQuery()
+                                   .AsNoTracking()
+                                   .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto());
+        ;
         return req.Fields.Length == 0
             ? ResponseEntity.OkResult(result) //If no fields are specified, return all fields
             : ResponseEntity.OkResult(result.ProjectPagedList(req.Fields)); //return only specified fields
@@ -178,22 +179,22 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         var userId = UserId;
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
         var query = await orgRepo.Find(filter: o => !o.Deleted &&
-                                                     o.Users.Any(u => u.Id.ToString() == userId) &&
-                                                     (string.IsNullOrEmpty(keyword) ||
-                                                      o.UnsignName.Contains(keyword) ||
-                                                      (o.ShortName != null &&
-                                                       o.ShortName.Contains(keyword)) ||
-                                                      o.TaxId.Contains(keyword)),
-                                        sortBy: req.SortBy, order: req.OrderBy,
-                                        include:
-                                        [
-                                            nameof(Organization.TaxOffice2),
-                                            nameof(Organization.District)
-                                        ])
-                                  .Include(o => o.Users.Where(u => !u.Deleted))
-                                  .AsSplitQuery()
-                                  .AsNoTracking()
-                                  .ToPagedListAsync(req.Page, req.Size);
+                                                    o.Users.Any(u => u.Id.ToString() == userId) &&
+                                                    (string.IsNullOrEmpty(keyword) ||
+                                                     o.UnsignName.Contains(keyword) ||
+                                                     (o.ShortName != null &&
+                                                      o.ShortName.Contains(keyword)) ||
+                                                     o.TaxId.Contains(keyword)),
+                                       sortBy: req.SortBy, order: req.OrderBy,
+                                       include:
+                                       [
+                                           nameof(Organization.TaxOffice2),
+                                           nameof(Organization.District)
+                                       ])
+                                 .Include(o => o.Users.Where(u => !u.Deleted))
+                                 .AsSplitQuery()
+                                 .AsNoTracking()
+                                 .ToPagedListAsync(req.Page, req.Size);
 
         return req.Fields.Length == 0
             ? ResponseEntity.OkResult(query.MapPagedList(x => x.ToDisplayDto()))
@@ -203,7 +204,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
     public async Task<ResponseEntity> Update(Guid orgId, OrganizationInputDto updateDto)
     {
         var invalidMessage = await ValidInputDto(updateDto);
-        if (!invalidMessage.IsNullOrEmpty()) return ResponseEntity.Error("Invalid input", invalidMessage);
+        if (invalidMessage.Count > 0) return ResponseEntity.Error("Invalid input", invalidMessage);
 
         var foundOrg = await orgRepo.Find(o => o.Id == orgId && !o.Deleted,
                                           include: nameof(Organization.OrganizationLoginInfos))

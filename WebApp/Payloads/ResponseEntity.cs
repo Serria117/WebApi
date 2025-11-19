@@ -70,7 +70,7 @@ public class ResponseEntity
         {
             Success = false,
             Message = mesage,
-            Data = !details.IsNullOrEmpty() ? details.ToList() : null,
+            Data = details.Length == 0 ? details.ToList() : null,
             Code = "99",
         };
     }

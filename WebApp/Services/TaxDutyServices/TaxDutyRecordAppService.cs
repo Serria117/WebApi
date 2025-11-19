@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using Microsoft.EntityFrameworkCore;
-using MongoDB.Driver.Linq;
+﻿using Microsoft.EntityFrameworkCore;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.GlobalExceptionHandler.CustomExceptions;

@@ -3,7 +3,6 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.IdentityModel.Tokens;
-using MongoDB.Driver.Linq;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
@@ -94,7 +93,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
     public IQueryable<T> Find(Expression<Func<T, bool>> filter, params string[] include)
     {
         var query = _dbSet.Where(filter);
-        if (!include.IsNullOrEmpty())
+        if (include.Length == 0)
         {
             query = include.Aggregate(query, (current, prop) => current.Include(prop))
                            .AsSplitQuery();
@@ -107,7 +106,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
                               params string[] include)
     {
         var query = _dbSet.Where(filter);
-        if (!include.IsNullOrEmpty())
+        if (include.Length == 0)
         {
             query = include.Aggregate(query, (current, prop) => current.Include(prop));
         }
@@ -118,12 +117,12 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
     public IQueryable<T> FindAndSort(Expression<Func<T, bool>> filter, string[] include, string[] sortBy)
     {
         var query = _dbSet.Where(filter);
-        if (!include.IsNullOrEmpty())
+        if (include.Length == 0)
         {
             query = include.Aggregate(query, (current, prop) => current.Include(prop));
         }
 
-        if (!sortBy.IsNullOrEmpty())
+        if (sortBy.Length == 0)
         {
             query = sortBy.Aggregate(query, (current, sort) => current.OrderBy(sort));
         }

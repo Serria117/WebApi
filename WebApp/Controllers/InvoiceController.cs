@@ -99,7 +99,10 @@ public class InvoiceController(IRestAppService restService,
             var taxId = jwtHandler.ReadJwtToken(request.Token).Subject;
 
             //var res = await invService.ExtractPurchaseInvoices(request.Token, request.From, request.To);
-            var res = await invoiceService.ExtractPurchaseInvoices(request.Token, request.From, request.To, request.InvoiceTypes);
+            var res = await invoiceService.ExtractPurchaseInvoices(request.Token, 
+                                                                   request.From, 
+                                                                   request.To, 
+                                                                   request.InvoiceTypes);
             await logService.CreateLog(LogAction.Sync, true,
                                        $"Mst [{taxId}] đồng bộ hóa đơn mua hàng từ {request.From} đến {request.To}");
             return Ok(res);

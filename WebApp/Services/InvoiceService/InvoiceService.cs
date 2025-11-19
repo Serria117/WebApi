@@ -559,8 +559,7 @@ public partial class InvoiceService(IUserManager userManager,
 
                 #region Purchase Detail
 
-                if (inv.GoodsDetail
-                       .IsNullOrEmpty()) //If good detail is empty, fill the detail sheet with basic invoice data
+                if (inv.GoodsDetail.Count == 0) //If good detail is empty, fill the detail sheet with basic invoice data
                 {
                     purchaseSummaryRow++;
 

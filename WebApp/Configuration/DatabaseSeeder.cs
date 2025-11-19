@@ -32,7 +32,7 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
         var permissionsToAdd = defaultPermissions.Where(permission => !existingPermissions.Contains(permission))
                                                  .Select(permission => new Permission { PermissionName = permission })
                                                  .ToList();
-        if (!permissionsToAdd.IsNullOrEmpty())
+        if (permissionsToAdd.Count > 0)
         {
             await context.AddRangeAsync(permissionsToAdd);
             await context.SaveChangesAsync();
@@ -59,14 +59,14 @@ public class DatabaseSeeder(AppDbContext context, ICachingRoleService caching)
         var defaultPermissions = PermissionSeeder.GetDefaultPermissions();
         var newPermissionName = defaultPermissions.Where(permission => !existingPermissions.Contains(permission))
                                                   .ToList();
-        if (newPermissionName.IsNullOrEmpty()) return; // No new permissions to add
+        if (newPermissionName.Count == 0) return; // No new permissions to add
         
         // Fetching permissions to add based on the new permission names
         var permissionsToAdd = await context.Permissions
                                             .Where(p => newPermissionName.Contains(p.PermissionName))
                                             .ToListAsync();
         
-        if (!permissionsToAdd.IsNullOrEmpty()) return; // No new permissions to add
+        if (permissionsToAdd.Count == 0) return; // No new permissions to add
         
         foreach (var permission in permissionsToAdd)
         {

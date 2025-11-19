@@ -20,8 +20,8 @@ namespace WebApp.Services.InvoiceService;
 public partial class InvoiceService
 {
     public async Task<ResponseEntity> ExtractPurchaseInvoices(string token,
-                                                           string from, string to,
-                                                           int[]? invoiceTypes)
+                                                              string from, string to,
+                                                              int[]? invoiceTypes)
     {
         var taxId = TokenHandler.ReadJwtToken(token).Subject;
         logger.LogInfoFormatted($"[{taxId}] extracting purchase invoice's details " +
@@ -48,17 +48,18 @@ public partial class InvoiceService
             logger.LogWarning("Invoice retrieving operation failed. {message}", result.Message);
             await invoiceHistoryAppService.CreateHistoryAsync(from.ToDateTime()!.Value,
                                                               to.ToDateTime()!.Value,
-                                                              0, 0,
-                                                              SyncType.Purchased, false);
+                                                              totalFound: 0, totalSuccess: 0,
+                                                              SyncType.Purchased, success: false);
             return new ResponseEntity
             {
                 Message = "Failed to retrieve purchase invoices. " +
-                                     $"Please try again later. {result.Message}",
+                          $"Please try again later. {result.Message}",
                 Code = "400",
                 Success = false
             };
         }
-        var duplicateCount = 0;
+
+        var existingCount = 0;
         var downloadCount = 0;
         var insertedCount = 0;
         var errorCount = 0;
@@ -78,23 +79,32 @@ public partial class InvoiceService
         //Begin getting invoice detail, first check if invoice already exists:
         foreach (var invoice in responseInvoiceList)
         {
-            if (await IsPurchaseInvoiceExist(invoice)) continue;
+            if (await IsPurchaseInvoiceExist(invoice))
+            {
+                existingCount++;
+                Console.WriteLine($"Inv no: [{invoice.Shdon}-{invoice.Khhdon}] already existed in database. Count={existingCount}");
+                continue;
+            };
             invoicesToSaveList.Add(invoice); //if not exist, add to the list
-
         }
 
         if (invoicesToSaveList.Count == 0)
-            return ResponseEntity.OkResult($"Tìm thấy {countFromResponse} hóa đơn mua hàng đã có trong hệ thống, " +
-                                        "không có hóa đơn mới nào để thêm");
+            return new ResponseEntity()
+            {
+                Message = $"Tìm thấy {existingCount} hóa đơn mua hàng đã có trong hệ thống, " +
+                          "không có hóa đơn mới.",
+                Code = "200",
+                Success = true
+            };
 
         foreach (var invoice in invoicesToSaveList)
         {
             ResponseEntity invDetailResponse = await restService.GetPurchaseInvoiceDetail(token, invoice);
 
-            if (invDetailResponse.Code == InvoiceDetailStatus.TooManyRequest.ToString())
+            if (invDetailResponse.Code == nameof(InvoiceDetailStatus.TooManyRequest))
             {
                 logger.LogWarning("Rate limit exceeded while fetching invoice details. " +
-                                            "Please try again later.");
+                                  "Please try again later.");
                 var deserializableResult = await WriteDeserializableInvoices(deSerializableInvoices);
                 var undeserializableResult = await WriteUndeserializableInvoices(unDeserializableInvoices);
                 return new ResponseEntity
@@ -105,34 +115,40 @@ public partial class InvoiceService
                     Data = new
                     {
                         Total = countFromResponse,
+                        Existing = existingCount,
                         Success = deSerializableInvoices.Count + unDeserializableInvoices.Count
-                        - deserializableResult.ErrorCount - undeserializableResult.ErrorCount,
+                                  - deserializableResult.ErrorCount - undeserializableResult.ErrorCount,
                         Remaining = deserializableResult.ErrorCount + undeserializableResult.ErrorCount,
                     }
                 };
             }
+
             if (invDetailResponse is not { Success: true, Data: not null })
             {
                 logger.LogWarning("Failed to retrieve invoice detail for invoice {invoiceNumber}. " +
                                   "Error: {message}", invoice.Shdon, invDetailResponse.Message);
                 continue;
             }
+
             if (invDetailResponse.Code == InvoiceDetailStatus.Success.ToString())
             {
                 downloadCount++;
                 deSerializableInvoices.Add((InvoiceDetailModel)invDetailResponse.Data);
                 await notificationService.SendAsync(UserId,
                                                     HubName.InvoiceStatus,
-                                                    InvoiceMessage.Create(saved: downloadCount, total: responseInvoiceList.Count));
+                                                    InvoiceMessage.Create(
+                                                        saved: downloadCount, total: invoicesToSaveList.Count));
                 continue;
             }
+
             if (invDetailResponse.Code == InvoiceDetailStatus.Undeserializable.ToString())
             {
                 downloadCount++;
                 unDeserializableInvoices.Add(JsonConvert.SerializeObject(invDetailResponse.Data));
                 await notificationService.SendAsync(UserId,
                                                     HubName.InvoiceStatus,
-                                                    InvoiceMessage.Create(saved: downloadCount, total: responseInvoiceList.Count));
+                                                    InvoiceMessage.Create(
+                                                        saved: downloadCount, total: invoicesToSaveList.Count));
             }
         }
 
@@ -144,22 +160,23 @@ public partial class InvoiceService
         errorCount = dResult.ErrorCount + uResult.ErrorCount;
         //Write history:
         await invoiceHistoryAppService.CreateHistoryAsync(
-                                            from: from.ToDateTime()!.Value,
-                                            to: to.ToDateTime()!.Value,
-                                            totalFound: countFromResponse,
-                                            totalSuccess: downloadCount - dResult.ErrorCount - uResult.ErrorCount,
-                                            type: SyncType.Purchased);
+            from: from.ToDateTime()!.Value,
+            to: to.ToDateTime()!.Value,
+            totalFound: countFromResponse,
+            totalSuccess: downloadCount - dResult.ErrorCount - uResult.ErrorCount,
+            type: SyncType.Purchased);
 
         return new ResponseEntity
         {
             TotalCount = countFromResponse,
             Code = "200",
             Success = true,
-            Message = $"Đã thêm {downloadCount}/{countFromResponse} hóa đơn mua hàng mới vào hệ thống",
+            Message = $"Tìm thấy {existingCount}/{countFromResponse} hóa đơn đã có trong hệ thống. " +
+                      $"Đã thêm {downloadCount}/{invoicesToSaveList.Count} hóa đơn mua hàng mới vào hệ thống.",
             Data = new
             {
                 Total = countFromResponse,
-                Duplication = duplicateCount,
+                Existing = existingCount,
                 Inserted = downloadCount - errorCount,
                 ErrorCount = errorCount,
                 Errors = dResult.Error.Union(uResult.Error).ToList(),
@@ -181,7 +198,7 @@ public partial class InvoiceService
                                          .Build<InvoiceDetailDoc>();
 
         var invoiceList = await mongoPurchaseInvoice
-                                    .FindInvoices(filter, invoiceParams.Page ?? 1, invoiceParams.Size ?? 10);
+            .FindInvoices(filter, invoiceParams.Page ?? 1, invoiceParams.Size ?? 10);
 
         var data = new List<InvoiceDisplayDto>();
         // Convert each invoice to display model, catch any conversion errors and log them
@@ -194,7 +211,8 @@ public partial class InvoiceService
             }
             catch (Exception ex)
             {
-                logger.LogErrorFormatted(exception: ex, message: $"Error converting invoice {inv.Id} to display model.");
+                logger.LogErrorFormatted(exception: ex,
+                                         message: $"Error converting invoice {inv.Id} to display model.");
                 displayModel = new InvoiceDisplayDto
                 {
                     InvoiceNumber = inv.Shdon?.ToString(),
@@ -203,6 +221,7 @@ public partial class InvoiceService
                     CreationDate = inv.Tdlap?.ToLocalTime()
                 };
             }
+
             data.Add(displayModel);
         }
 
@@ -271,6 +290,7 @@ public partial class InvoiceService
                 updateList.Add(inv.ToDisplayModel());
             }
         }
+
         return new ResponseEntity
         {
             Message = total > 0
