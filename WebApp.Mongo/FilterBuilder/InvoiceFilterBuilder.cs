@@ -79,7 +79,7 @@ public sealed class InvoiceFilterBuilder
 
         if (_risk is not null)
         {
-            if (_risk.Value == false)
+            if (!_risk.Value)
             {
                 filter &= Builders<T>.Filter.Or(
                     Builders<T>.Filter.Eq("risk", _risk.Value),

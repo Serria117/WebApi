@@ -30,6 +30,12 @@ public static class CommonUtil
         return months;
     }
 
+    /// <summary>
+    /// Splite a range of dates into individual month ranges.
+    /// </summary>
+    /// <param name="startDate">The start date</param>
+    /// <param name="endDate">The end date</param>
+    /// <returns>Date ranges for each month in the given range.</returns>
     public static List<DateRange> SplitDateRange(DateTime startDate, DateTime endDate)
     {
         List<DateRange> dateRanges = [];

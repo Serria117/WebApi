@@ -6,6 +6,7 @@ using WebApp.Payloads;
 using WebApp.Services.CommonService;
 using WebApp.Services.TaxDutyServices.Dto;
 using WebApp.Services.UserService;
+using WebApp.Utils;
 
 namespace WebApp.Services.TaxDutyServices;
 
@@ -179,7 +180,7 @@ public class TaxDutyRecordAppService(IUserManager userManager,
             DueDate = duty.DutyPeriodType switch
             {
                 DutyPeriodType.Monthly => new DateTime(periodYear, periodValue, 1).AddMonths(1).AddDays(19),
-                DutyPeriodType.Quarterly => StringConverter.GetQuarterEndDate(periodValue, periodYear),
+                DutyPeriodType.Quarterly => StringExtension.GetQuarterEndDate(periodValue, periodYear),
                 DutyPeriodType.Annual => new DateTime(periodYear, 12, 31).AddDays(90),
                 _ => throw new NotImplementedException()
             },
@@ -239,7 +240,7 @@ public class TaxDutyRecordAppService(IUserManager userManager,
                 DueDate = duty.DutyPeriodType switch
                 {
                     DutyPeriodType.Monthly => new DateTime(periodYear, periodValue, 1).AddMonths(1).AddDays(19),
-                    DutyPeriodType.Quarterly => StringConverter.GetQuarterEndDate(periodValue, periodYear).AddMonths(1),
+                    DutyPeriodType.Quarterly => StringExtension.GetQuarterEndDate(periodValue, periodYear).AddMonths(1),
                     DutyPeriodType.Annual => new DateTime(periodYear, 12, 31).AddDays(90),
                     DutyPeriodType.Other => DateTime.Now.AddDays(10),
                     _ => throw new InvalidActionException("Invalid duty period type.")

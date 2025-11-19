@@ -18,6 +18,7 @@ using WebApp.Services.CommonService;
 using WebApp.Services.DocumentService.Dto;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService;
+using WebApp.Utils;
 using X.Extensions.PagedList.EF;
 
 // ReSharper disable NotAccessedVariable

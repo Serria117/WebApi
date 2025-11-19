@@ -122,7 +122,7 @@ public partial class InvoiceService(IUserManager userManager,
         WriteDeserializableInvoices(List<InvoiceDetailModel> invoices)
     {
         List<PurchaseInvoiceErrorDisplay> errorList = [];
-        if (invoices.Count == 0)
+        if (invoices.Empty())
         {
             Console.WriteLine("No invoice to convert");
             return (true, 0, errorList);
@@ -187,7 +187,7 @@ public partial class InvoiceService(IUserManager userManager,
         WriteUndeserializableInvoices(List<string> invoices)
     {
         List<PurchaseInvoiceErrorDisplay> errorList = [];
-        if (invoices.Count == 0)
+        if (invoices.Empty())
         {
             Console.WriteLine("No invoice to convert");
             return (true, 0, errorList);
@@ -301,11 +301,11 @@ public partial class InvoiceService(IUserManager userManager,
             }
 
             //Build a messages for error
-            var message = listToInsert.Count == 0
+            var message = listToInsert.Empty()
                 ? "Không có hóa đơn mới. "
                 : $"Tìm thấy {listToInsert.Count} hóa đơn mới. ";
             var errorMessage =
-                errorList.Count == 0 ? "" : $" {errorList.Count} hóa đơn không thể lưu do lỗi định dạng.";
+                errorList.Empty() ? "" : $" {errorList.Count} hóa đơn không thể lưu do lỗi định dạng.";
             //Notify user about success/failure
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage, message + errorMessage);
 
@@ -350,7 +350,7 @@ public partial class InvoiceService(IUserManager userManager,
                                       List<InvoiceDisplayDto> soldList,
                                       string from, string to)
     {
-        if (purchaseList.Count == 0 && soldList.Count == 0)
+        if (purchaseList.Empty() && soldList.Empty())
         {
             return null;
         }
@@ -518,7 +518,7 @@ public partial class InvoiceService(IUserManager userManager,
 
         #region PURCHASE INVOICE PROCESSING
 
-        if (purchaseList.Count > 0)
+        if (purchaseList.NotEmpty())
         {
             foreach (var inv in purchaseList)
             {
@@ -559,7 +559,7 @@ public partial class InvoiceService(IUserManager userManager,
 
                 #region Purchase Detail
 
-                if (inv.GoodsDetail.Count == 0) //If good detail is empty, fill the detail sheet with basic invoice data
+                if (inv.GoodsDetail.Empty()) //If good detail is empty, fill the detail sheet with basic invoice data
                 {
                     purchaseSummaryRow++;
 
@@ -878,7 +878,7 @@ public partial class InvoiceService(IUserManager userManager,
             };
             extractingDataList.Add(data);
         }
-        if(extractingDataList.Count == 0)
+        if(extractingDataList.Empty())
             throw new EmptyResultException("No data extracted");
         
         var extractDataToModel = extractingDataList.GroupBy(x => new {x.InvoiceNumber, x.InvoiceNotation})

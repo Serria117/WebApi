@@ -1,15 +1,16 @@
 ﻿using WebApp.Enums;
 using WebApp.Services.CommonService;
+using WebApp.Utils;
 
 namespace WebApp.Payloads;
 
 public class RequestParam
 {
     public int? Page { get; set; } = 1;
-    public int? Size { get; set; } = 10;
-    public string? SortBy { get; set; } = "Id";
+    public int? Size { get; set; } = 500;
+    public string? SortBy { get; set => field = value.RemoveSpace(); } = "Id";
     public string? OrderBy { get; set; } = SortOrder.DESC;
-    public string? Keyword { get; set; }
+    public string? Keyword { get; set => field = value.RemoveSpace(); }
 
     public string? From { get; set; }
     public string? To { get; set; }
@@ -20,7 +21,7 @@ public class RequestParam
     {
         if (Size is <= 0 or > 1000 or null)
         {
-            Size = 100;
+            Size = 500;
         }
 
         if (Page is < 1 or > 1000 or null)

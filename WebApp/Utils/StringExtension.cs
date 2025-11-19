@@ -1,19 +1,17 @@
 ﻿using System.Globalization;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-
-namespace WebApp.Services.CommonService;
+namespace WebApp.Utils;
 
 /// <summary>
 /// Static class providing various string manipulation and conversion methods.
 /// Includes methods for XML document handling.
 /// </summary>
-public static partial class StringConverter
+public static partial class StringExtension
 {
     [GeneratedRegex(@"\s{2,}")]
     private static partial Regex SpaceRegex();
@@ -21,36 +19,49 @@ public static partial class StringConverter
     [GeneratedRegex("\\p{IsCombiningDiacriticalMarks}+")]
     private static partial Regex UnsignRegex();
 
-    /// <summary>
-    /// Removes unnecessary spaces from the input string by trimming leading and trailing whitespace
-    /// and replacing consecutive spaces within the string with a single space.
-    /// </summary>
     /// <param name="str">The input string from which spaces need to be removed or normalized.</param>
-    /// <returns>A string with normalized spaces or null if the input string is null or empty.</returns>
-    public static string? RemoveSpace(this string? str)
+    extension(string? str)
     {
-        return string.IsNullOrEmpty(str) ? null : SpaceRegex().Replace(str.Trim(), " ");
-    }
+        /// <summary>
+        /// Removes unnecessary spaces from the input string by trimming leading and trailing whitespace
+        /// and replacing consecutive spaces within the string with a single space.
+        /// </summary>
+        /// <returns>A string with normalized spaces or null if the input string is null or empty.</returns>
+        public string? RemoveSpace()
+        {
+            return string.IsNullOrEmpty(str) ? null : SpaceRegex().Replace(str.Trim(), " ");
+        }
 
-    /// <summary>
-    /// Determines whether the specified string is null or an empty string ("").
-    /// </summary>
-    /// <param name="value">The string to test.</param>
-    /// <returns>true if the value parameter is null or an empty string (""); otherwise, false.</returns>
-    /// <remarks>This is an extension method style replacement for string.IsNullOrEmpty()</remarks>
-    public static bool IsNullOrEmpty(this string? value)
-    {
-        return string.IsNullOrEmpty(value);
-    }
+        /// <summary>
+        /// Determines whether the specified string is null or an empty string ("").
+        /// </summary>
+        /// <returns>true if the value parameter is null or an empty string (""); otherwise, false.</returns>
+        /// <remarks>This is an extension method style replacement for string.IsNullOrEmpty()</remarks>
+        public bool IsNullOrEmpty()
+        {
+            return string.IsNullOrEmpty(str);
+        }
 
-    /// <summary>
-    /// Determines whether the specified string is null, empty, or consists only of white-space characters.
-    /// </summary>
-    /// <param name="value">The string to test.</param>
-    /// <returns>true if the value parameter is null, empty, or consists only of white-space characters; otherwise, false.</returns>
-    public static bool IsNullOrWhiteSpace(this string? value)
-    {
-        return string.IsNullOrWhiteSpace(value);
+        /// <summary>
+        /// Determines whether the specified string is null, empty, or consists only of white-space characters.
+        /// </summary>
+        /// <returns>true if the value parameter is null, empty, or consists only of white-space characters; otherwise, false.</returns>
+        public bool IsNullOrWhiteSpace()
+        {
+            return string.IsNullOrWhiteSpace(str);
+        }
+
+        /// <summary>
+        /// Update the target string with source string if it's not null or empty
+        /// </summary>
+        /// <param name="source">The string to use as a replacement</param>
+        /// <returns>The updated string</returns>
+        public string UpdateNotNull(string? source)
+        {
+            if (string.IsNullOrEmpty(source)) return str;
+            str = source;
+            return str;
+        }
     }
 
     /// <summary>
@@ -402,7 +413,7 @@ public static partial class StringConverter
         return current?.ToNonNullString() ?? string.Empty;
     }
 
-    public static string RandomString(int length)
+    public static string RandomString(int length = 6)
     {
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         var random = new Random();
@@ -410,7 +421,7 @@ public static partial class StringConverter
                                     .Select(s => s[random.Next(s.Length)]).ToArray());
     }
 
-    public static string RandomNumber(int length)
+    public static string RandomNumber(int length = 4)
     {
         const string chars = "0123456789";
         var random = new Random();
@@ -429,18 +440,5 @@ public static partial class StringConverter
             3 => new DateTime(year, 9, 30),
             _ => new DateTime(year, 12, 31)
         };
-    }
-
-    /// <summary>
-    /// Update the target string with source string if it's not null or empty
-    /// </summary>
-    /// <param name="target">The original string to update</param>
-    /// <param name="source">The string to use as a replacement</param>
-    /// <returns>The updated string</returns>
-    public static string UpdateNotNull(this string target, string? source)
-    {
-        if (string.IsNullOrEmpty(source)) return target;
-        target = source;
-        return target;
     }
 }

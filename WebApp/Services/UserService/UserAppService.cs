@@ -13,6 +13,7 @@ using WebApp.Services.CommonService;
 using WebApp.Services.EmailService;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService.Dto;
+using WebApp.Utils;
 using X.Extensions.PagedList.EF;
 
 namespace WebApp.Services.UserService
@@ -723,7 +724,7 @@ namespace WebApp.Services.UserService
         private async Task<UserVerification> CreateVerificationCode(Guid userId,string username, string email)
         {
             var verificationKey = Ulid.NewUlid().ToString();
-            var verificationCode = StringConverter.RandomNumber(length: 4);
+            var verificationCode = StringExtension.RandomNumber(length: 4);
             var limitTime = configuration["SecureLogin:VerificationCodeLifetime"] ?? "120";
             var expirationTime = DateTime.Now.AddSeconds(int.Parse(limitTime));
             var code = new UserVerification
