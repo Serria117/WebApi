@@ -122,7 +122,7 @@ public partial class InvoiceService(IUserManager userManager,
         WriteDeserializableInvoices(List<InvoiceDetailModel> invoices)
     {
         List<PurchaseInvoiceErrorDisplay> errorList = [];
-        if (invoices.Empty())
+        if (invoices.IsEmpty())
         {
             Console.WriteLine("No invoice to convert");
             return (true, 0, errorList);
@@ -187,7 +187,7 @@ public partial class InvoiceService(IUserManager userManager,
         WriteUndeserializableInvoices(List<string> invoices)
     {
         List<PurchaseInvoiceErrorDisplay> errorList = [];
-        if (invoices.Empty())
+        if (invoices.IsEmpty())
         {
             Console.WriteLine("No invoice to convert");
             return (true, 0, errorList);
@@ -211,8 +211,8 @@ public partial class InvoiceService(IUserManager userManager,
                     var invNumber = invoice.ExtractValueRegex(InvoiceNumberRegex())?.ToInt();
                     var sellerTaxId = invoice.ExtractValueRegex(SellerTaxIdRegex());
                     logger.LogError("Failed to convert invoice {number} - {seller}", invNumber, sellerTaxId);
-                    logger.LogWarning(e.Message);
-                    logger.LogWarning(e.StackTrace);
+                    logger.LogWarning("{e}",e.Message);
+                    logger.LogWarning("{e}",e.StackTrace);
                     await errorInvoiceRepository.InsertAsync(new ErrorInvoiceDoc
                     {
                         OrgId = WorkingOrg.ToGuid().ToString(),
@@ -301,11 +301,11 @@ public partial class InvoiceService(IUserManager userManager,
             }
 
             //Build a messages for error
-            var message = listToInsert.Empty()
+            var message = listToInsert.IsEmpty()
                 ? "Không có hóa đơn mới. "
                 : $"Tìm thấy {listToInsert.Count} hóa đơn mới. ";
             var errorMessage =
-                errorList.Empty() ? "" : $" {errorList.Count} hóa đơn không thể lưu do lỗi định dạng.";
+                errorList.IsEmpty() ? "" : $" {errorList.Count} hóa đơn không thể lưu do lỗi định dạng.";
             //Notify user about success/failure
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage, message + errorMessage);
 
@@ -350,7 +350,7 @@ public partial class InvoiceService(IUserManager userManager,
                                       List<InvoiceDisplayDto> soldList,
                                       string from, string to)
     {
-        if (purchaseList.Empty() && soldList.Empty())
+        if (purchaseList.IsEmpty() && soldList.IsEmpty())
         {
             return null;
         }
@@ -518,7 +518,7 @@ public partial class InvoiceService(IUserManager userManager,
 
         #region PURCHASE INVOICE PROCESSING
 
-        if (purchaseList.NotEmpty())
+        if (purchaseList.IsNotEmpty())
         {
             foreach (var inv in purchaseList)
             {
@@ -559,7 +559,7 @@ public partial class InvoiceService(IUserManager userManager,
 
                 #region Purchase Detail
 
-                if (inv.GoodsDetail.Empty()) //If good detail is empty, fill the detail sheet with basic invoice data
+                if (inv.GoodsDetail.IsEmpty()) //If good detail is empty, fill the detail sheet with basic invoice data
                 {
                     purchaseSummaryRow++;
 
@@ -878,7 +878,7 @@ public partial class InvoiceService(IUserManager userManager,
             };
             extractingDataList.Add(data);
         }
-        if(extractingDataList.Empty())
+        if(extractingDataList.IsEmpty())
             throw new EmptyResultException("No data extracted");
         
         var extractDataToModel = extractingDataList.GroupBy(x => new {x.InvoiceNumber, x.InvoiceNotation})

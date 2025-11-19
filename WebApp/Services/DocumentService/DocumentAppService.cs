@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
 using Spire.Xls;
+using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
@@ -120,6 +121,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                                     IAppRepository<Organization, Guid> orgRepository,
                                     ILogger<DocumentBaseAppService> logger,
                                     IUserManager userManager,
+                                    AppDbContext dbContext,
                                     IHostEnvironment env) : BaseAppService(userManager), IDocumentAppService
 {
     private const string _templateFolder = "ExportTemplates";
@@ -222,23 +224,27 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         int fromYear;
         int toYear;
 
-        var org = await orgRepository.FindByIdAsync(oId);
-        if (org is null) return ResponseEntity.Error404("Organization not found");
+        /*var org = await orgRepository.FindByIdAsync(oId);
+        if (org is null) return ResponseEntity.Error404("Organization not found");*/
 
-        var basedQuery = docRepository.FindAndSort(filter: x => x.Organization.Id == oId
-                                                                && req.DocumentTypes.Contains(x.DocumentType),
-                                                   include: [],
-                                                   sortBy: [$"{nameof(OrgDocument.DocumentDate)} {SortOrder.DESC}"]);
-        var filteredQuery = basedQuery;
+        var query = dbContext.Documents.Where(d => d.Organization.Id == oId
+                                                   && req.DocumentTypes.Contains(d.DocumentType)
+                                                   && !d.Deleted)
+                             .AsNoTracking()
+                             .AsQueryable();
 
+        var filteredQuery = query;
+
+        //apply date range filter if present
         if (param is { To: not null, From: not null })
         {
             fromYear = int.Parse(param.From); //TODO: handle parsing failed
             toYear = int.Parse(param.To);
-            filteredQuery = basedQuery.Where(x => x.Year >= fromYear && x.Year <= toYear);
+            filteredQuery = query.Where(x => x.Year >= fromYear && x.Year <= toYear);
         }
 
-        var files = await filteredQuery.ToPagedListAsync(param.Page, param.Size);
+        var files = await filteredQuery.OrderByDescending(d => d.DocumentDate)
+                                       .ToPagedListAsync(param.Page, param.Size);
 
         var dtoList = files.MapPagedList(f => new DocumentDisplayDto
         {
@@ -261,8 +267,8 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
     public async Task<ResponseEntity> GetDocumentByIdAsync(int documentId)
     {
         var file = await docRepository
-                         .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == documentId,
-                               include: nameof(OrgDocument.Organization))
+                         .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == documentId)
+                         .Include(x => x.Organization)
                          .FirstOrDefaultAsync();
         return file is not null
             ? ResponseEntity.OkResult(file.FilePath)
@@ -272,12 +278,12 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
     public async Task<ResponseEntity> ReadXmlToStringAsync(int id)
     {
         var file = await docRepository
-                         .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == id,
-                               include: nameof(OrgDocument.Organization))
+                         .Find(filter: x => x.Organization.Id.ToString() == WorkingOrg && x.Id == id)
+                         .Include(x => x.Organization)
                          .FirstOrDefaultAsync() ??
                    throw new NotFoundException($"Document [{id}] not found on the server.");
         var filePath = GetFilePath(file);
-        using var stream = new FileStream(filePath, FileMode.Open);
+        await using var stream = new FileStream(filePath, FileMode.Open);
         var xmlDocument = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
         return ResponseEntity.OkResult(xmlDocument.ToString());
     }
@@ -287,8 +293,8 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         try
         {
             var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg
-                                                    && f.Id == documentId,
-                                               nameof(OrgDocument.Organization))
+                                                    && f.Id == documentId)
+                                         .Include(x => x.Organization)
                                          .FirstOrDefaultAsync();
             if (doc is null)
             {
@@ -315,8 +321,8 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
     {
         try
         {
-            var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg && f.Id == docId,
-                                               nameof(OrgDocument.Organization))
+            var doc = await docRepository.Find(f => f.Organization.Id.ToString() == WorkingOrg && f.Id == docId)
+                                         .Include(x => x.Organization)
                                          .FirstOrDefaultAsync();
             if (doc is null) return ResponseEntity.Error404("Document Id doesn't exist");
             var filePath = GetFilePath(doc);
@@ -531,6 +537,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                 {
                     prop.SetValue(document.KqkdNamNay, namNay_el.Value);
                 }
+
                 if (namTruoc_el is not null)
                 {
                     prop.SetValue(document.KqkdNamTruoc, namTruoc_el.Value);
@@ -538,9 +545,9 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             }
         }
 
-        XElement? cdtkNoDauKy_el = 
+        XElement? cdtkNoDauKy_el =
             xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoDuDauKy/No");
-        XElement? cdtkCoDauKy_el = 
+        XElement? cdtkCoDauKy_el =
             xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoDuDauKy/Co");
         XElement? cdtkNoCuoiKy_el =
             xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoDuCuoiKy/No");
@@ -550,25 +557,26 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoPhatSinhTrongKy/No");
         XElement? cdtkCoPhatSinh_el =
             xDocument.GetChildElementByPath("HSoThueDTu/HSoKhaiThue/PLuc/PL_CDTK/SoPhatSinhTrongKy/Co");
-        
+
         var cdtk_props = typeof(Cdtk_133_Account).GetProperties(BindingFlags.Public | BindingFlags.Instance).ToList();
 
         foreach (var prop in cdtk_props)
         {
             prop.SetValue(document.CanDoiTaiKhoan.SoDuDauKy.No,
                           cdtkNoDauKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
-            prop.SetValue(document.CanDoiTaiKhoan.SoPhatSinhTrongKy.No, 
+            prop.SetValue(document.CanDoiTaiKhoan.SoPhatSinhTrongKy.No,
                           cdtkNoPhatSinh_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
-            prop.SetValue(document.CanDoiTaiKhoan.SoDuCuoiKy.No, 
+            prop.SetValue(document.CanDoiTaiKhoan.SoDuCuoiKy.No,
                           cdtkNoCuoiKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
-            
+
             prop.SetValue(document.CanDoiTaiKhoan.SoDuDauKy.Co,
                           cdtkCoDauKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
-            prop.SetValue(document.CanDoiTaiKhoan.SoPhatSinhTrongKy.Co, 
+            prop.SetValue(document.CanDoiTaiKhoan.SoPhatSinhTrongKy.Co,
                           cdtkCoPhatSinh_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
-            prop.SetValue(document.CanDoiTaiKhoan.SoDuCuoiKy.Co, 
+            prop.SetValue(document.CanDoiTaiKhoan.SoDuCuoiKy.Co,
                           cdtkCoCuoiKy_el?.Descendants(ns + prop.Name).FirstOrDefault()?.Value ?? "0");
         }
+
         return document;
     }
 
@@ -775,10 +783,10 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             var result = await ExportBctc133ToExcel(doc);
             return result;
         }
+
         //TODO: handle other document types
         if (doc.DocumentType == DocumentType.TK_BCTC_200)
         {
-            
         }
 
         return (fileName, data);
@@ -800,7 +808,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         var sheet_kqkd = wb.Worksheets[1];
         var sheet_lctt = wb.Worksheets[2];
         var sheet_cdtk = wb.Worksheets[3];
-        
+
         var chiTieuChinh_props = typeof(ChiTieuToKhaiChinh)
                                  .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                                  .ToList();
@@ -808,28 +816,29 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         sheet_bctc.Range[4, 1].Value = "Tại ngày: 31/12/" + document.Year;
         sheet_bctc.Range[5, 1].Value = "Người nộp thuế: " + document.OrganizationName.ToUpper();
         sheet_bctc.Range[6, 1].Value = "Mã số thuế: " + document.TaxId;
-        
+
         for (int i = 12; i <= sheet_bctc.LastRow; i++)
         {
             var code = sheet_bctc.Range[i, 2].Value.Trim();
             var prop = chiTieuChinh_props.FirstOrDefault(p => p.Name.Equals("ct" + code,
-                                                                    StringComparison.CurrentCultureIgnoreCase));
+                                                                            StringComparison.CurrentCultureIgnoreCase));
             if (prop != null)
             {
                 sheet_bctc.Range[i, 4].Value2 = prop.GetValue(document.ChiTieuChinhDauNam)?.ToString();
                 sheet_bctc.Range[i, 5].Value2 = prop.GetValue(document.ChiTieuChinhCuoiNam)?.ToString();
             }
         }
-        
+
         sheet_kqkd.Range[4, 1].Value = "Năm: " + document.Year;
         sheet_kqkd.Range[5, 1].Value = "Người nộp thuế: " + document.OrganizationName.ToUpper();
         sheet_kqkd.Range[6, 1].Value = "Mã số thuế: " + document.TaxId;
-        for(int i = 12; i <= sheet_kqkd.LastRow; i++)
+        for (int i = 12; i <= sheet_kqkd.LastRow; i++)
         {
             var code = sheet_kqkd.Range[i, 2].Value.Trim();
             var prop = typeof(Pl_Kqkd_133).GetProperties(BindingFlags.Public | BindingFlags.Instance)
                                           .FirstOrDefault(p => p.Name.Equals("ct" + code,
-                                                                           StringComparison.CurrentCultureIgnoreCase));
+                                                                             StringComparison
+                                                                                 .CurrentCultureIgnoreCase));
             if (prop != null)
             {
                 sheet_kqkd.Range[i, 4].Value2 = prop.GetValue(document.KqkdNamTruoc)?.ToString();
@@ -841,23 +850,25 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         {
             var code = sheet_cdtk.Range[i, 1].Value.Trim();
             var prop = typeof(Cdtk_133_Account).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                                          .FirstOrDefault(p => p.Name.Equals("ct" + code,
-                                                                             StringComparison.CurrentCultureIgnoreCase));
+                                               .FirstOrDefault(p => p.Name.Equals("ct" + code,
+                                                                   StringComparison.CurrentCultureIgnoreCase));
             if (prop != null)
             {
                 sheet_cdtk.Range[i, 3].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuDauKy?.No)?.ToString();
                 sheet_cdtk.Range[i, 4].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuDauKy?.Co)?.ToString();
-                sheet_cdtk.Range[i, 5].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoPhatSinhTrongKy?.No)?.ToString();
-                sheet_cdtk.Range[i, 6].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoPhatSinhTrongKy?.Co)?.ToString();
+                sheet_cdtk.Range[i, 5].Value2 =
+                    prop.GetValue(document.CanDoiTaiKhoan?.SoPhatSinhTrongKy?.No)?.ToString();
+                sheet_cdtk.Range[i, 6].Value2 =
+                    prop.GetValue(document.CanDoiTaiKhoan?.SoPhatSinhTrongKy?.Co)?.ToString();
                 sheet_cdtk.Range[i, 7].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuCuoiKy?.No)?.ToString();
                 sheet_cdtk.Range[i, 8].Value2 = prop.GetValue(document.CanDoiTaiKhoan?.SoDuCuoiKy?.Co)?.ToString();
             }
         }
-        
+
         //TODO: populate LCTT sheet
-        
+
         sheet_bctc.Activate(); //Return to first sheet
-        
+
         //Save to memory stream and return
         var outputStream = new MemoryStream();
         wb.SaveToStream(outputStream, FileFormat.Version2016);
@@ -871,18 +882,20 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
 
     public async Task<(string FileName, byte[] File)> Summarize_01Gtkt_Documents(List<int> ids)
     {
-        var docList = await docRepository.FindAndSort(filter: x => ids.Contains(x.Id)
-                                                                   && x.Organization.Id.ToString() == WorkingOrg,
-                                                      include: [nameof(OrgDocument.Organization)],
-                                                      sortBy: ["DocumentDate ASC"]) //sort by date ascending
-                                         .ToListAsync();
-        if (docList.Count == 0)
+        var docs = await dbContext.Documents
+                                  .Where(x => ids.Contains(x.Id)
+                                              && x.Organization.Id == WorkingOrg.ToGuid())
+                                  .Include(x => x.Organization)
+                                  .OrderBy(x => x.DocumentDate)
+                                  .ToListAsync();
+        
+        if (docs.IsEmpty())
         {
             throw new EmptyResultException("Document not found");
         }
 
         //Asynchrously read all documents into memory to save time
-        var payloads = await Get01GtgtPayloads(docList);
+        var payloads = await Get01GtgtPayloads(docs);
         if (payloads.Count == 0)
         {
             throw new EmptyResultException("No document on disk to read. Check the file path.");
@@ -894,7 +907,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
         sh.Range["A1"].Value = "Tổng hợp tờ khai GTGT";
         sh.Range["A1"].Style.Font.IsBold = true;
         sh.Range["A1"].Style.Font.Size = 16;
-        sh.Range["A2"].Value = $"{docList[0].Organization.FullName} - {docList[0].Organization.TaxId}".ToUpper();
+        sh.Range["A2"].Value = $"{docs[0].Organization.FullName} - {docs[0].Organization.TaxId}".ToUpper();
         sh.Range["A2"].Style.Font.IsBold = true;
         const int headerRow = 4;
 
@@ -1030,7 +1043,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
             processedDocs++;
         }*/
 
-        var fileName = $"{docList[0].Organization.TaxId}-01GTGT-{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+        var fileName = $"{docs[0].Organization.TaxId}-01GTGT-{DateTime.Now:yyyyMMddHHmmss}.xlsx";
         using var stream = new MemoryStream();
         wb.SaveToStream(stream, FileFormat.Version2016);
         return (fileName, stream.ToArray());

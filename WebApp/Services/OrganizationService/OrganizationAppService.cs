@@ -3,6 +3,7 @@ using System.Linq.Dynamic.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver.Core.WireProtocol.Messages;
+using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.MongoRepositories;
@@ -31,14 +32,11 @@ public interface IOrganizationAppService
     Task<ResponseEntity> GetAllOrgForAdmin(PageRequest req);
 }
 
-public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRepo,
-                                        IAppRepository<Province, int> provinceRepo,
+public class OrganizationBaseAppService(AppDbContext dbContext,
+                                        IAppRepository<Organization, Guid> orgRepo,
                                         IAppRepository<District, int> districtRepo,
-                                        IAppRepository<TaxOffice, int> taxOfficeRepo,
                                         IAppRepository<TaxOffice2, int> taxOffice2Repo,
                                         IAppRepository<User, Guid> userRepo,
-                                        IAppRepository<OrganizationLoginInfo, int> loginInfoRepo,
-                                        IOrgMongoRepository orgMongoRepository,
                                         IUserManager userManager) : BaseAppService(userManager), IOrganizationAppService
 {
     public async Task<ResponseEntity> Create(OrganizationInputDto dto)
@@ -53,8 +51,10 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         // Attach location:
         newOrg.District = districtRepo.Attach(dto.DistrictId!.Value);
+        
         //newOrg.TaxOffice = taxOfficeRepo.Attach(dto.TaxOfficeId!.Value);
         newOrg.TaxOffice2 = taxOffice2Repo.Attach(dto.TaxOfficeId!.Value);
+        
         // Add the user who create the new organization to its users list:
         if (UserId is not null && Guid.TryParse(UserId, out var uId))
         {
@@ -83,7 +83,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         var validTaxIds = distinctTaxIds.Except(existingTaxIds).ToList(); //the dto list contains only passed taxId
 
-        var taxOfficeIds = taxOfficeRepo.GetQueryable().Select(t => t.Id).ToHashSet();
+        var taxOfficeIds = taxOffice2Repo.GetQueryable().Select(t => t.Id).ToHashSet();
         var districtIds = districtRepo.GetQueryable().Select(d => d.Id).ToHashSet();
 
         var invalidTaxOfficeIds = input.Where(x => x.TaxOfficeId is null || !taxOfficeIds.Contains(x.TaxOfficeId.Value))
@@ -115,7 +115,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         var entitiesToSave = validDtos.Select(dto =>
         {
             var org = dto.ToEntity();
-            org.TaxOffice = taxOfficeRepo.Attach(dto.TaxOfficeId!.Value);
+            org.TaxOffice2 = taxOffice2Repo.Attach(dto.TaxOfficeId!.Value);
             //org.District = districtRepo.Attach(dto.DistrictId!.Value);
             return org;
         }).ToList();
@@ -153,53 +153,56 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
     public async Task<ResponseEntity> GetAllOrgForAdmin(PageRequest req)
     {
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
-        var result = (await orgRepo.Find(filter: o => !o.Deleted &&
-                                                      (string.IsNullOrEmpty(keyword) ||
-                                                       o.UnsignName.Contains(keyword) ||
-                                                       (o.ShortName != null &&
-                                                        o.ShortName.Contains(keyword)) ||
-                                                       o.TaxId.Contains(keyword)),
-                                         sortBy: req.SortBy, order: req.OrderBy,
-                                         include:
-                                         [
-                                             nameof(Organization.TaxOffice),
-                                             nameof(Organization.District),
-                                             nameof(Organization.Users)
-                                         ])
-                                   .AsSplitQuery()
-                                   .AsNoTracking()
-                                   .ToPagedListAsync(req.Page, req.Size)).MapPagedList(x => x.ToDisplayDto());
-        ;
+
+        var query = dbContext.Organizations.Where(o => !o.Deleted);
+        
+        //apply keyword filter if keyword is provided
+        if (!string.IsNullOrEmpty(keyword))
+        {
+            query = query.Where(o => o.UnsignName.Contains(keyword) || o.TaxId.Contains(keyword)
+                                || (o.ShortName != null && o.ShortName.Contains(keyword)));
+        }
+        
+        var dtoResult = (await query.Include(o => o.TaxOffice2)
+                                  .Include(o => o.Users)
+                                  .Include(o => o.District)
+                                  .OrderBy(req.SortBy + " " + req.OrderBy)
+                                  .AsSplitQuery()
+                                  .AsNoTracking()
+                                  .ToPagedListAsync(req.Page, req.Size))
+            .MapPagedList(x => x.ToDisplayDto());
+        
         return req.Fields.Length == 0
-            ? ResponseEntity.OkResult(result) //If no fields are specified, return all fields
-            : ResponseEntity.OkResult(result.ProjectPagedList(req.Fields)); //return only specified fields
+            ? ResponseEntity.OkResult(dtoResult) //If no fields are specified, return all fields
+            : ResponseEntity.OkResult(dtoResult.ProjectPagedList(req.Fields)); //return only specified fields
     }
 
     public async Task<ResponseEntity> GetAllOrgByCurrentUserAsync(PageRequest req)
     {
-        var userId = UserId;
+        var userId = UserId.ToGuid();
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
-        var query = await orgRepo.Find(filter: o => !o.Deleted &&
-                                                    o.Users.Any(u => u.Id.ToString() == userId) &&
-                                                    (string.IsNullOrEmpty(keyword) ||
-                                                     o.UnsignName.Contains(keyword) ||
-                                                     (o.ShortName != null &&
-                                                      o.ShortName.Contains(keyword)) ||
-                                                     o.TaxId.Contains(keyword)),
-                                       sortBy: req.SortBy, order: req.OrderBy,
-                                       include:
-                                       [
-                                           nameof(Organization.TaxOffice2),
-                                           nameof(Organization.District)
-                                       ])
-                                 .Include(o => o.Users.Where(u => !u.Deleted))
+        var query = dbContext.Organizations
+                              .Where(o => !o.Deleted)
+                              .Where(o => o.Users.Any(u => u.Id == userId));
+
+        if (!string.IsNullOrEmpty(keyword))
+        {
+            query = query.Where(o => o.UnsignName.Contains(keyword) 
+                                       || o.TaxId.Contains(keyword)
+                                       || (o.ShortName != null && o.ShortName.Contains(keyword)));
+        }
+
+        var result = await query.Include(o => o.Users.Where(u => !u.Deleted))
+                                 .Include(o => o.TaxOffice2)
+                                 .Include(o => o.District)
+                                 .OrderBy(req.SortBy + " " + req.OrderBy)
                                  .AsSplitQuery()
                                  .AsNoTracking()
                                  .ToPagedListAsync(req.Page, req.Size);
 
         return req.Fields.Length == 0
-            ? ResponseEntity.OkResult(query.MapPagedList(x => x.ToDisplayDto()))
-            : ResponseEntity.OkResult(query.ProjectPagedList(req.Fields));
+            ? ResponseEntity.OkResult(result.MapPagedList(x => x.ToDisplayDto()))
+            : ResponseEntity.OkResult(result.ProjectPagedList(req.Fields));
     }
 
     public async Task<ResponseEntity> Update(Guid orgId, OrganizationInputDto updateDto)
@@ -207,9 +210,9 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
         var invalidMessage = await ValidInputDto(updateDto);
         if (invalidMessage.Count > 0) return ResponseEntity.Error("Invalid input", invalidMessage);
 
-        var foundOrg = await orgRepo.Find(o => o.Id == orgId && !o.Deleted,
-                                          include: nameof(Organization.OrganizationLoginInfos))
-                                    .FirstOrDefaultAsync();
+        var foundOrg = await dbContext.Organizations
+                                      .Include(o => o.OrganizationLoginInfos)
+                                      .FirstOrDefaultAsync(o => o.Id == orgId && !o.Deleted);
 
         if (foundOrg is null)
         {
@@ -274,17 +277,20 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
         //add new items into existList:
         foundOrg.OrganizationLoginInfos = updateList.ToHashSet();
-        var saved = await orgRepo.UpdateAsync(foundOrg);
-        return new ResponseEntity { Success = true, Data = saved.Id, Message = "Update successfully" };
+        var saved = dbContext.Update(foundOrg);
+        await dbContext.SaveChangesAsync();
+        return new ResponseEntity { Success = true, Data = saved.Entity.Id, Message = "Update successfully" };
     }
 
     public async Task<ResponseEntity> GetOneById(Guid id)
     {
-        var org = await orgRepo.Find(filter: x => x.Id == id,
-                                     include: [nameof(Organization.OrganizationLoginInfos)])
-                               .Include(x => x.District)
-                               .Include(x => x.TaxOffice2)
-                               .FirstOrDefaultAsync();
+        var org = await dbContext.Organizations
+                                 .Include(o => o.OrganizationLoginInfos)
+                                 .Include(x => x.District)
+                                 .Include(x => x.TaxOffice2)
+                                 .AsNoTracking()
+                                 .AsSplitQuery()
+                                 .FirstOrDefaultAsync(x => x.Id == id);
         return org == null
             ? ResponseEntity.Error(ResponseMessage.NotFound)
             : ResponseEntity.OkResult(org.ToDisplayDto());
@@ -292,7 +298,7 @@ public class OrganizationBaseAppService(IAppRepository<Organization, Guid> orgRe
 
     private async Task<bool> TaxIdExist(string taxId)
     {
-        return await orgRepo.ExistAsync(o => o.TaxId == taxId);
+        return await dbContext.Organizations.AnyAsync(x => x.TaxId == taxId && !x.Deleted);
     }
 
     private async Task<List<string>> ValidInputDto(OrganizationInputDto dto)

@@ -4,6 +4,7 @@ using System.Linq.Dynamic.Core;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Spire.Xls;
+using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.MongoRepositories;
@@ -107,6 +108,7 @@ namespace WebApp.Services.UserService
         /// </summary>
         /// <returns>An <see cref="ResponseEntity"/> containing the list of users.</returns>
         Task<ResponseEntity> GetAllUserForOtherService();
+
         Task<ResponseEntity> FindUserById(Guid id);
         Task<ResponseEntity> ResetPassword(Guid id, string newPassword);
         Task<ResponseEntity> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input);
@@ -114,7 +116,8 @@ namespace WebApp.Services.UserService
         Task<AuthenticationResponse> RefreshVerificationCode(string key);
     }
 
-    public class UserBaseAppBaseAppService(IAppRepository<User, Guid> userRepository,
+    public class UserBaseAppBaseAppService(AppDbContext dbContext,
+                                           IAppRepository<User, Guid> userRepository,
                                            IUserMongoRepository userMongoRepository,
                                            ILockedUserMongoRepository lockRepository,
                                            IAppRepository<Organization, Guid> organizationRepository,
@@ -129,17 +132,19 @@ namespace WebApp.Services.UserService
                                            IUserManager userManager) : BaseAppService(userManager), IUserAppService
     {
         private readonly string _defaultEmail = "ketoan.sline@gmail.com";
+
         public async Task<ResponseEntity> GetAllUsers(PageRequest page)
         {
             try
             {
-                var query = userRepository.Find(filter: u => !u.Deleted)
-                                          .Include(x => x.Roles.Where(r => !r.Deleted))
-                                          .Include(x => x.Organizations.Where(o => !o.Deleted));
+                var query = dbContext.Users.Where(u => !u.Deleted)
+                                     .Include(x => x.Roles.Where(r => !r.Deleted))
+                                     .Include(x => x.Organizations.Where(o => !o.Deleted));
 
                 var pagedResult = await query
                                         .OrderBy(page.Sort)
                                         .ToPagedListAsync(page.Page, page.Size);
+                
                 var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
                 return page.Fields.Length > 0
                     ? ResponseEntity.OkResult(dtoResult.ProjectPagedList(page.Fields))
@@ -156,10 +161,11 @@ namespace WebApp.Services.UserService
 
         public async Task<ResponseEntity> FindUserById(Guid id)
         {
-            var foundUser = await userRepository.Find(u => u.Id == id && !u.Deleted)
+            var foundUser = await dbContext.Users.Where(u => u.Id == id && !u.Deleted)
                                                 .Include(u => u.Roles)
                                                 .Include(u => u.Organizations.Where(o => !o.Deleted))
                                                 .AsSplitQuery()
+                                                .AsNoTracking()
                                                 .FirstOrDefaultAsync();
             return foundUser is null
                 ? ResponseEntity.Error404("User not found")
@@ -232,18 +238,19 @@ namespace WebApp.Services.UserService
                     Message = verifyPasswordResult.Message,
                 };
             }
-            
+
             var foundUser = await FindUserByUserName(login.Username);
-            
+
             //reset failed login attempts if user is not locked
-            if (foundUser.User is { LogInFailedCount: > 0, Locked: false }) 
+            if (foundUser.User is { LogInFailedCount: > 0, Locked: false })
                 await ResetLockCount(foundUser.User);
 
             if (foundUser.User!.VerificationRequired)
             {
-                var verificator = await CreateVerificationCode(foundUser.User.Id, 
-                                                               foundUser.User.Username, 
-                                                               foundUser.User.Email ?? _defaultEmail); //fallback to default email if user has not registered an email yet
+                var verificator = await CreateVerificationCode(foundUser.User.Id,
+                                                               foundUser.User.Username,
+                                                               foundUser.User.Email ??
+                                                               _defaultEmail); //fallback to default email if user has not registered an email yet
                 await SendVerificationCodeEmail(verificator);
                 return new AuthenticationResponse
                 {
@@ -254,7 +261,7 @@ namespace WebApp.Services.UserService
                     Username = verificator.Username
                 };
             }
-            
+
             var orgId = string.Empty;
             var orgLists = foundUser.User.Organizations.Select(o => o.Id).ToList();
 
@@ -315,9 +322,9 @@ namespace WebApp.Services.UserService
                     Message = "Mã xác thực không đúng hoặc đã quá hạn. Vui lòng thử lại."
                 };
             }
-            
+
             var issuedAt = DateTime.UtcNow.ToLocalTime();
-            
+
             var user = await userRepository.Find(x => x.Id == login.UserId)
                                            .Include(x => x.Organizations)
                                            .Include(u => u.Roles)
@@ -337,7 +344,7 @@ namespace WebApp.Services.UserService
 
             await InvalidateVerificationCode(user.Id);
             var orgId = string.Empty;
-            var workingOrg = user.Organizations.FirstOrDefault(o => o.Id == user.LastWorkingOrg) 
+            var workingOrg = user.Organizations.FirstOrDefault(o => o.Id == user.LastWorkingOrg)
                              ?? user.Organizations.FirstOrDefault();
             var permissions = user.Roles.SelectMany(r => r.Permissions.Where(p => !p.Deleted))
                                   .Select(p => p.PermissionName).ToHashSet();
@@ -366,10 +373,11 @@ namespace WebApp.Services.UserService
                                                               .FirstOrDefaultAsync();
             if (verificator is null)
                 return new AuthenticationResponse { Success = false, Message = "Failed to refresh your code" };
-            
-            
+
+
             //create new verification code
-            var newVerificator = await CreateVerificationCode(verificator.UserId, verificator.Username, verificator.Email);
+            var newVerificator =
+                await CreateVerificationCode(verificator.UserId, verificator.Username, verificator.Email);
             //remove old verification code
             await userVerificationRepository.HardDeleteAsync(verificator.Id);
             await SendVerificationCodeEmail(newVerificator);
@@ -461,7 +469,7 @@ namespace WebApp.Services.UserService
         public async Task<ResponseEntity> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input)
         {
             var found = await userRepository.Find(u => !u.Deleted && u.Id == userId).FirstOrDefaultAsync();
-            if(found is null) return ResponseEntity.Error404("User not found");
+            if (found is null) return ResponseEntity.Error404("User not found");
             found.FullName = input.FullName;
             found.Email = input.Email;
             await userRepository.UpdateAsync(found);
@@ -536,19 +544,23 @@ namespace WebApp.Services.UserService
 
         public async Task<(User? User, ISet<string> Permisions)> FindUserByUserName(string username)
         {
-            var user = await userRepository.Find(u => u.Username == username && !u.Deleted,
-                                                 include: [nameof(User.Organizations), nameof(User.Roles)])
+            var foundUser = await dbContext.Users
+                                           .Include(u => u.Roles)
+                                           .ThenInclude(r => r.Permissions)
+                                           .Include(u => u.Organizations)
                                            .AsSplitQuery()
-                                           .FirstOrDefaultAsync();
+                                           .AsNoTracking()
+                                           .FirstOrDefaultAsync(u => u.Username == username);
+
             HashSet<string> userPermissions = [];
             //Get user permissions if user exists
-            if (user is not null && user.Roles.Count > 0)
+            if (foundUser is not null && foundUser.Roles.Count > 0)
             {
-                userPermissions = user.Roles.SelectMany(r => r.Permissions.Where(p => !p.Deleted))
-                                      .Select(p => p.PermissionName).ToHashSet();
+                userPermissions = foundUser.Roles.SelectMany(r => r.Permissions.Where(p => !p.Deleted))
+                                           .Select(p => p.PermissionName).ToHashSet();
             }
 
-            return (user, userPermissions);
+            return (foundUser, userPermissions);
         }
 
         public async Task<List<Role>> FindAllRoles(ICollection<int> roleIds)
@@ -575,8 +587,10 @@ namespace WebApp.Services.UserService
 
         public async Task<ResponseEntity> AddOrganizationToUser(Guid userId, ICollection<Guid> orgIds)
         {
-            var user = await userRepository.Find(x => x.Id == userId, include: nameof(User.Organizations))
-                                           .FirstOrDefaultAsync();
+            var user = await dbContext.Users
+                                      .Include(u => u.Organizations)
+                                      .FirstOrDefaultAsync(x => x.Id == userId);
+
             if (user is null) return ResponseEntity.Error404("User not found");
             var org = await organizationRepository.Find(x => orgIds.Contains(x.Id)).ToListAsync();
             user.Organizations = org.ToHashSet();
@@ -590,11 +604,12 @@ namespace WebApp.Services.UserService
             if (UserId is null) throw new Exception("Unauthorized access");
 
             //verify organization exists and user is a member of the organization:
-            var org = await organizationRepository.Find(filter: x => x.Id.ToString() == orgId
-                                                                     && x.Users.Any(u => u.Id.ToString() == UserId),
-                                                        include: nameof(Organization.Users))
-                                                  .FirstOrDefaultAsync();
-            if (org is null)
+            var foundOrg = await dbContext.Organizations
+                                          .Include(o => o.Users)
+                                          .FirstOrDefaultAsync(o => o.Id == orgId.ToGuid()
+                                                                    && o.Users.Any(u => u.Id == UserId.ToGuid()));
+
+            if (foundOrg is null)
                 return new AuthenticationResponse
                 {
                     Message = "Orgianization does not exist or you are not a member of this organization."
@@ -629,9 +644,9 @@ namespace WebApp.Services.UserService
                 RefreshToken = refreshToken,
                 ExpireAt = jwtService.GetExpiration(token),
                 WorkingOrgId = orgId,
-                WorkingTaxId = org.TaxId,
-                WorkingOrgShortName = org.ShortName,
-                WorkingOrgFullName = org.FullName
+                WorkingTaxId = foundOrg.TaxId,
+                WorkingOrgShortName = foundOrg.ShortName,
+                WorkingOrgFullName = foundOrg.FullName
             };
         }
 
@@ -656,16 +671,21 @@ namespace WebApp.Services.UserService
                                        .SelectMany(r => r.Permissions).Where(p => !p.Deleted)
                                        .Select(p => p.PermissionName)
                                        .Distinct()
+                                       .AsNoTracking()
+                                       .AsSplitQuery()
                                        .ToListAsync();
         }
 
         private async Task<ISet<string>> GetUserRoles(Guid uId)
         {
-            var roles = await userRepository.Find(u => u.Id == uId, include: nameof(User.Roles))
-                                            .SelectMany(u => u.Roles).Where(r => !r.Deleted)
-                                            .Select(r => r.RoleName).Distinct()
-                                            .ToListAsync();
-            return roles.ToHashSet();
+            var roles = await dbContext.Users.Where(u => u.Id == uId)
+                                       .Include(u => u.Roles)
+                                       .SelectMany(u => u.Roles).Where(r => !r.Deleted)
+                                       .Select(r => r.RoleName).Distinct()
+                                       .AsNoTracking()
+                                       .AsSplitQuery()
+                                       .ToHashSetAsync();
+            return roles;
         }
 
         private UserDoc MapToMongo(User user)
@@ -721,7 +741,7 @@ namespace WebApp.Services.UserService
         /// <param name="username"></param>
         /// <param name="email"></param>
         /// <returns></returns>
-        private async Task<UserVerification> CreateVerificationCode(Guid userId,string username, string email)
+        private async Task<UserVerification> CreateVerificationCode(Guid userId, string username, string email)
         {
             var verificationKey = Ulid.NewUlid().ToString();
             var verificationCode = StringExtension.RandomNumber(length: 4);
@@ -744,19 +764,20 @@ namespace WebApp.Services.UserService
         /// </summary>
         /// <param name="login"></param>
         /// <returns></returns>
-        private async Task<(bool IsValid, UserVerification? Code)> VerifyUser2StepLogin(UserLoginWithVerifyCodeDto login)
+        private async Task<(bool IsValid, UserVerification? Code)> VerifyUser2StepLogin(
+            UserLoginWithVerifyCodeDto login)
         {
-            var verificationCode = await userVerificationRepository
-                                         .Find(c => c.UserId == login.UserId &&
-                                                    c.VerificationCode == login.Code &&
-                                                    c.VerificationKey == login.Key)
-                                         .AsNoTracking()
-                                         .FirstOrDefaultAsync();
+            var verificationCode = await dbContext.UserVerifications
+                                                  .Where(c => c.UserId == login.UserId &&
+                                                              c.VerificationCode == login.Code &&
+                                                              c.VerificationKey == login.Key)
+                                                  .AsNoTracking()
+                                                  .FirstOrDefaultAsync();
             if (verificationCode is null || verificationCode.VerificationCodeExpiration <= DateTime.Now)
                 return (false, verificationCode);
             return (true, verificationCode);
         }
-        
+
         /// <summary>
         /// Remove the verification code after user has used it.
         /// </summary>
@@ -764,8 +785,8 @@ namespace WebApp.Services.UserService
         private async Task InvalidateVerificationCode(Guid userId)
         {
             var ids = await userVerificationRepository.Find(x => x.UserId == userId)
-                                            .Select(x => x.Id)
-                                            .ToListAsync();
+                                                      .Select(x => x.Id)
+                                                      .ToListAsync();
             await userVerificationRepository.HardDeleteManyAsync(ids);
         }
 
@@ -783,7 +804,8 @@ namespace WebApp.Services.UserService
             await emailService.SendEmailAsync("SLINE - Mã xác thực", emailBody, verificator.Email);
         }
 
-        private async Task<(bool IsValid, string? Message, Guid? Id)> VerifyUserPassword(string username, string password)
+        private async Task<(bool IsValid, string? Message, Guid? Id)> VerifyUserPassword(
+            string username, string password)
         {
             var user = await userRepository.Find(x => x.Username == username && !x.Deleted)
                                            .FirstOrDefaultAsync();
@@ -794,6 +816,7 @@ namespace WebApp.Services.UserService
                 await LoginFailureHandler(user);
                 return (false, "Invalid username or password", null);
             }
+
             if (user.Locked) return (false, "Your account has been locked.", null);
             return (true, null, user.Id);
         }

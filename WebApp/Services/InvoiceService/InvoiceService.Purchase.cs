@@ -46,8 +46,8 @@ public partial class InvoiceService
         if (result is not { Success: true, Data: not null })
         {
             logger.LogWarning("Invoice retrieving operation failed. {message}", result.Message);
-            await invoiceHistoryAppService.CreateHistoryAsync(from.ToDateTime()!.Value,
-                                                              to.ToDateTime()!.Value,
+            await invoiceHistoryAppService.CreateHistoryAsync(from: from.ToDateTime()!.Value,
+                                                              to: to.ToDateTime()!.Value,
                                                               totalFound: 0, totalSuccess: 0,
                                                               SyncType.Purchased, success: false);
             return new ResponseEntity

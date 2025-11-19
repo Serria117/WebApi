@@ -102,6 +102,7 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
         return query.OrderBy("Id DESC");
     }
 
+    //TODO: refactor string-based include to type-safe include according to EF Core 10 breaking changes
     public IQueryable<T> Find(Expression<Func<T, bool>> filter, string? sortBy = "Id", string? order = "DESC",
                               params string[] include)
     {

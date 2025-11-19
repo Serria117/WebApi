@@ -62,17 +62,14 @@ namespace WebApp.Services.UserService
 
         public async Task<ResponseEntity> GetAllRoles(PageRequest request)
         {
-            var pagedResult = await roleRepository
-                                    .Find(
-                                        filter: r =>
-                                            !r.Deleted && (string.IsNullOrEmpty(request.Keyword) ||
-                                                           r.RoleName.Contains(request.Keyword)),
-                                        sortBy: request.SortBy,
-                                        order: request.OrderBy,
-                                        include: [nameof(Role.Permissions)])
-                                    .AsSplitQuery()
-                                    .AsNoTracking()
-                                    .ToPagedListAsync(request.Page, request.Size);
+            var pagedResult = await roleRepository.Find(filter: r => !r.Deleted && (string.IsNullOrEmpty(request.Keyword) ||
+                                                                           r.RoleName.Contains(request.Keyword)),
+                                                        sortBy: request.SortBy,
+                                                        order: request.OrderBy)
+                                                  .Include(r => r.Permissions)
+                                                  .AsSplitQuery()
+                                                  .AsNoTracking()
+                                                  .ToPagedListAsync(request.Page, request.Size);
             var dtoResult = pagedResult.MapPagedList(x => x.ToDisplayDto());
             return request.Fields.Length == 0
                 ? ResponseEntity.OkResult(dtoResult)
@@ -114,8 +111,11 @@ namespace WebApp.Services.UserService
 
         public async Task<ResponseEntity> FindRoleById(int id)
         {
-            var role = await roleRepository.Find(filter: r => r.Id == id && !r.Deleted, 
-                                                 include: [nameof(Role.Users), nameof(Role.Permissions)])
+            var role = await roleRepository.Find(filter: r => r.Id == id && !r.Deleted)
+                                           .Include(r => r.Permissions)
+                                           .Include(r => r.Users)
+                                           .AsNoTracking()
+                                           .AsSplitQuery()
                                            .FirstOrDefaultAsync();
             return role is null
                 ? new ResponseEntity { Success = false, Message = "Role not found" }
@@ -146,10 +146,10 @@ namespace WebApp.Services.UserService
             {
                 role.Permissions.Add(permission);
             }
-            
+
             //TODO: update users in role
             await AddUsersToRole(role, dto.Users);
-            
+
             await roleRepository.UpdateAsync(role);
             await cachingRoleService.GetPermissionsFromCache(role.RoleName); // Cache the updated role permissions
         }
@@ -192,17 +192,16 @@ namespace WebApp.Services.UserService
             var users = await userRepository
                               .Find(u => userIds.Contains(u.Id) && !u.Deleted)
                               .ToListAsync();
-        
+
             // Remove users not in userIds
             var usersToRemove = role.Users.Where(u => !userIds.Contains(u.Id)).ToList();
             foreach (var user in usersToRemove)
             {
                 role.Users.Remove(user);
             }
-        
+
             // Add new users
             role.Users.UnionWith(users);
         }
-        
     }
 }

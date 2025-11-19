@@ -101,6 +101,7 @@ namespace WebApp.Services.UserService
         {
             var permissions = await permissionRepo.Find(p => !p.Deleted)
                                                   .OrderBy(p => p.PermissionName)
+                                                  .AsNoTracking()
                                                   .ToListAsync();
             //permissions.Select(mapper.Map<PermissionDisplayDto>)
             return ResponseEntity.OkResult(permissions.MapCollection(x => x.ToDisplayDto()));

@@ -235,4 +235,5 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
     }
+    
 }
