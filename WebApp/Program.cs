@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
@@ -49,7 +50,7 @@ Log.Logger = new LoggerConfiguration()
                  rollingInterval: RollingInterval.Day, // Roll log files daily
                  outputTemplate:
                  "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
-                 restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information // Minimum level to log
+                 restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug // Minimum level to log
              )
              .CreateLogger();
 
@@ -60,30 +61,36 @@ services.AddStackExchangeRedisCache(op =>
     op.InstanceName = config["RedisCache:InstanceName"];
 });
 
-services.AddSingleton<IConnectionMultiplexer>(sp =>
-    ConnectionMultiplexer.Connect(config.GetConnectionString("Redis")!)
-);
-
-services.AddScoped<IDatabase>(sp => 
+services.AddEFSecondLevelCache(options =>
 {
-    var redis = sp.GetRequiredService<IConnectionMultiplexer>();
-    return redis.GetDatabase();
+    var redisOptions = ConfigurationOptions.Parse(config.GetConnectionString("Redis")!);
+    redisOptions.AllowAdmin = true;
+    redisOptions.AbortOnConnectFail  = false;
+    redisOptions.Ssl = true;
+    options.UseStackExchangeRedisCacheProvider(redisOptions, TimeSpan.FromMinutes(5))
+           .ConfigureLogging(true)
+           .UseDbCallsIfCachingProviderIsDown(TimeSpan.FromMinutes(1));
+    options.CacheAllQueries(CacheExpirationMode.Absolute, TimeSpan.FromMinutes(30));
 });
 
-// Entity Interceptor for auditing:
+// Entity Interceptor for auditing and caching:
 services.AddSingleton<AuditableEntityInterceptor>();
 services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 {
-    var auditInterceptor = serviceProvider.GetService<AuditableEntityInterceptor>()!;
+    var auditInterceptor = serviceProvider.GetRequiredService<AuditableEntityInterceptor>();
+    var cacheInterceptor = serviceProvider.GetRequiredService<SecondLevelCacheInterceptor>();
     options.UseSqlServer(connectionString: config.GetConnectionString("SqlServer"))
-           .AddInterceptors(auditInterceptor);
+           .AddInterceptors(auditInterceptor)
+           .AddInterceptors(cacheInterceptor);
 });
+
 
 // Đăng ký GuidSerializer
 BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.CSharpLegacy));
 
 // Nếu cần hỗ trợ mixed data (cũ + mới), thêm ObjectSerializer
-var objectSerializer = new ObjectSerializer(BsonSerializer.LookupDiscriminatorConvention(typeof(object)), GuidRepresentation.Standard);
+var objectSerializer = new ObjectSerializer(BsonSerializer.LookupDiscriminatorConvention(typeof(object)),
+                                            GuidRepresentation.Standard);
 BsonSerializer.RegisterSerializer(objectSerializer);
 
 //polling rate config:
@@ -99,7 +106,7 @@ services.AddRateLimiter(op =>
     op.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = 429;
-        await context.HttpContext.Response.WriteAsync("Too many request. Try again later.", 
+        await context.HttpContext.Response.WriteAsync("Too many request. Try again later.",
                                                       cancellationToken: token);
     };
 });
@@ -164,7 +171,6 @@ services.AddAuthentication(options =>
         });
 
 
-
 // Custom authorization handlers:
 services.AddAuthorization();
 services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -217,7 +223,7 @@ services.AddSwaggerGen(ops =>
             []
         }
     });
-    
+
     // Set the comments path for the Swagger JSON and UI.
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
@@ -256,7 +262,6 @@ using (var scope = app.Services.CreateScope())
         var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
         await seeder.SeedAsync();
     }
-    
 }
 
 // Configure the HTTP request pipeline.

@@ -24,8 +24,6 @@ public interface IRedisCacheService
 }
 
 public class RedisCacheService(IDistributedCache cache,
-                               IDatabase redisDb,
-                               IConnectionMultiplexer connectionMultiplexer,
                                ILogger<RedisCacheService> logger) : IRedisCacheService
 {
     private readonly JsonSerializerOptions _jsonOptions = new()

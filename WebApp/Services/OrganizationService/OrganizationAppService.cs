@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Linq.Dynamic.Core;
+using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
@@ -212,6 +213,7 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
                                     .OrderBy(req.SortBy + " " + req.OrderBy)
                                     .AsSplitQuery()
                                     .AsNoTracking()
+                                    .Cacheable()
                                     .ToPagedListAsync(req.Page, req.Size);
 
             return req.Fields.Length == 0

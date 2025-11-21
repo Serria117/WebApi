@@ -27,29 +27,22 @@ public static partial class StringExtension
         /// and replacing consecutive spaces within the string with a single space.
         /// </summary>
         /// <returns>A string with normalized spaces or null if the input string is null or empty.</returns>
-        public string? RemoveSpace()
-        {
-            return string.IsNullOrEmpty(str) ? null : SpaceRegex().Replace(str.Trim(), " ");
-        }
+        public string? RemoveSpace() => string.IsNullOrEmpty(str) ? null : SpaceRegex().Replace(str.Trim(), " ");
+
 
         /// <summary>
         /// Determines whether the specified string is null or an empty string ("").
         /// </summary>
         /// <returns>true if the value parameter is null or an empty string (""); otherwise, false.</returns>
         /// <remarks>This is an extension method style replacement for string.IsNullOrEmpty()</remarks>
-        public bool IsNullOrEmpty()
-        {
-            return string.IsNullOrEmpty(str);
-        }
+        public bool IsNullOrEmpty() => string.IsNullOrEmpty(str);
+        
 
         /// <summary>
         /// Determines whether the specified string is null, empty, or consists only of white-space characters.
         /// </summary>
         /// <returns>true if the value parameter is null, empty, or consists only of white-space characters; otherwise, false.</returns>
-        public bool IsNullOrWhiteSpace()
-        {
-            return string.IsNullOrWhiteSpace(str);
-        }
+        public bool IsNullOrWhiteSpace() => string.IsNullOrWhiteSpace(str);
 
         /// <summary>
         /// Update the target string with source string if it's not null or empty
@@ -79,43 +72,44 @@ public static partial class StringExtension
         return decimal.TryParse(value, out var result) ? result / 100 : 0;
     }
 
-    /// <summary>
-    /// Converts the specified string to an integer.
-    /// </summary>
     /// <param name="value">The string to convert.</param>
-    /// <param name="defaultValue">The default value to return if the conversion fails.</param>
-    /// <returns>The converted integer, or the default value if the conversion fails.</returns>
-    public static int ToInt(this string? value, int defaultValue = 0)
+    extension(string? value)
     {
-        if (string.IsNullOrEmpty(value)) return defaultValue;
+        /// <summary>
+        /// Converts the specified string to an integer.
+        /// </summary>
+        /// <param name="defaultValue">The default value to return if the conversion fails.</param>
+        /// <returns>The converted integer, or the default value if the conversion fails.</returns>
+        public int ToInt(int defaultValue = 0)
+        {
+            if (string.IsNullOrEmpty(value)) return defaultValue;
 
-        return int.TryParse(value, out var result) ? result : defaultValue;
-    }
+            return int.TryParse(value, out var result) ? result : defaultValue;
+        }
 
-    /// <summary>
-    /// Converts the specified string to a long integer.
-    /// </summary>
-    /// <param name="value">The string to convert.</param>
-    /// <param name="defaultValue">The default value to return if the conversion fails.</param>
-    /// <returns>The converted long integer, or the default value if the conversion fails.</returns>
-    public static long ToLong(this string? value, long defaultValue = 0)
-    {
-        if (string.IsNullOrEmpty(value)) return defaultValue;
+        /// <summary>
+        /// Converts the specified string to a long integer.
+        /// </summary>
+        /// <param name="defaultValue">The default value to return if the conversion fails.</param>
+        /// <returns>The converted long integer, or the default value if the conversion fails.</returns>
+        public long ToLong(long defaultValue = 0)
+        {
+            if (string.IsNullOrEmpty(value)) return defaultValue;
 
-        return long.TryParse(value, out var result) ? result : defaultValue;
-    }
+            return long.TryParse(value, out var result) ? result : defaultValue;
+        }
 
-    /// <summary>
-    /// Converts the specified string to a decimal number.
-    /// </summary>
-    /// <param name="value">The string to convert.</param>
-    /// <param name="defaultValue">The default value to return if the conversion fails.</param>
-    /// <returns>The converted decimal number, or the default value if the conversion fails.</returns>
-    public static decimal ToDecimal(this string? value, decimal defaultValue = 0)
-    {
-        if (string.IsNullOrEmpty(value)) return defaultValue;
+        /// <summary>
+        /// Converts the specified string to a decimal number.
+        /// </summary>
+        /// <param name="defaultValue">The default value to return if the conversion fails.</param>
+        /// <returns>The converted decimal number, or the default value if the conversion fails.</returns>
+        public decimal ToDecimal(decimal defaultValue = 0)
+        {
+            if (string.IsNullOrEmpty(value)) return defaultValue;
 
-        return decimal.TryParse(value, out var result) ? result : defaultValue;
+            return decimal.TryParse(value, out var result) ? result : defaultValue;
+        }
     }
 
     /// <summary>
