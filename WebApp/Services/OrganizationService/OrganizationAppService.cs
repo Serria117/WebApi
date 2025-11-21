@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Linq.Dynamic.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver.Core.WireProtocol.Messages;
 using WebApp.Core.Data;
@@ -9,6 +10,7 @@ using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
 using WebApp.Repositories;
+using WebApp.Services.CachingServices;
 using WebApp.Services.CommonService;
 using WebApp.Services.Mappers;
 using WebApp.Services.OrganizationService.Dto;
@@ -33,10 +35,12 @@ public interface IOrganizationAppService
 }
 
 public class OrganizationBaseAppService(AppDbContext dbContext,
+                                        IRedisCacheService redisService,
                                         IAppRepository<Organization, Guid> orgRepo,
                                         IAppRepository<District, int> districtRepo,
                                         IAppRepository<TaxOffice2, int> taxOffice2Repo,
                                         IAppRepository<User, Guid> userRepo,
+                                        IHttpContextAccessor httpContext,
                                         IUserManager userManager) : BaseAppService(userManager), IOrganizationAppService
 {
     public async Task<ResponseEntity> Create(OrganizationInputDto dto)
@@ -46,15 +50,15 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
 
         var invalidMessage = await ValidInputDto(dto);
         if (invalidMessage.Count > 0) return ResponseEntity.Error("Invalid input", invalidMessage);
-
+        
         var newOrg = dto.ToEntity();
 
         // Attach location:
         newOrg.District = districtRepo.Attach(dto.DistrictId!.Value);
-        
+
         //newOrg.TaxOffice = taxOfficeRepo.Attach(dto.TaxOfficeId!.Value);
         newOrg.TaxOffice2 = taxOffice2Repo.Attach(dto.TaxOfficeId!.Value);
-        
+
         // Add the user who create the new organization to its users list:
         if (UserId is not null && Guid.TryParse(UserId, out var uId))
         {
@@ -121,7 +125,7 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
         }).ToList();
 
         await orgRepo.CreateManyAsync(entitiesToSave);
-
+        //await InvalidateUserOrgCacheAsync(UserId.ToGuid());
 
         return new ResponseEntity
         {
@@ -155,23 +159,25 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
 
         var query = dbContext.Organizations.Where(o => !o.Deleted);
-        
+
         //apply keyword filter if keyword is provided
         if (!string.IsNullOrEmpty(keyword))
         {
-            query = query.Where(o => o.UnsignName.Contains(keyword) || o.TaxId.Contains(keyword)
-                                || (o.ShortName != null && o.ShortName.Contains(keyword)));
+            query = query.Where(o => o.UnsignName.Contains(keyword)
+                                     || o.TaxId.Contains(keyword)
+                                     || (o.ShortName != null &&
+                                         o.ShortName.Contains(keyword)));
         }
-        
+
         var dtoResult = (await query.Include(o => o.TaxOffice2)
-                                  .Include(o => o.Users)
-                                  .Include(o => o.District)
-                                  .OrderBy(req.SortBy + " " + req.OrderBy)
-                                  .AsSplitQuery()
-                                  .AsNoTracking()
-                                  .ToPagedListAsync(req.Page, req.Size))
+                                    .Include(o => o.Users)
+                                    .Include(o => o.District)
+                                    .OrderBy(req.SortBy + " " + req.OrderBy)
+                                    .AsSplitQuery()
+                                    .AsNoTracking()
+                                    .ToPagedListAsync(req.Page, req.Size))
             .MapPagedList(x => x.ToDisplayDto());
-        
+
         return req.Fields.Length == 0
             ? ResponseEntity.OkResult(dtoResult) //If no fields are specified, return all fields
             : ResponseEntity.OkResult(dtoResult.ProjectPagedList(req.Fields)); //return only specified fields
@@ -180,29 +186,38 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
     public async Task<ResponseEntity> GetAllOrgByCurrentUserAsync(PageRequest req)
     {
         var userId = UserId.ToGuid();
-        var keyword = req.Keyword.RemoveSpace()?.UnSign();
-        var query = dbContext.Organizations
-                              .Where(o => !o.Deleted)
-                              .Where(o => o.Users.Any(u => u.Id == userId));
+        
+        /*var cacheKey = "org-list_" + CacheKeyBuilder.ByUserRequest(httpContext);
+        return await redisService.GetOrCreateAsync(key: cacheKey,
+                                            factory: (Func<Task<ResponseEntity>>)QueryDatabase,
+                                            TimeSpan.FromMinutes(10));*/
 
-        if (!string.IsNullOrEmpty(keyword))
+        return await QueryDatabase();
+        
+        async Task<ResponseEntity> QueryDatabase()
         {
-            query = query.Where(o => o.UnsignName.Contains(keyword) 
-                                       || o.TaxId.Contains(keyword)
-                                       || (o.ShortName != null && o.ShortName.Contains(keyword)));
+            var keyword = req.Keyword.RemoveSpace()?.UnSign();
+            var query = dbContext.Organizations.Where(o => !o.Deleted)
+                                 .Where(o => o.Users.Any(u => u.Id == userId));
+
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(o => o.UnsignName.Contains(keyword) || o.TaxId.Contains(keyword) ||
+                                         (o.ShortName != null && o.ShortName.Contains(keyword)));
+            }
+
+            var result = await query.Include(o => o.Users.Where(u => !u.Deleted))
+                                    .Include(o => o.TaxOffice2)
+                                    .Include(o => o.District)
+                                    .OrderBy(req.SortBy + " " + req.OrderBy)
+                                    .AsSplitQuery()
+                                    .AsNoTracking()
+                                    .ToPagedListAsync(req.Page, req.Size);
+
+            return req.Fields.Length == 0
+                ? ResponseEntity.OkResult(result.MapPagedList(x => x.ToDisplayDto()))
+                : ResponseEntity.OkResult(result.ProjectPagedList(req.Fields));
         }
-
-        var result = await query.Include(o => o.Users.Where(u => !u.Deleted))
-                                 .Include(o => o.TaxOffice2)
-                                 .Include(o => o.District)
-                                 .OrderBy(req.SortBy + " " + req.OrderBy)
-                                 .AsSplitQuery()
-                                 .AsNoTracking()
-                                 .ToPagedListAsync(req.Page, req.Size);
-
-        return req.Fields.Length == 0
-            ? ResponseEntity.OkResult(result.MapPagedList(x => x.ToDisplayDto()))
-            : ResponseEntity.OkResult(result.ProjectPagedList(req.Fields));
     }
 
     public async Task<ResponseEntity> Update(Guid orgId, OrganizationInputDto updateDto)
@@ -317,4 +332,17 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
 
         return errors;
     }
+    
+    private async Task InvalidateUserOrgCacheAsync(Guid userId)
+    {
+        var versionKey = CacheKeyBuilder.UserOrgVersionPrefix(userId);
+        var current = await redisService.GetStringAsync(versionKey) ?? "v0";
+        var next = "v" + (int.Parse(current.AsSpan(1)) + 1);
+
+        await redisService.SetStringAsync(versionKey, next, new DistributedCacheEntryOptions()
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(60),
+        });
+    }
+    
 }

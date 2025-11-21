@@ -118,5 +118,6 @@ public static class DependencyInjector
         s.AddScoped<ITaxDutyAppService, TaxDutyAppService>();
         s.AddScoped<ITaxDutyRecordAppService, TaxDutyRecordAppService>();
         s.AddScoped<ITaxDutyCategoryAppService, TaxDutyCategoryAppService>();
+        s.AddScoped<IRedisCacheService, RedisCacheService>();
     }
 }

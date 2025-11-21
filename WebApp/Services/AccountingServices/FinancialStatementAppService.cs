@@ -11,6 +11,7 @@ using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.AccountingServices.Dto;
 using WebApp.Services.BalanceSheetService.Dto;
+using WebApp.Services.CachingServices;
 using WebApp.Services.CommonService;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService;
@@ -67,7 +68,8 @@ public interface IFinancialStatementAppService
     Task<(string FileName, byte[] File)> DownloadTrialBalanceTemplate();
 }
 
-public class FinancialStatementAppService(AppDbContext dbContext,
+public class FinancialStatementAppService(AppDbContext dbContext, 
+                                          IRedisCacheService cacheService,
                                           IAppRepository<Account, int> accountRepo,
                                           IAppRepository<Organization, Guid> orgRepo,
                                           IAppRepository<FinancialReportWork, string> reportRepo,
@@ -234,6 +236,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                      .Include(r => r.UserInput).ThenInclude(i => i!.Entries.OrderBy(e => e.AccountCode))
                                      .Select(r => r.ToDisplayDto())
                                      .AsSplitQuery()
+                                     .AsNoTracking()
                                      .FirstOrDefaultAsync();
         return result is null
             ? ResponseEntity.Error404("Id not found")

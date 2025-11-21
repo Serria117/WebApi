@@ -26,6 +26,7 @@ using WebApp.Services;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
+using StackExchange.Redis;
 
 // Declare variables.
 var builder = WebApplication.CreateBuilder(args);
@@ -51,6 +52,23 @@ Log.Logger = new LoggerConfiguration()
                  restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information // Minimum level to log
              )
              .CreateLogger();
+
+// Add Redis Cache to DI container
+services.AddStackExchangeRedisCache(op =>
+{
+    op.Configuration = config.GetConnectionString("Redis");
+    op.InstanceName = config["RedisCache:InstanceName"];
+});
+
+services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(config.GetConnectionString("Redis")!)
+);
+
+services.AddScoped<IDatabase>(sp => 
+{
+    var redis = sp.GetRequiredService<IConnectionMultiplexer>();
+    return redis.GetDatabase();
+});
 
 // Entity Interceptor for auditing:
 services.AddSingleton<AuditableEntityInterceptor>();
