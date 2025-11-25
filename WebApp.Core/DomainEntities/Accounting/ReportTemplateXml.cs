@@ -12,4 +12,5 @@ public class ReportTemplateXml : BaseEntity<int>
 
     [Column(TypeName = "NVARCHAR(MAX)")]
     public string XmlTemplate { get; set; } = string.Empty;
+
 }

@@ -764,11 +764,12 @@ public static class DataObjectMapExtension
             BalanceSheet = r.BalanceSheetEntries.Select(b => new BalanceSheetEntryDto
             {
                 Id = b.Id,
-                Name = b.Name,
-                Code = b.Code,
+                Name = b.Name ?? string.Empty,
+                Code = b.Code ?? string.Empty,
                 BeginingBalance = b.BeginingBalance,
                 EndingBalance = b.EndingBalance
-            }).ToArray()
+            }).ToArray(),
+            LastYearReportId = r.LastYearReportId
         };
     }
 

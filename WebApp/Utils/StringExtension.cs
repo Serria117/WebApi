@@ -29,6 +29,10 @@ public static partial class StringExtension
         /// <returns>A string with normalized spaces or null if the input string is null or empty.</returns>
         public string? RemoveSpace() => string.IsNullOrEmpty(str) ? null : SpaceRegex().Replace(str.Trim(), " ");
 
+        public string TrimSpace()
+        {
+            return str?.RemoveSpace() ?? string.Empty;
+        }
 
         /// <summary>
         /// Determines whether the specified string is null or an empty string ("").
@@ -266,6 +270,17 @@ public static partial class StringExtension
         }
 
         return current;
+    }
+
+    public static bool CompareXmlStructure(this XElement? element, XElement? other)
+    {
+        if (element == null || other == null) return false;
+        return element.Name == other.Name && element.Attributes().All(a => other.Attribute(a.Name) != null);
+    }
+
+    public static List<XElement> GetElementsStartWith(this XElement element, string name)
+    {
+        return element.Descendants().Where(e => e.Name.LocalName.StartsWith(name)).ToList();
     }
 
     /// <summary>

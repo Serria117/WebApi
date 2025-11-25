@@ -4,43 +4,52 @@ namespace WebApp.Utils;
 
 public static class LogExtension
 {
-    /// <summary>
-    /// Extension method to log a formatted error message with optional method name and exception details.
-    /// </summary>
     /// <param name="logger">The logger instance.</param>
-    /// <param name="message">The error message to log.</param>
-    /// <param name="methodName">The name of the method where the error occurred (optional).</param>
-    /// <param name="exception">The exception to log (optional).</param>
-    public static void LogErrorFormatted(this ILogger logger,
-                                         string? message = "An error occurred",
-                                         [CallerMemberName] string? methodName = default,
-                                         Exception? exception = null)
+    extension(ILogger logger)
     {
-        var logMessage = $"Error: {message}";
-
-        if (!string.IsNullOrEmpty(methodName))
+        /// <summary>
+        /// Extension method to log a formatted error message with optional method name and exception details.
+        /// </summary>
+        /// <param name="message">The error message to log.</param>
+        /// <param name="methodName">The name of the method where the error occurred (optional).</param>
+        /// <param name="exception">The exception to log (optional).</param>
+        public void LogErrorFormatted(string? message = "An error occurred",
+                                      [CallerMemberName] string? methodName = default,
+                                      Exception? exception = null)
         {
-            logMessage += $" while executing method [{methodName}]";
+            var logMessage = $"Error: {message}";
+
+            if (!string.IsNullOrEmpty(methodName))
+            {
+                logMessage += $" while executing method [{methodName}]";
+            }
+
+            if (exception != null)
+            {
+                logMessage += $"\nException: {exception.GetType().Name}.\n" +
+                              $"Message: {exception.Message}\n" +
+                              $"StackTrace: {exception.StackTrace}";
+            }
+
+            logger.LogError("{message}", logMessage);
         }
 
-        if (exception != null)
+        /// <summary>
+        /// Extension method to log a formatted informational message with optional method name details.
+        /// </summary>
+        /// <param name="message">The informational message to log.</param>
+        /// <param name="methodName">The name of the method where the log is generated (optional).</param>
+        public void LogInfoFormatted(string message = "Operation completed successfully",
+                                     [CallerMemberName] string? methodName = default)
         {
-            logMessage += $"\nException: {exception.Message}\nStackTrace: {exception.StackTrace}";
+            var logMessage = $"Info: {message}.";
+
+            if (!string.IsNullOrEmpty(methodName))
+            {
+                logMessage += $" Executed method [{methodName}]";
+            }
+
+            logger.LogInformation("{message}", logMessage);
         }
-
-        logger.LogError("{message}", logMessage);
-    }
-
-    public static void LogInfoFormatted(this ILogger logger, string message = "Operation completed successfully",
-                                        [CallerMemberName] string? methodName = default)
-    {
-        var logMessage = $"Info: {message}.";
-
-        if (!string.IsNullOrEmpty(methodName))
-        {
-            logMessage += $" Executed method [{methodName}]";
-        }
-
-        logger.LogInformation("{message}", logMessage);
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace WebApp.Services.AccountingServices.Dto;
+﻿using WebApp.Utils;
+
+namespace WebApp.Services.AccountingServices.Dto;
 
 public class FinancialReportWorkDto
 {
@@ -11,7 +13,6 @@ public class FinancialReportWorkDto
     public string FirstFiscalDate { get; set; } = string.Empty;
     public int Regulation { get; set; }
     public string? Status { get; set; }
-    
 }
 
 public class FinancialReportDisplayDto
@@ -34,6 +35,7 @@ public class FinancialReportDisplayDto
     public TrialBalanceEntryDto[] TrialBalance { get; set; } = [];
     public IncomeStatementEntryDto[] IncomeStatement { get; set; } = [];
     public BalanceSheetEntryDto[] BalanceSheet { get; set; } = [];
+    public string? LastYearReportId { get; set; }
 }
 
 public class UserInputTrialDto
@@ -45,7 +47,7 @@ public class UserInputTrialDto
 public class UserInputEntryDto
 {
     public long Id { get; set; }
-    public string? Name { get; set; } = string.Empty;
+    public string? Name { get; set => field = value.RemoveSpace(); } = string.Empty;
     public string AccountCode { get; set; } = string.Empty;
     public decimal OpenCredit { get; set; }
     public decimal OpenDebit { get; set; }
@@ -81,8 +83,8 @@ public class TrialBalanceEntryDto
 public class IncomeStatementEntryDto
 {
     public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Code { get; set; } = string.Empty;
+    public string Name { get; set => field = value.TrimSpace(); } = string.Empty;
+    public string Code { get; set => field = value.TrimSpace(); } = string.Empty;
     public decimal LastYear { get; set; }
     public decimal ThisYear { get; set; }
 }
@@ -90,8 +92,8 @@ public class IncomeStatementEntryDto
 public class BalanceSheetEntryDto
 {
     public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Code { get; set; } = string.Empty;
+    public string Name { get; set => field = value.TrimSpace(); } = string.Empty;
+    public string Code { get; set => field = value.TrimSpace(); } = string.Empty;
     public decimal BeginingBalance { get; set; }
     public decimal EndingBalance { get; set; }
 }

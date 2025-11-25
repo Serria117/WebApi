@@ -41,7 +41,8 @@ public class ExceptionHandlerMiddleware(RequestDelegate next,
             status = context.Response.StatusCode,
             tracedId = tracedId,
             message = message,
-            detailed = environment.IsDevelopment() ? $"Error type: {exception.GetType().Name}, error message: {exception.Message}" : null // This can be omitted in production to avoid exposing sensitive information
+            detailed = environment.IsDevelopment() ? $"Error type: {exception.GetType().Name}, " +
+                                                     $"error message: {exception.Message}" : null // This can be omitted in production to avoid exposing sensitive information
         };
 
         return context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));

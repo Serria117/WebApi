@@ -274,7 +274,9 @@ public partial class InvoiceService(IUserManager userManager,
             if (unDeserializedInvoices.Count > 0)
             {
                 // Regex to match "shdon": "value" or "shdon": value (string or non-string)
-                var regex = new Regex(@"""shdon""\s*:\s*(?:""(?<value>[^""]*)""|(?<value>[^,\}\s]+))");
+                var regex = new Regex("""
+                                      "shdon"\s*:\s*(?:"(?<value>[^"]*)"|(?<value>[^,\}\s]+))
+                                      """);
                 foreach (string unDeserializedInvoice in unDeserializedInvoices)
                 {
                     try
@@ -346,9 +348,9 @@ public partial class InvoiceService(IUserManager userManager,
         return invoice;
     }
 
-    private byte[]? GenerateExcelFile(List<InvoiceDisplayDto> purchaseList,
-                                      List<InvoiceDisplayDto> soldList,
-                                      string from, string to)
+    private static byte[]? GenerateExcelFile(List<InvoiceDisplayDto> purchaseList,
+                                             List<InvoiceDisplayDto> soldList,
+                                             string from, string to)
     {
         if (purchaseList.IsEmpty() && soldList.IsEmpty())
         {

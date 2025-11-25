@@ -43,8 +43,14 @@ public interface IFinancialStatementAppService
     /// <returns></returns>
     Task<ResponseEntity> ImportUserInputTrialBalanceFromExcelFile(UserInputExcelFile input);
 
+    /// <summary>
+    /// Maps the income statement data from a trial balance for the specified financial report.
+    /// </summary>
+    /// <param name="reportId">The unique identifier of the financial report to which the income statement data will be mapped.</param>
+    /// <returns>A ResponseEntity object containing the result of the operation.</returns>
     Task<ResponseEntity> MapIncomeStatementFromTrialBalance(string reportId);
-    Task<ResponseEntity> GetLastYearReports(int curentReportId);
+
+    Task<ResponseEntity> GetLastYearReports(int year);
     Task<ResponseEntity> ClearAllUserInputTrialEntries(string reportId);
     Task<ResponseEntity> SoftDeleteReport(string reportId);
     Task<ResponseEntity> HardDeleteReport(string reportId);
@@ -66,9 +72,27 @@ public interface IFinancialStatementAppService
     Task<ResponseEntity> CalculateFinancialStatement(string reportId);
     Task<(string FileName, byte[] File)> ExportReportNoteExcel(string reportId);
     Task<(string FileName, byte[] File)> DownloadTrialBalanceTemplate();
+
+    /// <summary>
+    /// Assign the last year report for the current report.<br/>
+    /// A report can only have one last year report at a time.
+    /// </summary>
+    /// <param name="curentReportId"></param>
+    /// <param name="lastYearReportId"></param>
+    /// <returns></returns>
+    /// <exception cref="NotFoundException"></exception>
+    Task<ResponseEntity> SelectLastYearReport(string curentReportId, string lastYearReportId);
+
+    /// <summary>
+    /// Imports financial report data from an XML file and associates it with a specified report ID.
+    /// </summary>
+    /// <param name="reportId">The unique identifier of the financial report to associate the imported data with.</param>
+    /// <param name="file">The XML file containing the financial report data to be imported.</param>
+    /// <returns>A response entity indicating the success or failure of the import operation.</returns>
+    Task<ResponseEntity> ImportFinancialReportFromXml(string reportId, IFormFile file);
 }
 
-public class FinancialStatementAppService(AppDbContext dbContext, 
+public class FinancialStatementAppService(AppDbContext dbContext,
                                           IRedisCacheService cacheService,
                                           IAppRepository<Account, int> accountRepo,
                                           IAppRepository<Organization, Guid> orgRepo,
@@ -87,7 +111,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     public async Task<ResponseEntity> GetRegulationList()
     {
         var result = await dbContext.AccountingRegulations
-                                    .Where(r => !r.Deleted 
+                                    .Where(r => !r.Deleted
                                                 && r.RegulationType == RegulationType.FinancialReport)
                                     .Select(r => new
                                     {
@@ -227,8 +251,8 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
     public async Task<ResponseEntity> GetFinancialReportById(string id)
     {
-        var result = await reportRepo.Find(r => r.Id == id 
-                                                && r.OrganizationId == WorkingOrg.ToGuid() 
+        var result = await reportRepo.Find(r => r.Id == id
+                                                && r.OrganizationId == WorkingOrg.ToGuid()
                                                 && !r.Deleted)
                                      .Include(r => r.TrialBalanceEntries.OrderBy(e => e.AccountCode))
                                      .Include(r => r.BalanceSheetEntries.OrderBy(b => b.Code))
@@ -257,7 +281,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     {
         var report = await reportRepo.Find(r => r.Id == input.FinancialReportId && !r.Deleted)
                                      .Include(r => r.UserInput).ThenInclude(u => u!.Entries)
-                                     .FirstOrDefaultAsync() 
+                                     .FirstOrDefaultAsync()
                      ?? throw new NotFoundException("Financial report not found");
 
         var accounts = await accountRepo.Find(x => x.AccountingRegulationId == report.Regulation)
@@ -520,7 +544,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <returns></returns>
     /// <exception cref="NotFoundException">will be throw if report Id does not exist.</exception>
     public async Task<ResponseEntity> UpdateUserInputTrialBalance(string reportId,
-                                                                List<UserBalanceEntryUpdate> entries)
+                                                                  List<UserBalanceEntryUpdate> entries)
     {
         try
         {
@@ -531,14 +555,14 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                          .AsNoTracking()
                                          .FirstOrDefaultAsync()
                          ?? throw new NotFoundException("Financial report not found");
-            if(report.UserInput == null) throw new NotFoundException("Financial report has no user entries yet!");
-            
+            if (report.UserInput == null) throw new NotFoundException("Financial report has no user entries yet!");
+
             var updatingEntries = await dbContext.TrialBalanceEntries
                                                  .Where(t => entries.Select(e => e.Id).Contains(t.Id)
-                                                        && t.UserInputTrialBalanceId == report.UserInput.Id
-                                                        && t.IsUserInput)
+                                                             && t.UserInputTrialBalanceId == report.UserInput.Id
+                                                             && t.IsUserInput)
                                                  .ToListAsync();
-            if(updatingEntries.Count == 0) throw new NotFoundException("Entries not found.");
+            if (updatingEntries.Count == 0) throw new NotFoundException("Entries not found.");
 
             int updateCount = 0;
             foreach (var trialBalanceEntry in updatingEntries)
@@ -557,7 +581,8 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                 trialBalanceEntry.CloseCredit = inputEntry.CloseCredit;
                 updateCount++;
             }
-            if(updateCount == 0) throw new NotFoundException("No entries updated because not matched Id.");
+
+            if (updateCount == 0) throw new NotFoundException("No entries updated because not matched Id.");
             dbContext.TrialBalanceEntries.UpdateRange(updatingEntries);
             await dbContext.SaveChangesAsync();
             return ResponseEntity.Ok();
@@ -691,17 +716,18 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     /// <summary>
     /// Provide a list of selectable reports to be assigned as last year report of a report. <br/>
     /// </summary>
-    /// <param name="currentYear"></param>
+    /// <param name="year"></param>
     /// <returns></returns>
     /// <exception cref="NotFoundException"></exception>
-    public async Task<ResponseEntity> GetLastYearReports(int currentYear)
+    public async Task<ResponseEntity> GetLastYearReports(int year)
     {
         var lastYearReport = await reportRepo.Find(r => r.OrganizationId == WorkingOrg.ToGuid()
-                                                        && r.Year == currentYear - 1
+                                                        && r.Year == year - 1
                                                         && !r.Deleted)
                                              .Select(r => new
                                              {
-                                                 r.Id, r.Name, r.Note, r.BeginDate, r.EndDate,
+                                                 r.Id, r.Name, r.Note,
+                                                 r.BeginDate, r.EndDate,
                                                  r.ReportDate, r.CreateAt
                                              })
                                              .ToListAsync();
@@ -730,20 +756,21 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                              ?? throw new NotFoundException("Financial report not found");
         var currentReport = reports.FirstOrDefault(r => r.Id == curentReportId)
                             ?? throw new NotFoundException("Financial report not found");
-
-        if (currentReport.IncomeStatementEntries.Count > 0 && lastYearReport.IncomeStatementEntries.Count > 0)
+        currentReport.LastYearReportId = lastYearReport.Id;
+        if (currentReport.IncomeStatementEntries.IsNotEmpty()
+            && lastYearReport.IncomeStatementEntries.IsNotEmpty())
         {
             foreach (var currentEntry in currentReport.IncomeStatementEntries)
             {
                 var matchEntry = lastYearReport.IncomeStatementEntries
                                                .FirstOrDefault(i => i.Code == currentEntry.Code);
-                currentEntry.ThisYear = matchEntry?.ThisYear ?? 0;
+                currentEntry.LastYear = matchEntry?.ThisYear ?? 0;
             }
         }
 
         //TODO: check opening balances with last year closing balances in trial balance
         await reportRepo.UpdateAsync(currentReport);
-        return ResponseEntity.Ok();
+        return ResponseEntity.OkResult(currentReport.ToDisplayDto());
     }
 
 
@@ -915,6 +942,188 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         return ResponseEntity.Ok();
     }
 
+
+    public async Task<ResponseEntity> ImportFinancialReportFromXml(string reportId, IFormFile file)
+    {
+        var xml = XDocument.Load(file.OpenReadStream());
+        var report = await dbContext.FinancialReportWorks
+                                    .Where(x => x.Id == reportId
+                                                && x.OrganizationId == WorkingOrg.ToGuid())
+                                    .Include(x => x.Organization)
+                                    .Include(x => x.TrialBalanceEntries)
+                                    .Include(x => x.BalanceSheetEntries)
+                                    .Include(x => x.IncomeStatementEntries)
+                                    .Include(x => x.UserInput).ThenInclude(u => u!.Entries)
+                                    .Include(x => x.Xml)
+                                    .AsSplitQuery()
+                                    .FirstOrDefaultAsync()
+                     ?? throw new NotFoundException("Report not found");
+
+        var template = await dbContext.ReportTemplateXml
+                                      .FirstOrDefaultAsync(x => x.RegulationId == report.Regulation)
+                       ?? throw new NotFoundException("XML template not found");
+
+        var xmlTemplate = XDocument.Parse(template.XmlTemplate);
+
+        const string nodeToCompare = "HSoThueDTu/HSoKhaiThue/CTieuTKhaiChinh";
+        if (!xmlTemplate.GetChildElementByPath(nodeToCompare)
+                        .CompareXmlStructure(xml.GetChildElementByPath(nodeToCompare)))
+        {
+            return ResponseEntity.Error400("Cấu trúc tờ khai XML không hợp lệ.");
+        }
+
+        var mst = xml.Descendants().FirstOrDefault(x => x.Name.LocalName == "mst");
+
+        if (mst != null && report.Organization?.TaxId != mst.Value)
+        {
+            return ResponseEntity.Error400("Mã số thuế trên tờ khai không hợp lệ.");
+        }
+
+        if (report.Xml is not null)
+        {
+            report.Xml.Content = xml.ToString();
+        }
+        else
+        {
+            report.Xml = new ReportContentXml
+            {
+                FileName = $"{report.Name}-{report.Year}-L00.xml",
+                Content = xml.ToString()
+            };
+        }
+        //TODO: extract values from xml and update the report
+
+        //Extract values from main report page:
+        var mainReport = xml.Descendants().FirstOrDefault(node => node.Name.LocalName == "CTieuTKhaiChinh");
+        var annexReport = xml.Descendants().FirstOrDefault(node => node.Name.LocalName == "PLuc");
+
+        if (mainReport is not null)
+        {
+            var dauNam = mainReport.Descendants().FirstOrDefault(node => node.Name.LocalName == "SoDauNam");
+            var cuoiNam = mainReport.Descendants().FirstOrDefault(node => node.Name.LocalName == "SoCuoiNam");
+
+            if (dauNam is not null && cuoiNam is not null)
+            {
+                foreach (var entry in report.BalanceSheetEntries)
+                {
+                    if (entry.Code == null) continue;
+                    var dauNamElement = dauNam.Descendants()
+                                              .FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                    if (dauNamElement is not null)
+                    {
+                        entry.BeginingBalance = dauNamElement.Value.ToDecimal();
+                    }
+
+                    var cuoiNamElement = cuoiNam.Descendants()
+                                                .FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                    if (cuoiNamElement is not null)
+                    {
+                        entry.EndingBalance = cuoiNamElement.Value.ToDecimal();
+                    }
+                }
+            }
+        }
+
+        var plKqsxkd = annexReport?.Descendants().FirstOrDefault(node => node.Name.LocalName == "PL_KQHDSXKD");
+        if (plKqsxkd is not null)
+        {
+            var namNay = plKqsxkd.Descendants().FirstOrDefault(node => node.Name.LocalName == "NamNay");
+            var namTruoc = plKqsxkd.Descendants().FirstOrDefault(node => node.Name.LocalName == "NamTruoc");
+            foreach (var entry in report.IncomeStatementEntries)
+            {
+                var namNayElement = namNay?.Descendants()
+                                          .FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                if (namNayElement is not null)
+                {
+                    entry.ThisYear = namNayElement.Value.ToDecimal();
+                }
+
+                var namTruocElement =
+                    namTruoc?.Descendants().FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                if (namTruocElement is not null)
+                {
+                    entry.LastYear = namTruocElement.Value.ToDecimal();
+                }
+            }
+        }
+
+        var cdtk = annexReport?.Descendants().FirstOrDefault(node => node.Name.LocalName == "PL_CDTK");
+        var dauKy = cdtk?.Descendants().FirstOrDefault(node => node.Name.LocalName == "SoDuDauKy");
+        var phatSinh = cdtk?.Descendants().FirstOrDefault(node => node.Name.LocalName == "SoPhatSinhTrongKy");
+        var cuoiKy = cdtk?.Descendants().FirstOrDefault(node => node.Name.LocalName == "SoDuCuoiKy");
+
+        if (dauKy is not null && phatSinh is not null && cuoiKy is not null)
+        {
+            var noDauKy = dauKy.Descendants().FirstOrDefault(node => node.Name.LocalName == "No");
+            var coDauKy = dauKy.Descendants().FirstOrDefault(node => node.Name.LocalName == "Co");
+            var noPhatSinh = phatSinh.Descendants().FirstOrDefault(node => node.Name.LocalName == "No");
+            var coPhatSinh = phatSinh.Descendants().FirstOrDefault(node => node.Name.LocalName == "Co");
+            var noCuoiKy = cuoiKy.Descendants().FirstOrDefault(node => node.Name.LocalName == "No");
+            var coCuoiKy = cuoiKy.Descendants().FirstOrDefault(node => node.Name.LocalName == "Co");
+
+            foreach (var entry in report.TrialBalanceEntries)
+            {
+                var noDauKyEl = noDauKy?.Elements()
+                                       .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                if (noDauKyEl is not null)
+                {
+                    entry.OpenDebit = noDauKyEl.Value.ToDecimal();
+                }
+
+                var coDauKyEl = coDauKy?.Elements()
+                                       .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                if (coDauKyEl is not null)
+                {
+                    entry.OpenCredit = coDauKyEl.Value.ToDecimal();
+                }
+
+                var noPhatSinhEl = noPhatSinh?.Elements()
+                                             .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                if (noPhatSinhEl is not null)
+                {
+                    entry.AriseDebit = noPhatSinhEl.Value.ToDecimal();
+                }
+
+                var coPhatSinhEl = coPhatSinh?.Elements()
+                                             .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                if (coPhatSinhEl is not null)
+                {
+                    entry.AriseCredit = coPhatSinhEl.Value.ToDecimal();
+                }
+
+                var noCuoiKyEl = noCuoiKy?.Elements()
+                                         .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                if (noCuoiKyEl is not null)
+                {
+                    entry.CloseDebit = noCuoiKyEl.Value.ToDecimal();
+                }
+
+                var coCuoiKyEl = coCuoiKy?.Elements()
+                                         .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                if (coCuoiKyEl is not null)
+                {
+                    entry.CloseCredit = coCuoiKyEl.Value.ToDecimal();
+                }
+            }
+        }
+
+        if (report.UserInput is not null)
+        {
+            report.UserInput.Entries.Clear();
+            report.UserInput.Entries = [..report.TrialBalanceEntries];
+        }
+        else
+        {
+            report.UserInput = new UserInputTrialBalance
+            {
+                Entries = [..report.TrialBalanceEntries]
+            };
+        }
+
+        await dbContext.SaveChangesAsync();
+        return ResponseEntity.OkResult(report.ToDisplayDto());
+    }
+
     public async Task<(string FileName, byte[] File)> ExportReportNoteExcel(string reportId)
     {
         var report = await dbContext.FinancialReportWorks
@@ -932,7 +1141,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     public async Task<(string FileName, byte[] File)> DownloadTrialBalanceTemplate()
     {
         const string filename = "Template_bang_can_doi_tk.xlsx";
-        var templateFile = LoadExcelTemplate(ImportTemplateFOlder, filename); 
+        var templateFile = LoadExcelTemplate(ImportTemplateFOlder, filename);
         await using var stream = new MemoryStream();
         templateFile.SaveToStream(stream, FileFormat.Version2016);
         var file = stream.ToArray();

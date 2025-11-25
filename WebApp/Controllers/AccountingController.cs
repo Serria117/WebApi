@@ -55,10 +55,27 @@ public class AccountingController(IFinancialStatementAppService service,
         };
     }
 
-    [HttpGet("financial-report/last-year-report")]
+    /// <summary>
+    /// Get a list of Financial Report of the last year
+    /// </summary>
+    /// <param name="year"></param>
+    /// <returns></returns>
+    [HttpGet("financial-report/last-year-report/{year:int}")]
     public async Task<IActionResult> GetLastYearList(int year)
     {
         var result = await service.GetLastYearReports(year);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Assign a report from the previous year to the current financial report.
+    /// </summary>
+    /// <param name="req">The request body contain the current report Id and the last year report Id</param>
+    /// <returns>A response indicating the success or failure of the operation.</returns>
+    [HttpPut("financial-report/assign-last-year-report")]
+    public async Task<IActionResult> AssignLastYearReport(AssignLastYearReportRequest req)
+    {
+        var result = await service.SelectLastYearReport(req.ReportId, req.LastYearReportId);
         return Ok(result);
     }
 
@@ -87,7 +104,7 @@ public class AccountingController(IFinancialStatementAppService service,
         try
         {
             await service.CreateFinancialReportWork(input);
-            return Ok();
+            return Ok("Created successfully.");
         }
         catch (Exception e)
         {
@@ -211,7 +228,7 @@ public class AccountingController(IFinancialStatementAppService service,
             return BadRequest(e);
         }
     }
-    
+
     /// <summary>
     /// Calculate report
     /// </summary>
@@ -231,7 +248,7 @@ public class AccountingController(IFinancialStatementAppService service,
             return BadRequest(e.Message);
         }
     }
-    
+
     /// <summary>
     /// Reset all report value
     /// </summary>
@@ -349,7 +366,23 @@ public class AccountingController(IFinancialStatementAppService service,
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            logger.LogErrorFormatted(exception: e);
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpPost("financial-report/import-xml/{id}")]
+    public async Task<IActionResult> ImportFinancialReportFromXml([FromRoute] string id, 
+                                                                  [FromForm] IFormFile xmlFile)
+    {
+        try
+        {
+            var result = await service.ImportFinancialReportFromXml(id, xmlFile);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+        catch (Exception e)
+        {
+            logger.LogErrorFormatted(exception: e);
             return BadRequest(e.Message);
         }
     }
