@@ -2,6 +2,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq.Dynamic.Core;
 using System.Security.Claims;
+using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.EntityFrameworkCore;
 using Spire.Xls;
 using WebApp.Core.Data;
@@ -550,6 +551,7 @@ namespace WebApp.Services.UserService
                                            .Include(u => u.Organizations)
                                            .AsSplitQuery()
                                            .AsNoTracking()
+                                           .Cacheable()
                                            .FirstOrDefaultAsync(u => u.Username == username);
 
             HashSet<string> userPermissions = [];

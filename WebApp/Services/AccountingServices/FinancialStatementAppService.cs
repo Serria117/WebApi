@@ -1,4 +1,5 @@
 ﻿using System.Xml.Linq;
+using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.EntityFrameworkCore;
 using Spire.Xls;
 using WebApp.Core.Data;
@@ -54,7 +55,15 @@ public interface IFinancialStatementAppService
     Task<ResponseEntity> ClearAllUserInputTrialEntries(string reportId);
     Task<ResponseEntity> SoftDeleteReport(string reportId);
     Task<ResponseEntity> HardDeleteReport(string reportId);
+
+    /// <summary>
+    /// Updates the user-provided trial balance entries for a specific financial report.
+    /// </summary>
+    /// <param name="reportId">The identifier of the financial report.</param>
+    /// <param name="entries">The list of trial balance entries to update.</param>
+    /// <returns>A <see cref="ResponseEntity"/> indicating the result of the operation.</returns>
     Task<ResponseEntity> UpdateUserInputTrialBalance(string reportId, List<UserBalanceEntryUpdate> entries);
+
     Task<ResponseEntity> DeleteUserInputTrialBalance(long[] ids);
     Task<ResponseEntity> GetRegulationList();
     Task<ResponseEntity> ResetReport(string reportId);
@@ -118,6 +127,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                         r.Id, r.Name, r.Description
                                     })
                                     .AsNoTracking()
+                                    .Cacheable(CacheExpirationMode.Sliding, TimeSpan.FromHours(100))
                                     .ToListAsync();
         return ResponseEntity.OkResult(result);
     }
@@ -127,6 +137,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         var result = await accountRepo.Find(a => a.AccountingRegulationId == regulationId && !a.Deleted)
                                       .OrderBy(a => a.Code)
                                       .AsNoTracking()
+                                      .Cacheable(CacheExpirationMode.Sliding, TimeSpan.FromHours(100))
                                       .ToListAsync();
         return ResponseEntity.OkResult(result.Select(a => new
         {
@@ -233,7 +244,8 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             query = query.Where(r => r.Year <= toYear.Value);
         }
 
-        var result = await query.OrderByDescending(r => r.CreateAt)
+        var result = await query.OrderByDescending(r => r.Year)
+                                .ThenByDescending(r => r.CreateAt)
                                 .Select(r => new
                                 {
                                     r.Id, r.Name,
@@ -245,6 +257,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                     r.Status, r.ReportDate
                                 })
                                 .AsNoTracking()
+                                .Cacheable(CacheExpirationMode.Sliding, TimeSpan.FromHours(10))
                                 .ToListAsync();
         return ResponseEntity.OkResult(result);
     }
@@ -261,6 +274,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                      .Select(r => r.ToDisplayDto())
                                      .AsSplitQuery()
                                      .AsNoTracking()
+                                     .Cacheable(CacheExpirationMode.Sliding, TimeSpan.FromSeconds(60))
                                      .FirstOrDefaultAsync();
         return result is null
             ? ResponseEntity.Error404("Id not found")
@@ -385,7 +399,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             matchEntry.MappedSuccess = true;
         }
 
-        var updatedReport = await reportRepo.UpdateAsync(report);
+        await reportRepo.UpdateAsync(report);
 
         var mappingResult = new TrialBalanceMapResult();
 
@@ -398,7 +412,6 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
         return ResponseEntity.OkResult(new
         {
-            Report = updatedReport.ToDisplayDto(),
             Errors = mappingResult
         });
     }
@@ -814,6 +827,17 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             dbContext.TrialBalanceEntries.RemoveRange(report.TrialBalanceEntries);
             dbContext.BalanceSheetEntries.RemoveRange(report.BalanceSheetEntries);
             dbContext.IncomeStatementEntries.RemoveRange(report.IncomeStatementEntries);
+
+            //Find and update reports that reference this report as their last year report
+            var referencingReports = await dbContext.FinancialReportWorks
+                                                    .Where(r => r.LastYearReportId == reportId)
+                                                    .ToListAsync();
+            
+            foreach (var referencingReport in referencingReports)
+            {
+                referencingReport.LastYearReportId = null; //Reset the last year report
+            }
+
             dbContext.FinancialReportWorks.Remove(report); //Finally remove the report itself
             await dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -967,7 +991,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
         const string nodeToCompare = "HSoThueDTu/HSoKhaiThue/CTieuTKhaiChinh";
         if (!xmlTemplate.GetChildElementByPath(nodeToCompare)
-                        .CompareXmlStructure(xml.GetChildElementByPath(nodeToCompare)))
+                        .CompareStructure(xml.GetChildElementByPath(nodeToCompare)))
         {
             return ResponseEntity.Error400("Cấu trúc tờ khai XML không hợp lệ.");
         }
@@ -991,7 +1015,6 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                 Content = xml.ToString()
             };
         }
-        //TODO: extract values from xml and update the report
 
         //Extract values from main report page:
         var mainReport = xml.Descendants().FirstOrDefault(node => node.Name.LocalName == "CTieuTKhaiChinh");
@@ -1008,14 +1031,14 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                 {
                     if (entry.Code == null) continue;
                     var dauNamElement = dauNam.Descendants()
-                                              .FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                                              .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.Code}");
                     if (dauNamElement is not null)
                     {
                         entry.BeginingBalance = dauNamElement.Value.ToDecimal();
                     }
 
                     var cuoiNamElement = cuoiNam.Descendants()
-                                                .FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                                                .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.Code}");
                     if (cuoiNamElement is not null)
                     {
                         entry.EndingBalance = cuoiNamElement.Value.ToDecimal();
@@ -1032,14 +1055,14 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             foreach (var entry in report.IncomeStatementEntries)
             {
                 var namNayElement = namNay?.Descendants()
-                                          .FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                                          .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.Code}");
                 if (namNayElement is not null)
                 {
                     entry.ThisYear = namNayElement.Value.ToDecimal();
                 }
 
                 var namTruocElement =
-                    namTruoc?.Descendants().FirstOrDefault(node => node.Name.LocalName.Contains(entry.Code));
+                    namTruoc?.Descendants().FirstOrDefault(node => node.Name.LocalName == $"ct{entry.Code}");
                 if (namTruocElement is not null)
                 {
                     entry.LastYear = namTruocElement.Value.ToDecimal();
@@ -1064,42 +1087,42 @@ public class FinancialStatementAppService(AppDbContext dbContext,
             foreach (var entry in report.TrialBalanceEntries)
             {
                 var noDauKyEl = noDauKy?.Elements()
-                                       .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                                       .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.AccountCode}");
                 if (noDauKyEl is not null)
                 {
                     entry.OpenDebit = noDauKyEl.Value.ToDecimal();
                 }
 
                 var coDauKyEl = coDauKy?.Elements()
-                                       .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                                       .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.AccountCode}");
                 if (coDauKyEl is not null)
                 {
                     entry.OpenCredit = coDauKyEl.Value.ToDecimal();
                 }
 
                 var noPhatSinhEl = noPhatSinh?.Elements()
-                                             .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                                             .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.AccountCode}");
                 if (noPhatSinhEl is not null)
                 {
                     entry.AriseDebit = noPhatSinhEl.Value.ToDecimal();
                 }
 
                 var coPhatSinhEl = coPhatSinh?.Elements()
-                                             .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                                             .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.AccountCode}");
                 if (coPhatSinhEl is not null)
                 {
                     entry.AriseCredit = coPhatSinhEl.Value.ToDecimal();
                 }
 
                 var noCuoiKyEl = noCuoiKy?.Elements()
-                                         .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                                         .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.AccountCode}");
                 if (noCuoiKyEl is not null)
                 {
                     entry.CloseDebit = noCuoiKyEl.Value.ToDecimal();
                 }
 
                 var coCuoiKyEl = coCuoiKy?.Elements()
-                                         .FirstOrDefault(node => node.Name.LocalName.Contains(entry.AccountCode));
+                                         .FirstOrDefault(node => node.Name.LocalName == $"ct{entry.AccountCode}");
                 if (coCuoiKyEl is not null)
                 {
                     entry.CloseCredit = coCuoiKyEl.Value.ToDecimal();
@@ -1109,17 +1132,19 @@ public class FinancialStatementAppService(AppDbContext dbContext,
 
         if (report.UserInput is not null)
         {
+            //Populate user input entries if exist
             report.UserInput.Entries.Clear();
             report.UserInput.Entries = [..report.TrialBalanceEntries];
         }
         else
         {
+            //or create new user input entries then populate them
             report.UserInput = new UserInputTrialBalance
             {
                 Entries = [..report.TrialBalanceEntries]
             };
         }
-
+        report.Status = ReportStatus.Ready;
         await dbContext.SaveChangesAsync();
         return ResponseEntity.OkResult(report.ToDisplayDto());
     }
@@ -1499,11 +1524,12 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         var itemHasChild = report.IncomeStatementEntries
                                  .Where(i => i.IncomeStatementItem.HasChild)
                                  .ToList();
+
         foreach (var item in itemHasChild)
         {
             item.ThisYear = report.IncomeStatementEntries
                                   .Where(i => i.IncomeStatementItem.ParentCode == item.Code)
-                                  .Sum(i => i.ThisYear);
+                                  .Sum(i => i.IncomeStatementItem.NegativeValue ? -i.ThisYear : i.ThisYear);
         }
     }
 

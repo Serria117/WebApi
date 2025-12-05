@@ -176,6 +176,7 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
                                     .OrderBy(req.SortBy + " " + req.OrderBy)
                                     .AsSplitQuery()
                                     .AsNoTracking()
+                                    .Cacheable()
                                     .ToPagedListAsync(req.Page, req.Size))
             .MapPagedList(x => x.ToDisplayDto());
 

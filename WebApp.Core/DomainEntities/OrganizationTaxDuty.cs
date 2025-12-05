@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using NanoidDotNet;
+using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 
 namespace WebApp.Core.DomainEntities;
 [Table("Organizations_TaxDuties")]

@@ -1,4 +1,5 @@
 ﻿using WebApp.Core.DomainEntities;
+using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 
 namespace WebApp.Services.TaxDutyServices.Dto;
 

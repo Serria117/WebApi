@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
+using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 using WebApp.Core.DomainEntities.Payroll;
 
 namespace WebApp.Core.Data;
@@ -88,10 +89,15 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<ReportContentXml> ReportContentXml { get; set; }
     public DbSet<FinancialStatementNote> FinancialStatementNotes { get; set; }
     
-    public DbSet<TaxReportDuty> TaxReportDuties { get; set; }
+    public DbSet<TaxDuty> TaxReportDuties { get; set; }
     public DbSet<TaxDutyRecord> TaxDutyRecords { get; set; }
     public DbSet<OrganizationTaxDuty> OrganizationTaxDuties { get; set; }
     public DbSet<TaxDutyCategory> TaxDutyCategories { get; set; }
+    public DbSet<TaxDutyXmlDoc> TaxDutyXmlDocs { get; set; }
+    public DbSet<TaxDeclarationTemplate> TaxDeclarationTemplates { get; set; }
+
+    public DbSet<UserWorkDiary> UserWorkDiaries { get; set; }
+    public DbSet<UserWorkDiaryComment> UserWorkDiaryComments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -17,7 +17,7 @@ namespace WebApp.Core.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -742,6 +742,272 @@ namespace WebApp.Core.Migrations
                         .IsUnique();
 
                     b.ToTable("ACC_ReportTemplateXml");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDeclarationTemplate", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Schema")
+                        .HasColumnType("NVARCHAR(MAX)");
+
+                    b.Property<int?>("TaxDutyId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxDutyId");
+
+                    b.ToTable("TaxDeclarationTemplates");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDuty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TaxDutyCategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("TaxDutyCategoryId");
+
+                    b.ToTable("TaxReportDuties");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("UnsignName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TaxDutyCategories");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyRecord", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DutyPeriodType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Period")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TaxDutyId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TaxPayable")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("TaxDutyId");
+
+                    b.ToTable("TaxDutyRecords");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyXmlDoc", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(MAX)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Period")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("PeriodType")
+                        .HasColumnType("NVARCHAR(2)");
+
+                    b.Property<int>("SubmissionCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaxDutyRecordId")
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("TaxResponseStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaxTransactionCode")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("TemplateId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxDutyRecordId");
+
+                    b.HasIndex("TaxId");
+
+                    b.HasIndex("TemplateId");
+
+                    b.ToTable("TaxDutyXmlDocs");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxProcedure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("NVARCHAR(MAX)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UnsignName")
+                        .IsRequired()
+                        .HasMaxLength(550)
+                        .HasColumnType("nvarchar(550)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("UnsignName");
+
+                    b.ToTable("TaxProcedures");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Contract", b =>
@@ -1958,78 +2224,6 @@ namespace WebApp.Core.Migrations
                     b.ToTable("Roles");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxDutyCategory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("UnsignName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(255)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TaxDutyCategories");
-                });
-
-            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxDutyRecord", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DutyPeriodType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("PaymentStatus")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Period")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TaxDutyId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TaxPayable")
-                        .HasColumnType("decimal(18,0)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TaxDutyRecords");
-                });
-
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
                 {
                     b.Property<int>("Id")
@@ -2107,88 +2301,6 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("ProvinceId");
 
                     b.ToTable("TaxOffices_2");
-                });
-
-            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxProcedure", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("NVARCHAR(MAX)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UnsignName")
-                        .IsRequired()
-                        .HasMaxLength(550)
-                        .HasColumnType("nvarchar(550)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("UnsignName");
-
-                    b.ToTable("TaxProcedures");
-                });
-
-            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxReportDuty", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TaxDutyCategoryId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name");
-
-                    b.HasIndex("TaxDutyCategoryId");
-
-                    b.ToTable("TaxReportDuties");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Template", b =>
@@ -2402,6 +2514,96 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("VerificationKey");
 
                     b.ToTable("UserVerifications");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.UserWorkDiary", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("WorkStatus")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserWorkDiary");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.UserWorkDiaryComment", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReplyId")
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("WorkDiaryId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("WorkDiaryId");
+
+                    b.ToTable("UserWorkDiaryComments");
                 });
 
             modelBuilder.Entity("WebApp.Core.MenuPermission", b =>
@@ -2621,6 +2823,62 @@ namespace WebApp.Core.Migrations
                         .IsRequired();
 
                     b.Navigation("Regulation");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDeclarationTemplate", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDuty", "TaxDuty")
+                        .WithMany()
+                        .HasForeignKey("TaxDutyId");
+
+                    b.Navigation("TaxDuty");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDuty", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyCategory", "Category")
+                        .WithMany("TaxReportDuties")
+                        .HasForeignKey("TaxDutyCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyRecord", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDuty", "TaxDuty")
+                        .WithMany()
+                        .HasForeignKey("TaxDutyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("TaxDuty");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyXmlDoc", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyRecord", "TaxDutyRecord")
+                        .WithMany("XmlDocs")
+                        .HasForeignKey("TaxDutyRecordId");
+
+                    b.HasOne("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDeclarationTemplate", "TaxDeclarationTemplate")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaxDeclarationTemplate");
+
+                    b.Navigation("TaxDutyRecord");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Contract", b =>
@@ -2856,22 +3114,45 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Province");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxReportDuty", b =>
-                {
-                    b.HasOne("WebApp.Core.DomainEntities.TaxDutyCategory", "Category")
-                        .WithMany("TaxReportDuties")
-                        .HasForeignKey("TaxDutyCategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
             modelBuilder.Entity("WebApp.Core.DomainEntities.TemplateFile", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Template", null)
                         .WithMany("TemplateFiles")
                         .HasForeignKey("TemplateId");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.UserWorkDiary", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
+                    b.HasOne("WebApp.Core.DomainEntities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.UserWorkDiaryComment", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebApp.Core.DomainEntities.UserWorkDiary", "UserWorkDiary")
+                        .WithMany("Comments")
+                        .HasForeignKey("WorkDiaryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("UserWorkDiary");
                 });
 
             modelBuilder.Entity("WebApp.Core.MenuPermission", b =>
@@ -2914,6 +3195,16 @@ namespace WebApp.Core.Migrations
             modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.FinancialStatement.UserInputTrialBalance", b =>
                 {
                     b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyCategory", b =>
+                {
+                    b.Navigation("TaxReportDuties");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyRecord", b =>
+                {
+                    b.Navigation("XmlDocs");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
@@ -2977,11 +3268,6 @@ namespace WebApp.Core.Migrations
                     b.Navigation("TaxOffices2");
                 });
 
-            modelBuilder.Entity("WebApp.Core.DomainEntities.TaxDutyCategory", b =>
-                {
-                    b.Navigation("TaxReportDuties");
-                });
-
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
                 {
                     b.Navigation("Children");
@@ -2990,6 +3276,11 @@ namespace WebApp.Core.Migrations
             modelBuilder.Entity("WebApp.Core.DomainEntities.Template", b =>
                 {
                     b.Navigation("TemplateFiles");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.UserWorkDiary", b =>
+                {
+                    b.Navigation("Comments");
                 });
 #pragma warning restore 612, 618
         }

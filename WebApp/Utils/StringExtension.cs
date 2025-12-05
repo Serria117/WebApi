@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -19,19 +20,19 @@ public static partial class StringExtension
     [GeneratedRegex("\\p{IsCombiningDiacriticalMarks}+")]
     private static partial Regex UnsignRegex();
 
-    /// <param name="str">The input string from which spaces need to be removed or normalized.</param>
-    extension(string? str)
+    /// <param name="value">The input string from which spaces need to be removed or normalized.</param>
+    extension(string? value)
     {
         /// <summary>
         /// Removes unnecessary spaces from the input string by trimming leading and trailing whitespace
         /// and replacing consecutive spaces within the string with a single space.
         /// </summary>
         /// <returns>A string with normalized spaces or null if the input string is null or empty.</returns>
-        public string? RemoveSpace() => string.IsNullOrEmpty(str) ? null : SpaceRegex().Replace(str.Trim(), " ");
+        public string? RemoveSpace() => string.IsNullOrEmpty(value) ? null : SpaceRegex().Replace(value.Trim(), " ");
 
         public string TrimSpace()
         {
-            return str?.RemoveSpace() ?? string.Empty;
+            return value?.RemoveSpace() ?? string.Empty;
         }
 
         /// <summary>
@@ -39,14 +40,14 @@ public static partial class StringExtension
         /// </summary>
         /// <returns>true if the value parameter is null or an empty string (""); otherwise, false.</returns>
         /// <remarks>This is an extension method style replacement for string.IsNullOrEmpty()</remarks>
-        public bool IsNullOrEmpty() => string.IsNullOrEmpty(str);
+        public bool IsNullOrEmpty() => string.IsNullOrEmpty(value);
         
 
         /// <summary>
         /// Determines whether the specified string is null, empty, or consists only of white-space characters.
         /// </summary>
         /// <returns>true if the value parameter is null, empty, or consists only of white-space characters; otherwise, false.</returns>
-        public bool IsNullOrWhiteSpace() => string.IsNullOrWhiteSpace(str);
+        public bool IsNullOrWhiteSpace() => string.IsNullOrWhiteSpace(value);
 
         /// <summary>
         /// Update the target string with source string if it's not null or empty
@@ -55,30 +56,10 @@ public static partial class StringExtension
         /// <returns>The updated string</returns>
         public string UpdateNotNull(string? source)
         {
-            if (string.IsNullOrEmpty(source)) return str;
-            str = source;
-            return str;
+            if (string.IsNullOrEmpty(source)) return string.Empty;
+            value = source;
+            return value;
         }
-    }
-
-    /// <summary>
-    /// Converts a percentage string to a decimal value.
-    /// </summary>
-    /// <param name="value">The input string representing a percentage (e.g., "50%").</param>
-    /// <returns>
-    /// A decimal value representing the percentage divided by 100.
-    /// Returns 0 if the input string is null, empty, or cannot be parsed.
-    /// </returns>
-    public static decimal Percent(this string value)
-    {
-        if (value.IsNullOrEmpty()) return 0;
-        value = value.Replace("%", "").Trim();
-        return decimal.TryParse(value, out var result) ? result / 100 : 0;
-    }
-
-    /// <param name="value">The string to convert.</param>
-    extension(string? value)
-    {
         /// <summary>
         /// Converts the specified string to an integer.
         /// </summary>
@@ -116,6 +97,20 @@ public static partial class StringExtension
         }
     }
 
+    /// <summary>
+    /// Converts a percentage string to a decimal value.
+    /// </summary>
+    /// <param name="value">The input string representing a percentage (e.g., "50%").</param>
+    /// <returns>
+    /// A decimal value representing the percentage divided by 100.
+    /// Returns 0 if the input string is null, empty, or cannot be parsed.
+    /// </returns>
+    public static decimal Percent(this string value)
+    {
+        if (value.IsNullOrEmpty()) return 0;
+        value = value.Replace("%", "").Trim();
+        return decimal.TryParse(value, out var result) ? result / 100 : 0;
+    }
     /// <summary>
     /// Round the decimal number to integer, using AwayFromZero strategy
     /// </summary>
@@ -272,10 +267,15 @@ public static partial class StringExtension
         return current;
     }
 
-    public static bool CompareXmlStructure(this XElement? element, XElement? other)
+    public static bool CompareStructure(this XElement? element, XElement? other)
     {
         if (element == null || other == null) return false;
-        return element.Name == other.Name && element.Attributes().All(a => other.Attribute(a.Name) != null);
+        var elementChildren = element.Elements().OrderBy(e => e.Name.ToString()).ToList();
+        var otherChildren = other.Elements().OrderBy(e => e.Name.ToString()).ToList();
+        if(elementChildren.Count != otherChildren.Count) return false;
+        
+        return elementChildren.Zip(otherChildren, CompareStructure)
+                              .All(x => x);
     }
 
     public static List<XElement> GetElementsStartWith(this XElement element, string name)
@@ -449,5 +449,26 @@ public static partial class StringExtension
             3 => new DateTime(year, 9, 30),
             _ => new DateTime(year, 12, 31)
         };
+    }
+    
+    /// <summary>
+    /// Computes the MD5 hash of the given string.
+    /// </summary>
+    /// <param name="input">The input string to hash.</param>
+    /// <returns>A hexadecimal string representation of the MD5 hash.</returns>
+    public static string ToMd5(this string input)
+    {
+        if (string.IsNullOrEmpty(input)) return string.Empty;
+
+        var inputBytes = Encoding.UTF8.GetBytes(input);
+        var hashBytes = MD5.HashData(inputBytes);
+
+        var sb = new StringBuilder();
+        foreach (var b in hashBytes)
+        {
+            sb.Append(b.ToString("x2"));
+        }
+
+        return sb.ToString();
     }
 }

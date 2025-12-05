@@ -33,6 +33,8 @@ public class ResponseEntity
     {
         return new ResponseEntity { Success = true, Message = message, Code = code };
     }
+    
+    
     public static ResponseEntity OkResult(object data)
     {
         ResponseEntity response = new()

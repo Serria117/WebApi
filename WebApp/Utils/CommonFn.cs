@@ -1,8 +1,9 @@
-﻿using WebApp.Payloads;
+﻿using System.Xml.Linq;
+using WebApp.Payloads;
 
 namespace WebApp.Utils;
 
-public static class CommonUtil
+public static class CommonFn
 {
     public static List<int> GetMonthsInRange(DateTime fromDate, DateTime toDate)
     {

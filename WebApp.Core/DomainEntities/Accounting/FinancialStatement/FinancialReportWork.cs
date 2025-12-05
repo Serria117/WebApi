@@ -55,6 +55,7 @@ public class FinancialReportWork : BaseEntityAuditable<string>
     [Column(TypeName = "CHAR(26)")]
     public string? LastYearReportId { get; set; }
 
+    // Navigation Properties
     public Organization? Organization { get; set; }
     public UserInputTrialBalance? UserInput { get; set; }
     public ICollection<TrialBalanceEntry> TrialBalanceEntries { get; set; } = [];
@@ -69,4 +70,5 @@ public struct ReportStatus
     public const string New = "New";
     public const string Pending = "Pending";
     public const string Ready = "Ready";
+    public const string Imported = "User Imported";
 }

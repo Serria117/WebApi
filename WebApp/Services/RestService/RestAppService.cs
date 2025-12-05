@@ -158,7 +158,7 @@ public class RestBaseAppService(IRestClient restClient,
         var toValue = DateTime.ParseExact(to, "yyyy-MM-dd",
                                           CultureInfo.InvariantCulture, DateTimeStyles.None);
 
-        var dateRanges = CommonUtil.SplitDateRange(fromValue, toValue);
+        var dateRanges = CommonFn.SplitDateRange(fromValue, toValue);
 
         List<string> endpoints =
         [
@@ -402,7 +402,7 @@ public class RestBaseAppService(IRestClient restClient,
 
             if (fromValue > toValue) throw new InvalidDataException("[From date] can not be greater than [To date]");
 
-            var dateRanges = CommonUtil.SplitDateRange(fromValue, toValue);
+            var dateRanges = CommonFn.SplitDateRange(fromValue, toValue);
 
             foreach (var type in types)
             {

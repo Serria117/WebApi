@@ -1,4 +1,4 @@
-﻿using Microsoft.OpenApi.Extensions;
+﻿
 
 namespace WebApp.Payloads;
 
@@ -12,7 +12,7 @@ public class ErrorResponse
         return new ErrorResponse
         {
             Code = Error.InvalidParams,
-            Message = Error.InvalidParams.GetDisplayName()
+            Message = Error.InvalidParams.GetType().Name
         };
     }
 }

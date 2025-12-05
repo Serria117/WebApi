@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using RestSharp;
 using WebApp;
@@ -28,6 +29,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using StackExchange.Redis;
+using ZiggyCreatures.Caching.Fusion;
 
 // Declare variables.
 var builder = WebApplication.CreateBuilder(args);
@@ -61,16 +63,26 @@ services.AddStackExchangeRedisCache(op =>
     op.InstanceName = config["RedisCache:InstanceName"];
 });
 
+services.AddFusionCache().WithDefaultEntryOptions(
+    new FusionCacheEntryOptions()
+    {
+        Duration = TimeSpan.FromMinutes(1),
+        FailSafeMaxDuration = TimeSpan.FromMinutes(60)
+    });
+
 services.AddEFSecondLevelCache(options =>
 {
-    var redisOptions = ConfigurationOptions.Parse(config.GetConnectionString("Redis")!);
+    /*var redisOptions = ConfigurationOptions.Parse(config.GetConnectionString("Redis")!);
     redisOptions.AllowAdmin = true;
     redisOptions.AbortOnConnectFail  = false;
     redisOptions.Ssl = true;
     options.UseStackExchangeRedisCacheProvider(redisOptions, TimeSpan.FromMinutes(5))
            .ConfigureLogging(true)
-           .UseDbCallsIfCachingProviderIsDown(TimeSpan.FromMinutes(1));
-    options.CacheAllQueries(CacheExpirationMode.Absolute, TimeSpan.FromMinutes(30));
+           .UseDbCallsIfCachingProviderIsDown(TimeSpan.FromSeconds(20));
+    options.CacheAllQueries(CacheExpirationMode.Absolute, TimeSpan.FromMinutes(30));*/
+    options.UseFusionCacheProvider()
+           .ConfigureLogging(true)
+           .UseDbCallsIfCachingProviderIsDown(TimeSpan.FromSeconds(30));
 });
 
 // Entity Interceptor for auditing and caching:
@@ -207,22 +219,22 @@ services.AddSwaggerGen(ops =>
         BearerFormat = "JWT"
     });
     ops.AddSecurityRequirement(new OpenApiSecurityRequirement
+
     {
         {
             new OpenApiSecurityScheme
             {
                 Reference = new OpenApiReference
+
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 },
-                /*Scheme = "Bearer",
-                Name = "Bearer",
-                In = ParameterLocation.Header,*/
             },
             []
         }
     });
+
 
     // Set the comments path for the Swagger JSON and UI.
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
