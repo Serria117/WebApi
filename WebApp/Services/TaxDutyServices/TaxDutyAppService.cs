@@ -1,6 +1,8 @@
+using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
+using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 using WebApp.Payloads;
 using WebApp.Services.TaxDutyServices.Dto;
 using WebApp.Services.UserService;
@@ -26,7 +28,7 @@ public class TaxDutyAppService(IUserManager userManager,
 {
     public async Task<ResponseEntity> CreateTaxDuty(TaxDutyDto input)
     {
-        var newTaxDuty = await dbContext.TaxReportDuties.AddAsync(new TaxReportDuty
+        var newTaxDuty = await dbContext.TaxReportDuties.AddAsync(new TaxDuty
         {
             Name = input.Name,
             Code = input.Code,
@@ -74,7 +76,8 @@ public class TaxDutyAppService(IUserManager userManager,
 
         if (req is { Page: not null, Size: not null })
         {
-            var resultPage = await taxDutiesQuery.ToPagedListAsync(req.Page.Value, req.Size.Value);
+            var resultPage = await taxDutiesQuery.Cacheable()
+                                                 .ToPagedListAsync(req.Page.Value, req.Size.Value);
             return ResponseEntity.OkResult(resultPage);
         }
 
@@ -194,6 +197,7 @@ public class TaxDutyAppService(IUserManager userManager,
 
         var duties = await dbContext.OrganizationTaxDuties
                                     .Where(x => x.OrganizationId == orgId && !x.Deleted)
+                                    .Cacheable()
                                     .ToListAsync();
 
         return ResponseEntity.OkResult(duties);

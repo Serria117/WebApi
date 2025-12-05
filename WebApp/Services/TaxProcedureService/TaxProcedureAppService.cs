@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Spire.Xls;
 using WebApp.Core.DomainEntities;
+using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.CommonService;

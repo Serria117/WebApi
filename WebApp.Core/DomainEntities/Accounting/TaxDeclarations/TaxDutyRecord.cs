@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace WebApp.Core.DomainEntities;
+namespace WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 
 [Table("TaxDutyRecords")]
 public class TaxDutyRecord : BaseEntity<string>
@@ -24,6 +24,14 @@ public class TaxDutyRecord : BaseEntity<string>
 
     [MaxLength(500)]
     public string? Note { get; set; }
+    
+    //navigation properties
+    [ForeignKey(nameof(TaxDutyId))]
+    public TaxDuty TaxDuty { get; set; } = null!;
+    [ForeignKey(nameof(OrganizationId))]
+    public Organization Organization { get; set; } = null!;
+
+    public ICollection<TaxDutyXmlDoc> XmlDocs { get; set; } = [];
 }
 
 public enum DutyPeriodType
@@ -37,7 +45,7 @@ public enum DutyPeriodType
 public enum DutyStatus
 {
     Unreported,
-    Reported,
+    Submitted,
     Accepted,
     Rejected
 }

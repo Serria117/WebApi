@@ -2,10 +2,10 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
-namespace WebApp.Core.DomainEntities;
+namespace WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 
 [Table("TaxReportDuties")] [Index(nameof(Name))]
-public class TaxReportDuty : BaseEntity<int>
+public class TaxDuty : BaseEntity<int>
 {
     [MaxLength(500)]
     public string Name { get; set; } = string.Empty;
@@ -23,4 +23,5 @@ public class TaxReportDuty : BaseEntity<int>
 
     [ForeignKey(nameof(TaxDutyCategoryId))]
     public TaxDutyCategory Category { get; set; } = null!;
+
 }

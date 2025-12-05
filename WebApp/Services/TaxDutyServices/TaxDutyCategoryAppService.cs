@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
+using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 using WebApp.Payloads;
 using WebApp.Services.CommonService;
 using WebApp.Services.TaxDutyServices.Dto;

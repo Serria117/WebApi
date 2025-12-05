@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 
-namespace WebApp.Core.DomainEntities;
+namespace WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 
 [Table("TaxDutyCategories")]
 public class TaxDutyCategory : BaseEntity<int>
@@ -14,5 +14,5 @@ public class TaxDutyCategory : BaseEntity<int>
     [Column(TypeName = "nvarchar(255)")]
     public string UnsignName { get; set; } = string.Empty;
 
-    public ICollection<TaxReportDuty> TaxReportDuties { get; set; } = []; //Navigation property
+    public ICollection<TaxDuty> TaxReportDuties { get; set; } = []; //Navigation property
 }

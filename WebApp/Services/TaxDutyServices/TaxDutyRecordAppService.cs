@@ -1,12 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Globalization;
+using System.Xml.Linq;
+using Microsoft.EntityFrameworkCore;
 using WebApp.Core.Data;
-using WebApp.Core.DomainEntities;
+using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
-using WebApp.Services.CommonService;
+using WebApp.Services.Mappers;
 using WebApp.Services.TaxDutyServices.Dto;
 using WebApp.Services.UserService;
 using WebApp.Utils;
+using X.Extensions.PagedList.EF;
+using X.PagedList.Extensions;
 
 namespace WebApp.Services.TaxDutyServices;
 
@@ -17,14 +21,37 @@ public interface ITaxDutyRecordAppService
     Task<ResponseEntity> CreateDutyRecordsForOrganizations(TaxDutyRecordsCreateDto input);
     Task<ResponseEntity> UpdateTaxDutyRecord(string id, TaxDutyRecordDto input);
     Task<ResponseEntity> DeleteTaxDutyRecord(string id);
-    Task<ResponseEntity> FindTaxDutyRecords(int? year, 
-                                            DutyPeriodType? periodType, 
-                                            string? period, 
+
+    Task<ResponseEntity> FindTaxDutyRecords(int? year,
+                                            DutyPeriodType? periodType,
+                                            string? period,
                                             DutyStatus? status,
                                             Guid? orgId,
                                             string? keyword);
 
     Task<ResponseEntity> UpdateTaxDutyRecords(ICollection<TaxDutyRecordUpdateDto> dtos);
+
+    Task<ResponseEntity> UploadXmlToExistingRecord(TaxDutyRecordUploadXml input);
+
+    //Task<(string FileName, byte[] File)> DownloadXmlDocument(string id);
+    Task<ResponseEntity> RemoveXmlDocument(string docId, bool permanent = false);
+    Task<ResponseEntity> ReplaceXmlInExistingRecord(string docId, TaxDutyRecordUploadXml input);
+    Task<ResponseEntity> UpdateXmlStatus(TaxDutyDocumentUpdateStatus input);
+    Task<ResponseEntity> GetDocumentsByRecord(string recordId);
+    Task<(string FileName, byte[] File)> GetXmlContent(string docId);
+
+    /// <summary>
+    /// Uploads multiple XML files and processes them for tax duty records.
+    /// </summary>
+    /// <param name="uploadList">The object containing the collection of XML files to upload and a flag indicating whether to replace existing records.</param>
+    /// <returns>A response entity indicating the success or failure of the operation, including any relevant data or messages.</returns>
+    Task<ResponseEntity> UploadMultiXmlFiles(TaxDutyRecordUploadMultiXml uploadList);
+
+    Task<ResponseEntity> GetDocumentTemplates();
+
+    Task<ResponseEntity> GetDocumentByTaxId(string taxId, int fromYear, int toYear,
+                                            string[] templateCode,
+                                            int page = 1, int pageSize = 1000);
 }
 
 public class TaxDutyRecordAppService(IUserManager userManager,
@@ -49,7 +76,7 @@ public class TaxDutyRecordAppService(IUserManager userManager,
         var query = dbContext.TaxDutyRecords
                              .Where(x => x.Period.EndsWith(filterYear.ToString()))
                              .AsQueryable();
-        
+
         if (status != null)
             query = query.Where(x => x.Status == status); //Filter with status
         if (orgId is not null && orgId != Guid.Empty)
@@ -59,46 +86,50 @@ public class TaxDutyRecordAppService(IUserManager userManager,
         if (!string.IsNullOrEmpty(period))
             query = query.Where(x => x.Period == period); //Filter with period after period type filtering
 
-        var duties = await query.Join(dbContext.TaxReportDuties.Where(t => !t.Deleted),
-                                      d => d.TaxDutyId, t => t.Id,
-                                      (duty, report) => new
-                                      {
-                                          Duty = duty,
-                                          Report = report
-                                      })
-                                .Join(dbContext.Organizations
-                                               .Where(o => organizationIds.Contains(o.Id))
-                                               .Where(o => o.UnsignName.Contains(filterKeyword)),
-                                      rd => rd.Duty.OrganizationId, o => o.Id,
-                                      (rd, o) => new
-                                      {
-                                          Report = rd.Report,
-                                          Duty = rd.Duty,
-                                          Org = o
-                                      })
-                                .AsNoTracking()
-                                .AsSplitQuery()
-                                .GroupBy(x => x.Org.Id)
-                                .Select(g => new
-                                {
-                                    OrganizationId = g.Key,
-                                    g.First().Org.FullName,
-                                    g.First().Org.ShortName,
-                                    g.First().Org.TaxId,
-                                    TotalTaxPayable = g.Sum(x => x.Duty.TaxPayable),
-                                    TaxDuties = g.Select(x => new
-                                    {
-                                        x.Duty.Id,
-                                        ReportName = x.Report.Name,
-                                        ReportId = x.Report.Id,
-                                        x.Duty.Period,
-                                        x.Duty.Status,
-                                        x.Duty.TaxPayable,
-                                        x.Duty.DutyPeriodType,
-                                        x.Duty.PaymentStatus,
-                                        x.Duty.DueDate
-                                    }).OrderBy(x => x.ReportId).ToList()
-                                }).ToListAsync();
+        var duties = await query
+                           .Include(x => x.XmlDocs)
+                           .Join(dbContext.TaxReportDuties.Where(t => !t.Deleted),
+                                 d => d.TaxDutyId, t => t.Id,
+                                 (record, duty) => new
+                                 {
+                                     Record = record,
+                                     Duty = duty
+                                 })
+                           .Join(dbContext.Organizations
+                                          .Where(o => organizationIds.Contains(o.Id))
+                                          .Where(o => o.UnsignName.Contains(filterKeyword)),
+                                 rd => rd.Record.OrganizationId, o => o.Id,
+                                 (rd, o) => new
+                                 {
+                                     DocumentCount = rd.Record.XmlDocs.Count(x => !x.Deleted),
+                                     Report = rd.Duty,
+                                     Duty = rd.Record,
+                                     Org = o
+                                 })
+                           .AsNoTracking()
+                           .AsSplitQuery()
+                           .GroupBy(x => x.Org.Id)
+                           .Select(g => new
+                           {
+                               OrganizationId = g.Key,
+                               g.First().Org.FullName,
+                               g.First().Org.ShortName,
+                               g.First().Org.TaxId,
+                               TotalTaxPayable = g.Sum(x => x.Duty.TaxPayable),
+                               TaxDuties = g.Select(x => new
+                               {
+                                   x.Duty.Id,
+                                   ReportName = x.Report.Name,
+                                   ReportId = x.Report.Id,
+                                   x.Duty.Period,
+                                   x.Duty.Status,
+                                   x.Duty.TaxPayable,
+                                   x.Duty.DutyPeriodType,
+                                   x.Duty.PaymentStatus,
+                                   x.Duty.DueDate,
+                                   x.DocumentCount
+                               }).OrderBy(x => x.ReportId).ThenBy(x => x.DueDate).ToList()
+                           }).ToListAsync();
 
 
         return ResponseEntity.OkResult(duties);
@@ -213,8 +244,7 @@ public class TaxDutyRecordAppService(IUserManager userManager,
 
         var organizations = await dbContext.Users.Where(x => x.Id == UserId.ToGuid())
                                            .SelectMany(x => x.Organizations
-                                                             .Select(o => o
-                                                                         .Id)) //get all the organizations of current user
+                                                             .Select(o => o.Id))
                                            .Where(o => input.Organizations.Contains(o)) //filter only the selected ones
                                            .ToListAsync();
         List<TaxDutyRecord> records = [];
@@ -222,8 +252,7 @@ public class TaxDutyRecordAppService(IUserManager userManager,
         {
             var duties = await dbContext.OrganizationTaxDuties
                                         .Where(x => x.OrganizationId == org
-                                                    && x.DutyPeriodType ==
-                                                    input.DutyPeriodType //filter by duty period type
+                                                    && x.DutyPeriodType == input.DutyPeriodType
                                                     && !x.Deleted)
                                         .ToListAsync();
             if (duties.Count == 0) continue;
@@ -271,11 +300,323 @@ public class TaxDutyRecordAppService(IUserManager userManager,
         return ResponseEntity.OkResult(found);
     }
 
+    public async Task<ResponseEntity> UploadXmlToExistingRecord(TaxDutyRecordUploadXml input)
+    {
+        var found = await dbContext.TaxDutyRecords
+                                   .Where(r => !r.Deleted && r.Id == input.Id)
+                                   .Select(r => new
+                                   {
+                                       r.Organization.TaxId,
+                                       r.TaxDutyId
+                                   })
+                                   .AsNoTracking()
+                                   .FirstOrDefaultAsync();
+
+        if (found is null) return ResponseEntity.Error404("Không tìm thấy bản ghi.");
+
+        var uploadingXml = XDocument.Load(input.File.OpenReadStream());
+
+        var mst = uploadingXml.Descendants()
+                              .FirstOrDefault(n => n.Name.LocalName == "mst")?.Value ?? string.Empty;
+
+        if (mst != found.TaxId)
+            return ResponseEntity.Error400("Mã số thuế trên tờ khai không đúng.");
+
+        var docCode = uploadingXml.Descendants()
+                                  .FirstOrDefault(n => n.Name.LocalName == "maTKhai")?.Value ?? string.Empty;
+
+        var template = await dbContext.TaxDeclarationTemplates
+                                      .FirstOrDefaultAsync(t => t.TaxDutyId == found.TaxDutyId
+                                                                && !t.Deleted
+                                                                && t.Code == docCode);
+        //Verify doc code
+        if (template is null)
+            return ResponseEntity.Error400("Mã tờ khai không đúng.");
+        var mainContent = uploadingXml.Descendants()
+                                      .FirstOrDefault(x => x.Name.LocalName == "CTieuTKhaiChinh");
+        //Verify schema
+        if (template.Schema is not null && mainContent is not null)
+        {
+            var schema = XElement.Parse(template.Schema);
+            if (!schema.CompareStructure(mainContent))
+            {
+                return ResponseEntity.Error400("Tờ khai không đúng cấu trúc.");
+            }
+        }
+
+        logger.LogInfoFormatted("Verify XML's schema successful. Creating new XML document.");
+        //Extract other document's meta-data:
+        var submissionCount = uploadingXml.Descendants()
+                                          .FirstOrDefault(x => x.Name.LocalName == "soLan")?.Value.ToInt() ?? 0;
+        var dateString = uploadingXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "ngayLapTKhai")?.Value;
+        var issueDate =
+            DateTime.TryParseExact(dateString, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None,
+                                   out var date)
+                ? date
+                : (DateTime?)null;
+        var period = uploadingXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "kyKKhai")?.Value;
+        var periodType = uploadingXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "kieuKy")?.Value;
+
+        //Check of the document is already uploaded by comparing the submission count and period.
+        var existingDoc = await dbContext.TaxDutyXmlDocs
+                                         .Where(t => t.TaxDutyRecordId == input.Id) //same record
+                                         .Where(t => t.SubmissionCount == submissionCount) //same submission count
+                                         .Where(t => t.Period == period) //same period
+                                         .FirstOrDefaultAsync();
+
+        if (existingDoc is not null)
+        {
+            return new ResponseEntity
+            {
+                Code = "409",
+                Message = "Đã có tờ khai cùng kỳ kê khai, bạn có muốn thay thế tờ khai này không?",
+                Success = false,
+                Data = new
+                {
+                    ExistingId = existingDoc.Id
+                }
+            };
+        }
+
+        var xmlDocEntity = new TaxDutyXmlDoc
+        {
+            FileName = input.File.FileName,
+            SubmissionCount = submissionCount,
+            Content = uploadingXml.ToString(),
+            TaxDutyRecordId = input.Id,
+            TaxDeclarationTemplate = template,
+            IssueDate = issueDate,
+            Period = period,
+            PeriodType = periodType,
+            TaxId = found.TaxId,
+        };
+        dbContext.Add(xmlDocEntity);
+        await dbContext.SaveChangesAsync();
+        return ResponseEntity.Ok("Lưu dữ liệu XML thành công.");
+    }
+
+    public async Task<ResponseEntity> ReplaceXmlInExistingRecord(string docId, TaxDutyRecordUploadXml input)
+    {
+        var taxId = await dbContext.TaxDutyRecords.Where(r => !r.Deleted && r.Id == input.Id)
+                                   .Select(r => r.Organization.TaxId)
+                                   .AsNoTracking()
+                                   .FirstOrDefaultAsync();
+        if (taxId == null)
+            return ResponseEntity.Error404("Không tìm thấy bản ghi.");
+
+        var uploadingXml = XDocument.Load(input.File.OpenReadStream());
+        var documentTaxId = uploadingXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "mst")?.Value;
+        if (taxId != documentTaxId)
+            return ResponseEntity.Error400("Mã số thuế trên tờ khai không đúng.");
+
+        var xmlToReplace = await dbContext.TaxDutyXmlDocs
+                                          .FirstOrDefaultAsync(t => t.Id == docId
+                                                                    && t.TaxDutyRecordId == input.Id
+                                                                    && !t.Deleted);
+
+        if (xmlToReplace is null)
+            return ResponseEntity.Error404("Không tìm thấy tài liệu phù hợp.");
+
+        xmlToReplace.FileName = input.File.FileName;
+        xmlToReplace.SubmissionCount = uploadingXml.Descendants()
+                                                   .FirstOrDefault(x => x.Name.LocalName == "soLan")?.Value.ToInt() ??
+                                       0;
+        xmlToReplace.Content = uploadingXml.ToString(); //modyfy the content of the xml document
+
+        await dbContext.SaveChangesAsync();
+        return ResponseEntity.Ok("Thay thế file XML thành công!");
+    }
+
+    public async Task<ResponseEntity> UpdateXmlStatus(TaxDutyDocumentUpdateStatus input)
+    {
+        var found = await dbContext.TaxDutyXmlDocs.FirstOrDefaultAsync(t => t.Id == input.Id);
+
+        if (found is null)
+            return ResponseEntity.Error404("XML document not found");
+        found.TaxResponseStatus = input.TaxResponseStatus;
+
+        await dbContext.SaveChangesAsync();
+        return ResponseEntity.Ok("Successfully updated XML document status.");
+    }
+
+    public async Task<ResponseEntity> RemoveXmlDocument(string docId, bool permanent = false)
+    {
+        var found = await dbContext.TaxDutyXmlDocs.FirstOrDefaultAsync(t => t.Id == docId);
+        if (found is null) return ResponseEntity.Error404("XML document not found");
+        if (permanent)
+        {
+            dbContext.TaxDutyXmlDocs.Remove(found); //hard delete
+        }
+        else
+        {
+            found.Deleted = true; //soft delete
+        }
+
+        await dbContext.SaveChangesAsync();
+        return ResponseEntity.Ok("Successfully removed XML document.");
+    }
+
     public async Task<ResponseEntity> DeleteTaxDutyRecord(string id)
     {
-        var result = await dbContext.TaxDutyRecords.DeleteByKeyAsync(id);
+        var docs = await dbContext.TaxDutyXmlDocs.Where(x => x.TaxDutyRecordId == id)
+                                  .Select(x => x.Id)
+                                  .ToListAsync();
+        if (docs.IsNotEmpty())
+            await dbContext.TaxDutyXmlDocs
+                           .DeleteRangeByKeyAsync(docs); //Delete all xml documents related to this record
+        var result = await dbContext.TaxDutyRecords.DeleteByKeyAsync(id); //Delete the record itself
         return result > 0
-            ? ResponseEntity.OkResult("Deleted successfully.")
+            ? ResponseEntity.Ok("Successfully deleted tax duty record and all related documents.")
             : ResponseEntity.Error404("Tax duty record not found.");
+    }
+
+    public async Task<ResponseEntity> GetDocumentsByRecord(string recordId)
+    {
+        var docs = await dbContext.TaxDutyXmlDocs
+                                  .Where(x => x.TaxDutyRecordId == recordId && !x.Deleted)
+                                  .Select(d => new
+                                  {
+                                      d.Id,
+                                      d.FileName,
+                                      d.SubmissionCount,
+                                      d.TaxResponseStatus,
+                                      d.TaxTransactionCode,
+                                      d.CreateAt,
+                                      d.CreateBy,
+                                      d.IssueDate,
+                                      d.Period, d.PeriodType
+                                  })
+                                  .OrderBy(d => d.IssueDate)
+                                  .ToListAsync();
+        return ResponseEntity.OkResult(docs);
+    }
+
+    public async Task<ResponseEntity> GetDocumentTemplates()
+    {
+        var templates = await dbContext.TaxDeclarationTemplates.ToListAsync();
+        return ResponseEntity.OkResult(templates.ProjectToDisplay([
+            "Id", "Code", "Name", "Description", "TaxDutyId"
+        ]));
+    }
+
+    public async Task<ResponseEntity> GetDocumentByTaxId(string taxId,
+                                                         int fromYear, int toYear,
+                                                         string[] templateCode,
+                                                         int page = 1, int pageSize = 1000)
+    {
+        var query = dbContext.TaxDutyXmlDocs
+                             .Where(x => x.TaxId == taxId)
+                             .Where(x => x.Year >= fromYear && x.Year <= toYear);
+
+        if (templateCode.Length > 0)
+        {
+            query = query.Where(x => x.TaxDeclarationTemplate.Code != null
+                                     && templateCode.ToList().Contains(x.TaxDeclarationTemplate.Code));
+        }
+
+        var docs = await query.OrderBy(x => x.TemplateId)
+                              .ThenBy(x => x.Period)
+                              .ThenBy(x => x.SubmissionCount)
+                              .Select(x => new XmlTaxDocumentWrapper(XDocument.Parse(x.Content)))
+                              .ToPagedListAsync(page, pageSize);
+
+        return ResponseEntity.OkResult(docs);
+    }
+
+    public async Task<(string FileName, byte[] File)> GetXmlContent(string docId)
+    {
+        var doc = await dbContext.TaxDutyXmlDocs
+                                 .Where(x => x.Id == docId && !x.Deleted)
+                                 .Select(x => new
+                                 {
+                                     x.FileName,
+                                     x.Content
+                                 })
+                                 .FirstOrDefaultAsync();
+        if (doc is null) throw new NotFoundException("Document not found");
+        var xmlDoc = XDocument.Parse(doc.Content, LoadOptions.PreserveWhitespace);
+        using var stream = new MemoryStream();
+        xmlDoc.Save(stream);
+        return (doc.FileName, stream.ToArray());
+    }
+
+    public async Task<ResponseEntity> UploadMultiXmlFiles(TaxDutyRecordUploadMultiXml uploadList)
+    {
+        const int maxFilesCount = 20;
+        if (uploadList.Files.IsEmpty()) return ResponseEntity.Error400("Danh sách file trống.");
+        if (uploadList.Files.Count > maxFilesCount)
+            return ResponseEntity.Error400($"Danh sách file quá lớn, hãy giới hạn {maxFilesCount} file/lần");
+
+        var dataToSave = new List<TaxDutyXmlDoc>();
+        var dataToUpdate = new List<TaxDutyXmlDoc>();
+        var errors = new List<string>();
+        foreach (IFormFile file in uploadList.Files)
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream();
+                var xmlDoc = await XDocument.LoadAsync(stream, LoadOptions.PreserveWhitespace, CancellationToken.None);
+
+                var doc = new XmlTaxDocumentWrapper(xmlDoc);
+                var xmlRecord = doc.CreateXmlRecord();
+                xmlRecord.FileName = file.FileName;
+
+                var template = await dbContext.TaxDeclarationTemplates.FirstOrDefaultAsync(t => t.Code == doc.Code);
+                if (template is not null) xmlRecord.TaxDeclarationTemplate = template;
+
+                var record = await dbContext.TaxDutyRecords
+                                            .Where(r => r.Organization.TaxId == doc.TaxId
+                                                        && r.Period == doc.Period
+                                                        && r.TaxDuty.Code == doc.Code)
+                                            .Select(r => r.Id)
+                                            .FirstOrDefaultAsync();
+                if (record is not null) xmlRecord.TaxDutyRecordId = record;
+
+                if (uploadList.ReplaceExisting)
+                {
+                    var existingDoc = await dbContext
+                                            .TaxDutyXmlDocs
+                                            .FirstOrDefaultAsync(t => t.TaxId == doc.TaxId
+                                                                      && t.Period == doc.Period
+                                                                      && t.SubmissionCount == doc.Count
+                                                                      && t.TaxDeclarationTemplate.Code == doc.Code);
+                    if (existingDoc is not null)
+                    {
+                        existingDoc.FileName = file.FileName;
+                        existingDoc.Content = doc.Content;
+                        existingDoc.IssueDate = doc.IssueDate.ToDateTime();
+                        dataToUpdate.Add(existingDoc);
+                    }
+                    else
+                    {
+                        dataToSave.Add(xmlRecord);
+                    }
+                }
+                else
+                {
+                    dataToSave.Add(xmlRecord);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                errors.Add(file.FileName);
+            }
+        }
+
+        if (dataToSave.IsEmpty() && dataToUpdate.IsEmpty())
+        {
+            return ResponseEntity.Error400("Upload multi XML files failed.");
+        }
+
+        await dbContext.BulkInsertAsync(dataToSave);
+        await dbContext.BulkUpdateAsync(dataToUpdate);
+
+        return ResponseEntity.OkResult(new
+        {
+            UploadedCount = uploadList.Files.Count,
+            SavedCount = dataToSave.Count + dataToUpdate.Count,
+            FailedFiles = errors
+        });
     }
 }
