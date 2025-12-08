@@ -28,6 +28,7 @@ using WebApp.Services;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
+using Scalar.AspNetCore;
 using StackExchange.Redis;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -245,11 +246,7 @@ services.AddSwaggerGen(ops =>
 services.AddSingleton(restSettings);
 services.AddSingleton<IRestClient>(new RestClient(new RestClientOptions(restSettings.BaseUrl)));
 
-/* Add mapper services */
-/*services.AddAutoMapper(typeof(UserMapper), typeof(RoleMapper),
-                       typeof(OrgMapper), typeof(PagedMapper), typeof(RegionMapper));*/
 
-//services.AddSingleton<CustomMap>();
 
 /*services.AddHttpContextAccessor();
 services.AddScoped<JwtService>();
@@ -261,7 +258,6 @@ services.AddMongoServices(mongoSettings);
 
 // Register DatabaseSeeder
 services.AddTransient<DatabaseSeeder>();
-
 builder.Host.UseSerilog();
 
 var app = builder.Build();
@@ -298,6 +294,19 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
         c.InjectJavascript("/swagger-custom.js");
+    });
+    app.MapScalarApiReference(options =>
+    {
+        options.WithTitle("Sline-App API Documentation");
+        
+        // Point đến OpenAPI JSON của Swashbuckle (với documentName = v1)
+        options.WithOpenApiRoutePattern("/swagger/{documentName}/swagger.json"); 
+        
+        // Các tùy chọn khác nếu cần:
+        //options.ForceDarkMode(); // Bật dark mode
+        options.Theme = ScalarTheme.BluePlanet;
+        
+        options.AddPreferredSecuritySchemes("Bearer"); 
     });
 }
 
