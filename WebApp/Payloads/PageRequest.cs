@@ -27,7 +27,7 @@ public class PageRequest
         return new PageRequest
         {
             Page = pr.Page ?? 1,
-            Size = pr.Size ?? 100,
+            Size = pr.Size ?? 1000,
             SortBy = pr.SortBy ?? "Id",
             OrderBy = pr.OrderBy ?? SortOrder.ASC,
             Sort = $"{pr.SortBy} {pr.OrderBy}",
