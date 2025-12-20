@@ -7,7 +7,7 @@ using WebApp.Mongo.FilterBuilder;
 
 namespace WebApp.Mongo.MongoRepositories;
 
-public interface ISoldInvoiceDetailRepository
+public interface IInvoiceSoldRepository
 {
     /// <summary>
     /// Inserts multiple sold invoice details into the database.
@@ -35,9 +35,9 @@ public interface ISoldInvoiceDetailRepository
     Task<bool> DeleteSoldInvoice(List<string> ids);
 }
 
-public class SoldInvoiceDetailRepository(IMongoDatabase database)
+public class InvoiceSoldRepository(IMongoDatabase database)
     : GenericMongoRepository<SoldInvoiceDetail, string>(collectionName: "SoldInvoiceDetail",
-                                                        database: database), ISoldInvoiceDetailRepository
+                                                        database: database), IInvoiceSoldRepository
 {
     public async Task<int> InsertManyInvoiceAsync(List<SoldInvoiceDetail> invoiceList)
     {

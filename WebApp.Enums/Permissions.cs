@@ -57,4 +57,9 @@ public struct Permissions
     public const string FinancialReportView = "FINANCIAL_REPORT.VIEW";
     public const string FinancialReportUpdate = "FINANCIAL_REPORT.UPDATE";
     public const string FinancialReportDelete = "FINANCIAL_REPORT.DELETE";
+
+    public const string TaxDutyCreate = "TAX_DUTY.CREATE";
+    public const string TaxDutyView = "TAX_DUTY.VIEW";
+    public const string TaxDutyUpdate = "TAX_DUTY.UPDATE";
+    public const string TaxDutyDelete = "TAX_DUTY.DELETE";
 }

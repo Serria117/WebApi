@@ -26,6 +26,8 @@ public class OrganizationDisplayDto
     public string? TypeOfVatPeriod { get; set; }
     public string? CapitalOwnershipType { get; set; }
     public string? Representative { get; set; }
+    public string? UnsignName { get; set; }
+    public string OrganizationStatus { get; set; } = string.Empty;
     public HashSet<OrganizationLoginInfoDto> OrganizationLoginInfos { get; set; } = [];
 }
 

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Core.DomainEntities;
@@ -17,7 +18,9 @@ public class MenuItem: BaseEntity<int>
     
     public int? ParentId { get; set; }
     
-    public ICollection<MenuItem> Items { get; set; } = new List<MenuItem>(); 
+    public ICollection<MenuItem> Items { get; set; } = []; 
+
+    [ForeignKey(nameof(ParentId))] 
     public MenuItem? Parent { get; set; }
 
     public ICollection<MenuPermission> MenuPermissions { get; set; } = [];

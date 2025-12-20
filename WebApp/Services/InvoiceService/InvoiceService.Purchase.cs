@@ -197,7 +197,7 @@ public partial class InvoiceService
                                          .WithType(invoiceParams.InvoiceType)
                                          .Build<InvoiceDetailDoc>();
 
-        var invoiceList = await mongoPurchaseInvoice
+        var invoiceList = await purchaseInvoiceRepo
             .FindInvoices(filter, invoiceParams.Page ?? 1, invoiceParams.Size ?? 10);
 
         var data = new List<InvoiceDisplayDto>();
@@ -249,7 +249,7 @@ public partial class InvoiceService
                 invoices.Add(invoice);
             }
 
-            var result = await mongoPurchaseInvoice.InsertInvoicesAsync(invoices);
+            var result = await purchaseInvoiceRepo.InsertInvoicesAsync(invoices);
             return new ResponseEntity
             {
                 Success = result,
@@ -266,7 +266,7 @@ public partial class InvoiceService
 
     public async Task<ResponseEntity> DeletePurchaseInvoicesAsync(List<string> ids)
     {
-        var result = await mongoPurchaseInvoice.DeleteInvoices(ids);
+        var result = await purchaseInvoiceRepo.DeleteInvoices(ids);
         return new ResponseEntity
         {
             Success = result,
@@ -284,7 +284,7 @@ public partial class InvoiceService
         {
             foreach (var inv in invoiceList)
             {
-                var updateResult = await mongoPurchaseInvoice.UpdateInvoiceStatus(inv.Id!, inv.Tthai!.Value);
+                var updateResult = await purchaseInvoiceRepo.UpdateInvoiceStatus(inv.Id!, inv.Tthai!.Value);
                 if (updateResult <= 0) continue;
                 total += updateResult;
                 updateList.Add(inv.ToDisplayModel());
@@ -307,7 +307,7 @@ public partial class InvoiceService
                                          .WithKhhdon(invoice.Khhdon)
                                          .WithInvoiceNumber(invoice.Shdon)
                                          .Build<InvoiceDetailDoc>();
-        return await mongoPurchaseInvoice.InvoiceExist(filter);
+        return await purchaseInvoiceRepo.InvoiceExist(filter);
     }
 
     private async Task<bool> IsPurchaseInvoiceExist(InvoiceDetailDoc invoice)
@@ -317,6 +317,6 @@ public partial class InvoiceService
                                          .WithKhhdon(invoice.Khhdon)
                                          .WithInvoiceNumber(invoice.Shdon)
                                          .Build<InvoiceDetailDoc>();
-        return await mongoPurchaseInvoice.InvoiceExist(filter);
+        return await purchaseInvoiceRepo.InvoiceExist(filter);
     }
 }

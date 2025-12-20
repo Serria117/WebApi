@@ -4,9 +4,11 @@ using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.Mappers;
 using WebApp.Services.TemplateServices.Dto;
+using WebApp.Utils;
 using X.Extensions.PagedList.EF;
 
 namespace WebApp.Services.TemplateServices;
+
 public interface ITemplateAppService
 {
     Task<ResponseEntity> CreateTemplate(TemplateCreateDto dto);
@@ -44,19 +46,18 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
                 });
             }
         }
+
         var createdTemplate = await templateRepository.CreateAsync(newTemplate);
         return ResponseEntity.OkResult(createdTemplate.ToDisplayDto());
     }
 
     public async Task<ResponseEntity> FindTemplates(PageRequest request)
     {
-        var query = templateRepository.Find(t => !t.Deleted);
-        if(request.Keyword is not null)
-        {
-            query = query.Where(t => t.Name.Contains(request.Keyword));
-        }
-        query = query.OrderBy(t => t.Order);
-        var found = await query.ToPagedListAsync(request.Page, request.Size);
+        var found = await templateRepository.Find(t => !t.Deleted)
+                                            .WhereIf(request.Keyword is not null,
+                                                     t => t.Name.Contains(request.Keyword!))
+                                            .OrderBy(t => t.Order)
+                                            .ToPagedListAsync(request.Page, request.Size);
         return ResponseEntity.OkResult(found.MapPagedList(t => t.ToDisplayDto()));
     }
 
@@ -67,7 +68,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
                                                            .Where(x => !x.Deleted)
                                                            .OrderByDescending(x => x.UploadTime))
                                             .FirstOrDefaultAsync();
-        if(found == null) return ResponseEntity.Error404("Template not found");
+        if (found == null) return ResponseEntity.Error404("Template not found");
         var dto = found.ToDisplayDto();
         return ResponseEntity.OkResult(dto);
     }
@@ -103,7 +104,6 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
         });
         await templateRepository.UpdateAsync(template);
         return ResponseEntity.Ok();
-
     }
 
     public async Task<(string FileName, byte[] FileData)> DownloadFile(int fileId)
@@ -120,19 +120,21 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
         {
             await fileStream.CopyToAsync(memoryStream);
         }
+
         memoryStream.Position = 0;
         return (file.FileName, memoryStream.ToArray());
     }
 
     public async Task DeleteTemplateFile(int fileId)
     {
-        var file = await fileRepository.Find(x => x.Id == fileId).FirstOrDefaultAsync() 
-            ?? throw new KeyNotFoundException("Id not found.");
+        var file = await fileRepository.Find(x => x.Id == fileId).FirstOrDefaultAsync()
+                   ?? throw new KeyNotFoundException("Id not found.");
         var filePath = Path.Combine(env.ContentRootPath, file.FilePath);
         if (File.Exists(filePath))
         {
             File.Delete(filePath);
         }
+
         await fileRepository.SoftDeleteAsync(fileId);
     }
 
@@ -147,8 +149,8 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
         if (!Directory.Exists(templatesDir))
             Directory.CreateDirectory(templatesDir);
 
-        var fileName = Path.GetFileNameWithoutExtension(file.FileName) 
-                        + Guid.NewGuid() + "." + Path.GetExtension(file.FileName);
+        var fileName = Path.GetFileNameWithoutExtension(file.FileName)
+                       + Guid.NewGuid() + "." + Path.GetExtension(file.FileName);
         var filePath = Path.Combine(templatesDir, fileName);
 
         using (var stream = new FileStream(filePath, FileMode.Create))

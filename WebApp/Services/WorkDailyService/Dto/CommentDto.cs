@@ -23,5 +23,5 @@ public class EditCommentDto
 public class DeleteCommentDto
 {
     public string Id { get; set; } = string.Empty;
-    public bool Permanent { get; set; } = false;
+    public bool? Permanent { get; set; } = false;
 }

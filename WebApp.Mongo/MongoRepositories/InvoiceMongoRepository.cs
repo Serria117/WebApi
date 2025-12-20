@@ -11,7 +11,7 @@ using WebApp.Mongo.FilterBuilder;
 
 namespace WebApp.Mongo.MongoRepositories;
 
-public interface IInvoiceMongoRepository
+public interface IInvoicePurchaseRepository
 {
     Task<HashSet<string>> GetExistingInvoiceIdsAsync(List<string> ids, string? taxCode = null);
 
@@ -29,8 +29,8 @@ public interface IInvoiceMongoRepository
     Task<ICollection<InvoiceDetailDoc>> FindInvoicesNonPaging(FilterDefinition<InvoiceDetailDoc> filter);
 }
 
-public class InvoiceMongoRepository(IMongoDatabase db)
-    : GenericMongoRepository<InvoiceDetailDoc, string>(CollectionName.Invoice, db), IInvoiceMongoRepository
+public class InvoicePurchaseRepository(IMongoDatabase db)
+    : GenericMongoRepository<InvoiceDetailDoc, string>(CollectionName.Invoice, db), IInvoicePurchaseRepository
 {
     public async Task<long> UpdateInvoiceStatus(string invId, int status)
     {

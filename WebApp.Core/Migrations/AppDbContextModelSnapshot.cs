@@ -1446,6 +1446,9 @@ namespace WebApp.Core.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<string>("TaxId")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2224,6 +2227,41 @@ namespace WebApp.Core.Migrations
                     b.ToTable("Roles");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Tax.PITRegulation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("DependantDeductionAmount")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Regulation")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("SelfDeductionAmount")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TAX_PIT_Regulation");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
                 {
                     b.Property<int>("Id")
@@ -2416,6 +2454,41 @@ namespace WebApp.Core.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.UserAuthenticationToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("Expiration")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("Is2StepRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserAuthenticationToken");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.UserLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2536,11 +2609,17 @@ namespace WebApp.Core.Migrations
                     b.Property<bool>("Deleted")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("LastUpdateAt")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
 
                     b.Property<string>("Subject")
                         .IsRequired()
@@ -2558,6 +2637,8 @@ namespace WebApp.Core.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WorkStatus");
 
                     b.ToTable("UserWorkDiary");
                 });
@@ -3088,6 +3169,59 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("PayrollPeriod");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Tax.PITRegulation", b =>
+                {
+                    b.OwnsMany("WebApp.Core.DomainEntities.Tax.PITBracket", "MonthBrackets", b1 =>
+                        {
+                            b1.Property<Guid>("PITRegulationId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<decimal>("Limit")
+                                .HasColumnType("decimal(18,0)");
+
+                            b1.Property<decimal>("Rate")
+                                .HasColumnType("decimal(5,2)");
+
+                            b1.HasKey("PITRegulationId", "__synthesizedOrdinal");
+
+                            b1.ToTable("TAX_PIT_Regulation");
+
+                            b1.ToJson("MonthBrackets");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PITRegulationId");
+                        });
+
+                    b.OwnsMany("WebApp.Core.DomainEntities.Tax.PITBracket", "YearBrackets", b1 =>
+                        {
+                            b1.Property<Guid>("PITRegulationId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<decimal>("Limit")
+                                .HasColumnType("decimal(18,0)");
+
+                            b1.Property<decimal>("Rate")
+                                .HasColumnType("decimal(5,2)");
+
+                            b1.HasKey("PITRegulationId", "__synthesizedOrdinal");
+
+                            b1.ToTable("TAX_PIT_Regulation");
+
+                            b1.ToJson("YearBrackets");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PITRegulationId");
+                        });
+
+                    b.Navigation("MonthBrackets");
+
+                    b.Navigation("YearBrackets");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>

@@ -37,7 +37,7 @@ public interface ISoldInvoiceAppService
 public class SoldInvoiceAppService(IUserManager userManager,
                                    ILogger<SoldInvoiceAppService> logger,
                                    IRestAppService restService,
-                                   ISoldInvoiceDetailRepository soldInvoiceRepository,
+                                   IInvoiceSoldRepository invoiceSoldInvoiceRepository,
                                    IErrorInvoiceRepository errorInvoiceRepository,
                                    IInvoiceHistoryAppService invoiceHistoryService,
                                    INotificationAppService notificationService)
@@ -229,7 +229,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
             }
 
             insertedCount +=
-                await soldInvoiceRepository.InsertManyInvoiceAsync(deserializedList); //Insert many record at once
+                await invoiceSoldInvoiceRepository.InsertManyInvoiceAsync(deserializedList); //Insert many record at once
             if (insertedCount > 0)
             {
                 logger.LogInformation("A batch of {count} invoices have been successfully inserted.", 
@@ -239,7 +239,7 @@ public class SoldInvoiceAppService(IUserManager userManager,
         }
 
         //Insert remaining records
-        insertedCount += await soldInvoiceRepository.InsertManyInvoiceAsync(deserializedList);
+        insertedCount += await invoiceSoldInvoiceRepository.InsertManyInvoiceAsync(deserializedList);
         //Send notification with saved count
 
         await notificationService.SendAsync(UserId, HubName.InvoiceMessage,
@@ -278,6 +278,6 @@ public class SoldInvoiceAppService(IUserManager userManager,
                                          .WithKhhdon(invoice.Khhdon)
                                          .WithKhMshDon(invoice.Khmshdon)
                                          .Build<SoldInvoiceDetail>();
-        return await soldInvoiceRepository.InvoiceExist(filter);
+        return await invoiceSoldInvoiceRepository.InvoiceExist(filter);
     }
 }

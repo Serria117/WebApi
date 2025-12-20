@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WebApp.Payloads;
@@ -179,5 +180,57 @@ public class AuthController(IUserAppService userAppService,
     {
         var menuItems = await permissionAppService.GetMenuItems();
         return Ok(menuItems);
+    }
+
+    /// <summary>
+    /// Authenticates a user and initiates the pre-login process using the provided credentials.
+    /// </summary>
+    /// <param name="userLogin">An object containing the user's login credentials and related information. Cannot be null.</param>
+    /// <returns>An <see cref="IActionResult"/> containing the result of the pre-login operation. Returns a success response with
+    /// authentication details if the credentials are valid; otherwise, returns an unauthorized response.</returns>
+    [HttpPost("pre-login"), AllowAnonymous]
+    public async Task<IActionResult> PreLogin(UserLoginDto userLogin)
+    {
+        try
+        {
+            var result = await userAppService.PreLogin(userLogin);
+            return Ok(result);
+        }
+        catch (AuthenticationFailureException e)
+        {
+            return Unauthorized(e.Message);
+        }
+    }
+
+    [HttpPost("final-login"), AllowAnonymous]
+    public async Task<IActionResult> FinalLogin(FinalLoginDto login)
+    {
+        var result = await userAppService.FinalLogin(login);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Invalidate the authentication code if user cancel the login process.
+    /// </summary>
+    /// <param name="id">The identifier of authentication code</param>
+    /// <returns></returns>
+    [HttpPut("invalidate-request/{id}"), AllowAnonymous]
+    public async Task<IActionResult> InvalidateAuthenCode(string id)
+    {
+        await userAppService.InvalidateAuthCode(id);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Verifies a user's credentials and two-step authentication code as part of the login process.
+    /// </summary>
+    /// <param name="login">An object containing the user's login credentials and two-step verification code. Cannot be null.</param>
+    /// <returns>An <see cref="IActionResult"/> containing the result of the two-step login verification. Returns a success
+    /// response if verification is successful; otherwise, returns an error response indicating the reason for failure.</returns>
+    [HttpPost("verify-2step-login"), AllowAnonymous]
+    public async Task<IActionResult> Verify2StepLogin(Verify2StepLoginDto login)
+    {
+        var result = await userAppService.Verify2StepLogin(login);
+        return Ok(result);
     }
 }

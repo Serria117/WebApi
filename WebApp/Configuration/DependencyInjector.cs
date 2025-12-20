@@ -20,6 +20,7 @@ using WebApp.Services.RestService;
 using WebApp.Services.RiskCompanyService;
 using WebApp.Services.TaxDutyServices;
 using WebApp.Services.TaxProcedureService;
+using WebApp.Services.TaxRegulationServices;
 using WebApp.Services.TemplateServices;
 using WebApp.Services.UserService;
 using WebApp.Services.UserService.AdminService;
@@ -54,13 +55,13 @@ public static class DependencyInjector
 
             s.AddScoped<IMongoDatabase>(provider => provider.GetRequiredService<IMongoClient>()
                                                             .GetDatabase(settings.DatabaseName));
-            s.AddScoped<IInvoiceMongoRepository, InvoiceMongoRepository>();
+            s.AddScoped<IInvoicePurchaseRepository, InvoicePurchaseRepository>();
             s.AddScoped<IUserMongoRepository, UserMongoRepository>();
             s.AddScoped<ISoldInvoiceMongoRepository, SoldInvoiceMongoRepository>();
             s.AddScoped<IOrgMongoRepository, OrgMongoRepository>();
             s.AddScoped<IBlacklistedTokenMongoRepository, BlacklistedTokenMongoRepository>();
             s.AddScoped<IRefreshTokenMongoRepository, RefreshTokenMongoRepository>();
-            s.AddScoped<ISoldInvoiceDetailRepository, SoldInvoiceDetailRepository>();
+            s.AddScoped<IInvoiceSoldRepository, InvoiceSoldRepository>();
             s.AddScoped<IErrorInvoiceRepository, ErrorInvoiceRepository>();
             s.AddScoped<ILockedUserMongoRepository, LockedUserMongoRepository>();
         }
@@ -97,10 +98,10 @@ public static class DependencyInjector
             //Add business services here:
             s.AddScoped<JwtService>();
             s.AddScoped<IUserManager, UserManager>();
-            s.AddScoped<IUserAppService, UserBaseAppBaseAppService>();
+            s.AddScoped<IUserAppService, UserAppService>();
             s.AddScoped<IRoleAppService, RoleAppService>();
             s.AddScoped<IPermissionAppService, PermissionBaseAppService>();
-            s.AddScoped<IOrganizationAppService, OrganizationBaseAppService>();
+            s.AddScoped<IOrganizationAppService, OrganizationAppService>();
             s.AddScoped<IInvoiceAppService, InvoiceAppService_Old>();
             s.AddScoped<IInvoiceService, InvoiceService>(); //the new invoice service
             s.AddScoped<IInvoiceImportService, InvoiceImportService>();
@@ -122,6 +123,7 @@ public static class DependencyInjector
             s.AddScoped<ITaxDutyCategoryAppService, TaxDutyCategoryAppService>();
             s.AddScoped<IRedisCacheService, RedisCacheService>();
             s.AddScoped<IWorkDiaryAppService, WorkDiaryAppService>();
+            s.AddScoped<ITaxRegulationAppService, TaxRegulationAppService>();
         }
     }
 }

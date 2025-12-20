@@ -72,13 +72,13 @@ public interface IInvoiceAppService
 }
 
 //TODO: Refactor this class to use the new InvoiceService
-public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
+public class InvoiceAppService_Old(IInvoicePurchaseRepository purchasePurchaseInvoicePurchase,
                                    ISoldInvoiceMongoRepository mongoSoldInvoice,
                                    IRestAppService restService,
                                    ILogger<InvoiceAppService_Old> logger,
                                    IRiskCompanyAppService riskService,
                                    IInvoiceHistoryAppService invoiceHistoryAppService,
-                                   ISoldInvoiceDetailRepository soldInvoiceDetailRepository,
+                                   IInvoiceSoldRepository invoiceSoldRepository,
                                    INotificationAppService notificationService,
                                    IUserManager userManager) 
     : BaseAppService(userManager), IInvoiceAppService
@@ -126,7 +126,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                                          .WithStatus(invoiceParams.Status)
                                          .Build<SoldInvoiceDetail>();
 
-        var result = await soldInvoiceDetailRepository
+        var result = await invoiceSoldRepository
             .FindInvoiceAsync(filter, invoiceParams.Page!.Value, invoiceParams.Size!.Value);
         return new ResponseEntity
         {
@@ -179,7 +179,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                                          .WithStatus(invoiceParams.Status)
                                          .WithType(invoiceParams.InvoiceType)
                                          .Build<InvoiceDetailDoc>();
-        var invoiceList = await mongoPurchaseInvoice.FindInvoices(filter: filter, page: invoiceParams.Page!.Value, size: invoiceParams.Size!.Value);
+        var invoiceList = await purchasePurchaseInvoicePurchase.FindInvoices(filter: filter, page: invoiceParams.Page!.Value, size: invoiceParams.Size!.Value);
         
         var data = new List<InvoiceDisplayDto>();
         // Convert each invoice to display model, catch any conversion errors and log them
@@ -225,7 +225,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
         {
             foreach (var inv in invoiceList)
             {
-                var result = await mongoPurchaseInvoice.UpdateInvoiceStatus(inv.Id!, inv.Tthai!.Value);
+                var result = await purchasePurchaseInvoicePurchase.UpdateInvoiceStatus(inv.Id!, inv.Tthai!.Value);
                 if (result <= 0) continue;
                 total += result;
                 updateList.Add(inv.ToDisplayModel());
@@ -394,7 +394,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                                                  .ToDate(to)
                                                  .WithBuyer(taxCode)
                                                  .Build<InvoiceDetailDoc>();
-        var purchaseResult = await mongoPurchaseInvoice.FindInvoices(filter: purchaseFilter,
+        var purchaseResult = await purchasePurchaseInvoicePurchase.FindInvoices(filter: purchaseFilter,
                                                                      page: 1, size: int.MaxValue);
         var purchaseList = purchaseResult.Data.Select(inv => inv.ToDisplayModel())
                                          .ToList();
@@ -405,7 +405,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                                              .WithSeller(taxCode)
                                              .Build<SoldInvoiceDetail>();
         var soldResult =
-            await soldInvoiceDetailRepository.FindInvoiceAsync(filter: soldFilter, page: 1, size: int.MaxValue);
+            await invoiceSoldRepository.FindInvoiceAsync(filter: soldFilter, page: 1, size: int.MaxValue);
         var soldList = soldResult.Data.Select(inv => inv.ToDisplayModel())
                                  .ToList();
         logger.LogInformation("Number of sold found: {count}", soldList.Count);
@@ -421,7 +421,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
 
     public async Task<ResponseEntity> FindOne(string taxCode, string id)
     {
-        var found = await mongoPurchaseInvoice.FindOneAsync(x => x.Id == id && x.Nmmst == taxCode);
+        var found = await purchasePurchaseInvoicePurchase.FindOneAsync(x => x.Id == id && x.Nmmst == taxCode);
         return found != null
             ? ResponseEntity.OkResult(found.ToDisplayModel())
             : ResponseEntity.Error404("No invoice was found.");
@@ -499,7 +499,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
             //Notify user about success/failure
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage, message + errorMessage);
 
-            var isInserted = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert); //Insert into DB
+            var isInserted = await purchasePurchaseInvoicePurchase.InsertInvoicesAsync(listToInsert); //Insert into DB
             return new ResponseEntity
             {
                 Success = isInserted,
@@ -1022,7 +1022,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                                          .WithId(invoice.Id)
                                          .Build<InvoiceDetailDoc>();
 
-        return await mongoPurchaseInvoice.InvoiceExist(filter);
+        return await purchasePurchaseInvoicePurchase.InvoiceExist(filter);
     }
 
     private async Task<bool> IsPurchaseInvoiceDuplicate(InvoiceDetailDoc i)
@@ -1033,7 +1033,7 @@ public class InvoiceAppService_Old(IInvoiceMongoRepository mongoPurchaseInvoice,
                                          .WithKhhdon(i.Khhdon)
                                          .WithKhMshDon(i.Khmshdon)
                                          .Build<InvoiceDetailDoc>();
-        return await mongoPurchaseInvoice.InvoiceExist(filter);
+        return await purchasePurchaseInvoicePurchase.InvoiceExist(filter);
     }
 
     #endregion

@@ -56,7 +56,7 @@ public partial class PayrollAppService(IUserManager userManager,
         => transaction.GetRepository<AllowanceType, long>();
     
     private IAppRepository<Timesheet, string> TimesheetRepository
-        => transaction.GetRepository<Timesheet, String>();
+        => transaction.GetRepository<Timesheet, string>();
 
     private IAppRepository<Department, string> DepartmentRepository
         => transaction.GetRepository<Department, string>();

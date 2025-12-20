@@ -5,12 +5,14 @@ using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
 using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 using WebApp.Core.DomainEntities.Payroll;
+using WebApp.Core.DomainEntities.Tax;
 
 namespace WebApp.Core.Data;
 
 public class AppDbContext(DbContextOptions op) : DbContext(op)
 {
     public DbSet<User> Users { get; set; }
+    public DbSet<UserAuthenticationToken> UserAuthenticationTokens { get; set; }
     public DbSet<UserVerification> UserVerifications { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<Permission> Permissions { get; set; }
@@ -95,6 +97,8 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<TaxDutyCategory> TaxDutyCategories { get; set; }
     public DbSet<TaxDutyXmlDoc> TaxDutyXmlDocs { get; set; }
     public DbSet<TaxDeclarationTemplate> TaxDeclarationTemplates { get; set; }
+
+    public DbSet<PITRegulation> PITRegulations { get; set; }
 
     public DbSet<UserWorkDiary> UserWorkDiaries { get; set; }
     public DbSet<UserWorkDiaryComment> UserWorkDiaryComments { get; set; }
@@ -237,6 +241,12 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
             en.HasOne(e => e.ReportTemplateXml)
               .WithOne(t => t.Regulation).OnDelete(DeleteBehavior.NoAction);
         });
+
+        modelBuilder.Entity<PITRegulation>(en =>
+        {
+            en.OwnsMany(u => u.MonthBrackets, builder => { builder.ToJson(); });
+			en.OwnsMany(u => u.YearBrackets, builder => { builder.ToJson(); });
+		});
 
         base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();

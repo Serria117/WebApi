@@ -1,13 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WebApp.Core.DomainEntities;
 
-[Table("UserWorkDiary")]
+[Table("UserWorkDiary"), Index(nameof(WorkStatus))]
 public class UserWorkDiary : BaseEntityAuditable<string>
 {
     [MaxLength(26)]
-    public new string Id { get; set; } = new Ulid().ToString();
+    public new string Id { get; set; } = Ulid.NewUlid().ToString();
 
     [MaxLength(255)]
     public string Subject { get; set; } = string.Empty;
@@ -20,7 +21,11 @@ public class UserWorkDiary : BaseEntityAuditable<string>
     public Guid? UserId { get; set; }
 
     public WorkStatus WorkStatus { get; set; } = WorkStatus.InProgress;
-    
+
+    public DateTime? DueDate { get; set; }
+
+    public WorkPriority Priority { get; set; } = WorkPriority.Medium;
+
     //navigation properties
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
@@ -33,7 +38,16 @@ public class UserWorkDiary : BaseEntityAuditable<string>
 
 public enum WorkStatus
 {
-    InProgress,
-    Cancelled,
-    Done
+    InProgress = 0,
+    Done = 1,
+    Cancelled = 2
+
+}
+
+public enum WorkPriority
+{
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Urgent = 3
 }

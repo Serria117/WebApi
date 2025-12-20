@@ -61,11 +61,11 @@ public interface IAppRepository<T, in TK> where T : BaseEntity<TK>
     Task HardDeleteManyAsync(IEnumerable<TK> ids, bool inTransaction = false);
 }
 
-public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<TK>, new()
+public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<TK>
 {
     private readonly AppDbContext _db;
     private readonly DbSet<T> _dbSet;
-
+    
     public AppRepository(AppDbContext dbContext)
     {
         _db = dbContext;
@@ -79,7 +79,9 @@ public class AppRepository<T, TK> : IAppRepository<T, TK> where T : BaseEntity<T
 
     public T Attach(TK id)
     {
-        return _dbSet.Attach(new T { Id = id }).Entity;
+        T entity = Activator.CreateInstance<T>();
+        ((dynamic)entity).Id = id;
+        return _dbSet.Attach(entity).Entity;
     }
 
     public async Task<T> CreateAsync(T entity, bool inTransaction = false)

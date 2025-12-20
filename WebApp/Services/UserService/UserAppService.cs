@@ -4,16 +4,20 @@ using System.Linq.Dynamic.Core;
 using System.Security.Claims;
 using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.EntityFrameworkCore;
+using NanoidDotNet;
 using Spire.Xls;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
+using WebApp.Enums;
 using WebApp.Mongo.DocumentModel;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
+using WebApp.Payloads.AuthenticationPayloads;
 using WebApp.Repositories;
 using WebApp.Services.CommonService;
 using WebApp.Services.EmailService;
 using WebApp.Services.Mappers;
+using WebApp.Services.OrganizationService.Dto;
 using WebApp.Services.UserService.Dto;
 using WebApp.Utils;
 using X.Extensions.PagedList.EF;
@@ -115,9 +119,13 @@ namespace WebApp.Services.UserService
         Task<ResponseEntity> UpdateBasicUserInfo(Guid userId, UserBasicInfoDto input);
         Task<AuthenticationResponse> Authenticate2Step(UserLoginWithVerifyCodeDto login);
         Task<AuthenticationResponse> RefreshVerificationCode(string key);
+        Task<PreLoginResult> PreLogin(UserLoginDto input);
+        Task<AuthenticationResponse> FinalLogin(FinalLoginDto input);
+        Task InvalidateAuthCode(string id);
+        Task<Verify2StepResponse> Verify2StepLogin(Verify2StepLoginDto input);
     }
 
-    public class UserBaseAppBaseAppService(AppDbContext dbContext,
+    public partial class UserAppService(AppDbContext dbContext,
                                            IAppRepository<User, Guid> userRepository,
                                            IUserMongoRepository userMongoRepository,
                                            ILockedUserMongoRepository lockRepository,
@@ -129,7 +137,7 @@ namespace WebApp.Services.UserService
                                            IConfiguration configuration,
                                            IAppRepository<Role, int> roleRepository,
                                            IHttpContextAccessor http,
-                                           ILogger<UserBaseAppBaseAppService> logger,
+                                           ILogger<UserAppService> logger,
                                            IUserManager userManager) : BaseAppService(userManager), IUserAppService
     {
         private readonly string _defaultEmail = "ketoan.sline@gmail.com";
@@ -226,10 +234,7 @@ namespace WebApp.Services.UserService
 
         public async Task<AuthenticationResponse> Authenticate(UserLoginDto login)
         {
-            var stopWatch = Stopwatch.StartNew();
             var verifyPasswordResult = await VerifyUserPassword(login.Username, login.Password);
-
-            Console.WriteLine($"found user in db took: {stopWatch.ElapsedMilliseconds} ms");
 
             if (!verifyPasswordResult.IsValid)
             {
@@ -294,7 +299,6 @@ namespace WebApp.Services.UserService
             var org = string.IsNullOrEmpty(orgId)
                 ? null
                 : foundUser.User.Organizations.FirstOrDefault(o => o.Id.ToString() == orgId);
-            Console.WriteLine($"Generate jwt took: {stopWatch.ElapsedMilliseconds} ms");
             return new AuthenticationResponse
             {
                 Success = true,
@@ -766,8 +770,7 @@ namespace WebApp.Services.UserService
         /// </summary>
         /// <param name="login"></param>
         /// <returns></returns>
-        private async Task<(bool IsValid, UserVerification? Code)> VerifyUser2StepLogin(
-            UserLoginWithVerifyCodeDto login)
+        private async Task<(bool IsValid, UserVerification? Code)> VerifyUser2StepLogin(UserLoginWithVerifyCodeDto login)
         {
             var verificationCode = await dbContext.UserVerifications
                                                   .Where(c => c.UserId == login.UserId &&
@@ -811,15 +814,15 @@ namespace WebApp.Services.UserService
         {
             var user = await userRepository.Find(x => x.Username == username && !x.Deleted)
                                            .FirstOrDefaultAsync();
-            if (user is null) return (false, "Invalid username or password", null);
+            if (user is null) return (false, "Tài khoản hoặc mật khẩu không đúng.", null);
             var checkpass = password.PasswordVerify(user.Password);
             if (!checkpass)
             {
                 await LoginFailureHandler(user);
-                return (false, "Invalid username or password", null);
+                return (false, "Tài khoản hoặc mật khẩu không đúng.", null);
             }
 
-            if (user.Locked) return (false, "Your account has been locked.", null);
+            if (user.Locked) return (false, "Tài khoản của bạn đã bị khóa.", null);
             return (true, null, user.Id);
         }
     }

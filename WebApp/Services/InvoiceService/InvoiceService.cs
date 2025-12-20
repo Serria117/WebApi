@@ -5,7 +5,9 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
+using MongoDB.Driver;
 using Spire.Xls;
+using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
@@ -68,17 +70,22 @@ public interface IInvoiceService
     /// <param name="files"></param>
     /// <returns></returns>
     Task<ResponseEntity> UploadPurchaseInvoices(List<IFormFile> files);
+
+    Task<ResponseEntity> ScanOrganizationSeller(int? year, string? keyword);
+    Task<ResponseEntity> ScanOrganizationBuyer(int? year, string? keyword);
+    Task<ResponseEntity> GetInvoiceBySeller(string sellerTaxId, int? year);
 }
 
 //TODO: refactor this service class to replace the old InvoiceAppService
 public partial class InvoiceService(IUserManager userManager,
+                                    AppDbContext dbContext,
+                                    IMongoDatabase mongoDatabase,
                                     ILogger<InvoiceService> logger,
-                                    IInvoiceMongoRepository mongoPurchaseInvoice,
-                                    ISoldInvoiceMongoRepository mongoSoldInvoice,
+                                    IInvoicePurchaseRepository purchaseInvoiceRepo,
                                     IRestAppService restService,
                                     IRiskCompanyAppService riskService,
                                     IInvoiceHistoryAppService invoiceHistoryAppService,
-                                    ISoldInvoiceDetailRepository soldInvoiceDetailRepository,
+                                    IInvoiceSoldRepository invoiceSoldRepo,
                                     IErrorInvoiceRepository errorInvoiceRepository,
                                     INotificationAppService notificationService)
     : BaseAppService(userManager), IInvoiceService
@@ -92,7 +99,7 @@ public partial class InvoiceService(IUserManager userManager,
                                                  .ToDate(to)
                                                  .WithBuyer(taxCode)
                                                  .Build<InvoiceDetailDoc>();
-        var purchaseResult = await mongoPurchaseInvoice.FindInvoices(filter: purchaseFilter,
+        var purchaseResult = await purchaseInvoiceRepo.FindInvoices(filter: purchaseFilter,
                                                                      page: 1, size: int.MaxValue);
         var purchaseList = purchaseResult.Data.Select(inv => inv.ToDisplayModel())
                                          .ToList();
@@ -103,7 +110,7 @@ public partial class InvoiceService(IUserManager userManager,
                                              .WithSeller(taxCode)
                                              .Build<SoldInvoiceDetail>();
         var soldResult =
-            await soldInvoiceDetailRepository.FindInvoiceAsync(filter: soldFilter, page: 1, size: int.MaxValue);
+            await invoiceSoldRepo.FindInvoiceAsync(filter: soldFilter, page: 1, size: int.MaxValue);
         var soldList = soldResult.Data.Select(inv => inv.ToDisplayModel())
                                  .ToList();
         logger.LogInformation("Number of sold found: {}", soldList.Count);
@@ -173,7 +180,7 @@ public partial class InvoiceService(IUserManager userManager,
                 }
             }
 
-            var result = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert);
+            var result = await purchaseInvoiceRepo.InsertInvoicesAsync(listToInsert);
             return (result, errorCount, errorList);
         }
         catch (Exception e)
@@ -228,7 +235,7 @@ public partial class InvoiceService(IUserManager userManager,
                 }
             }
 
-            var result = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert);
+            var result = await purchaseInvoiceRepo.InsertInvoicesAsync(listToInsert);
             return (result, errorCount, errorList);
         }
         catch (Exception e)
@@ -311,7 +318,7 @@ public partial class InvoiceService(IUserManager userManager,
             //Notify user about success/failure
             await notificationService.SendAsync(UserId, HubName.InvoiceMessage, message + errorMessage);
 
-            var isInserted = await mongoPurchaseInvoice.InsertInvoicesAsync(listToInsert); //Insert into DB
+            var isInserted = await purchaseInvoiceRepo.InsertInvoicesAsync(listToInsert); //Insert into DB
             return new ResponseEntity
             {
                 Success = isInserted,

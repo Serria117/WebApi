@@ -23,8 +23,7 @@ public class JwtService(IConfiguration config,
     private readonly int _expiryMinutes = int.Parse(config["JwtSettings:ExpiryMinutes"]!);
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
 
-    public async Task<(string AccessToken, string RefreshToken)> GenerateTokenAsync(
-        User user, ISet<string> permissions, DateTime issuedAt, string? orgId = null)
+    public async Task<(string AccessToken, string RefreshToken)> GenerateTokenAsync(User user, ISet<string> permissions, DateTime issuedAt, string? orgId = null)
     {
         var claims = new[]
         {

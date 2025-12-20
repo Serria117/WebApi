@@ -21,7 +21,7 @@ public class RequestParam
     {
         if (Size is <= 0 or > 1000 or null)
         {
-            Size = 500;
+            Size = SystemBoundary.MaxPageSize;
         }
 
         if (Page is < 1 or > 1000 or null)

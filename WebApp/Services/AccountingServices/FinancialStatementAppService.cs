@@ -6,6 +6,7 @@ using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
+using WebApp.Enums;
 using WebApp.Enums.Accounting;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Payloads;
@@ -114,9 +115,6 @@ public class FinancialStatementAppService(AppDbContext dbContext,
                                           IUserManager userManager)
     : BaseAppService(userManager), IFinancialStatementAppService
 {
-    private const string ExportTemplateFolder = "ExportTemplates";
-    private const string ImportTemplateFOlder = "ImportTemplates";
-
     public async Task<ResponseEntity> GetRegulationList()
     {
         var result = await dbContext.AccountingRegulations
@@ -1166,7 +1164,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
     public async Task<(string FileName, byte[] File)> DownloadTrialBalanceTemplate()
     {
         const string filename = "Template_bang_can_doi_tk.xlsx";
-        var templateFile = LoadExcelTemplate(ImportTemplateFOlder, filename);
+        var templateFile = LoadExcelTemplate(FolderName.ImportTemplate, filename);
         await using var stream = new MemoryStream();
         templateFile.SaveToStream(stream, FileFormat.Version2016);
         var file = stream.ToArray();
@@ -1538,7 +1536,7 @@ public class FinancialStatementAppService(AppDbContext dbContext,
         var templateFilename = await dbContext.FinancialStatementNotes
                                               .FirstOrDefaultAsync(m => m.RegulationId == report.Regulation)
                                ?? throw new NotFoundException("Financial statement note not found");
-        var templateExcel = LoadExcelTemplate(ExportTemplateFolder, templateFilename.TemplateFile);
+        var templateExcel = LoadExcelTemplate(FolderName.ExportTemplate, templateFilename.TemplateFile);
         var sh = templateExcel.Worksheets[0];
         sh.Range["A1"].Value = report.Organization?.FullName;
         sh.Range["H3"].Value2 = report.Year;

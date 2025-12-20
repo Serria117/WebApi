@@ -30,6 +30,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
+using WebApp.Enums;
 using ZiggyCreatures.Caching.Fusion;
 
 // Declare variables.
@@ -64,6 +65,7 @@ services.AddStackExchangeRedisCache(op =>
     op.InstanceName = config["RedisCache:InstanceName"];
 });
 
+// FusionCache configuration
 services.AddFusionCache().WithDefaultEntryOptions(
     new FusionCacheEntryOptions()
     {
@@ -71,6 +73,7 @@ services.AddFusionCache().WithDefaultEntryOptions(
         FailSafeMaxDuration = TimeSpan.FromMinutes(60)
     });
 
+// EF Second Level Cache configuration
 services.AddEFSecondLevelCache(options =>
 {
     /*var redisOptions = ConfigurationOptions.Parse(config.GetConnectionString("Redis")!);
@@ -135,13 +138,13 @@ services.AddControllers()
 
 services.Configure<FormOptions>(op =>
 {
-    op.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB limit for multipart form data
+    op.MultipartBodyLengthLimit = SystemBoundary.MaxFileSize; // 10 MB limit for multipart form data
     op.MultipartHeadersLengthLimit = 16 * 1024; // 16 KB limit for headers length
 });
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // Maximum body size is 10MB
+    options.Limits.MaxRequestBodySize = SystemBoundary.MaxFileSize; // Maximum body size is 10MB
 });
 
 // Authentication:

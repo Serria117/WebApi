@@ -4,6 +4,7 @@ using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 using MongoDB.Driver.Core.WireProtocol.Messages;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
@@ -35,14 +36,16 @@ public interface IOrganizationAppService
     Task<ResponseEntity> GetAllOrgForAdmin(PageRequest req);
 }
 
-public class OrganizationBaseAppService(AppDbContext dbContext,
-                                        IRedisCacheService redisService,
-                                        IAppRepository<Organization, Guid> orgRepo,
-                                        IAppRepository<District, int> districtRepo,
-                                        IAppRepository<TaxOffice2, int> taxOffice2Repo,
-                                        IAppRepository<User, Guid> userRepo,
-                                        IHttpContextAccessor httpContext,
-                                        IUserManager userManager) : BaseAppService(userManager), IOrganizationAppService
+public partial class OrganizationAppService(AppDbContext dbContext,
+                                            IInvoicePurchaseRepository purchaseInvoiceRepo,
+                                            IInvoiceSoldRepository invoiceSoldRepo,
+                                            IMongoDatabase mongoDatabase,
+                                            IAppRepository<Organization, Guid> orgRepo,
+                                            IAppRepository<District, int> districtRepo,
+                                            IAppRepository<TaxOffice2, int> taxOffice2Repo,
+                                            IAppRepository<User, Guid> userRepo,
+                                            IUserManager userManager)
+    : BaseAppService(userManager), IOrganizationAppService
 {
     public async Task<ResponseEntity> Create(OrganizationInputDto dto)
     {
@@ -51,7 +54,7 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
 
         var invalidMessage = await ValidInputDto(dto);
         if (invalidMessage.Count > 0) return ResponseEntity.Error("Invalid input", invalidMessage);
-        
+
         var newOrg = dto.ToEntity();
 
         // Attach location:
@@ -159,7 +162,12 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
     {
         var keyword = req.Keyword.RemoveSpace()?.UnSign();
 
-        var query = dbContext.Organizations.Where(o => !o.Deleted);
+        var query = dbContext.Organizations
+                             .Include(o => o.TaxOffice2)
+                             .Include(o => o.Users)
+                             .Include(o => o.District)
+                             .Where(o => !o.Deleted)
+                             .Where(o => o.Users.Any(u => u.Id == UserId.ToGuid()));
 
         //apply keyword filter if keyword is provided
         if (!string.IsNullOrEmpty(keyword))
@@ -170,10 +178,7 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
                                          o.ShortName.Contains(keyword)));
         }
 
-        var dtoResult = (await query.Include(o => o.TaxOffice2)
-                                    .Include(o => o.Users)
-                                    .Include(o => o.District)
-                                    .OrderBy(req.SortBy + " " + req.OrderBy)
+        var dtoResult = (await query.OrderBy(req.SortBy + " " + req.OrderBy)
                                     .AsSplitQuery()
                                     .AsNoTracking()
                                     .Cacheable()
@@ -188,14 +193,9 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
     public async Task<ResponseEntity> GetAllOrgByCurrentUserAsync(PageRequest req)
     {
         var userId = UserId.ToGuid();
-        
-        /*var cacheKey = "org-list_" + CacheKeyBuilder.ByUserRequest(httpContext);
-        return await redisService.GetOrCreateAsync(key: cacheKey,
-                                            factory: (Func<Task<ResponseEntity>>)QueryDatabase,
-                                            TimeSpan.FromMinutes(10));*/
 
         return await QueryDatabase();
-        
+
         async Task<ResponseEntity> QueryDatabase()
         {
             var keyword = req.Keyword.RemoveSpace()?.UnSign();
@@ -328,24 +328,6 @@ public class OrganizationBaseAppService(AppDbContext dbContext,
             errors.Add("Invalid tax office or tax office not found");
         }
 
-        /*if (dto.DistrictId is null || !await districtRepo.ExistAsync(x => x.Id == dto.DistrictId))
-        {
-            errors.Add("Invalid district or district not found");
-        }*/
-
         return errors;
     }
-    
-    private async Task InvalidateUserOrgCacheAsync(Guid userId)
-    {
-        var versionKey = CacheKeyBuilder.UserOrgVersionPrefix(userId);
-        var current = await redisService.GetStringAsync(versionKey) ?? "v0";
-        var next = "v" + (int.Parse(current.AsSpan(1)) + 1);
-
-        await redisService.SetStringAsync(versionKey, next, new DistributedCacheEntryOptions()
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(60),
-        });
-    }
-    
 }

@@ -233,18 +233,16 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                              .AsNoTracking()
                              .AsQueryable();
 
-        var filteredQuery = query;
-
         //apply date range filter if present
         if (param is { To: not null, From: not null })
         {
             fromYear = int.Parse(param.From); //TODO: handle parsing failed
             toYear = int.Parse(param.To);
-            filteredQuery = query.Where(x => x.Year >= fromYear && x.Year <= toYear);
+            query = query.Where(x => x.Year >= fromYear && x.Year <= toYear);
         }
 
-        var files = await filteredQuery.OrderByDescending(d => d.DocumentDate)
-                                       .ToPagedListAsync(param.Page, param.Size);
+        var files = await query.OrderByDescending(d => d.DocumentDate)
+                               .ToPagedListAsync(param.Page, param.Size);
 
         var dtoList = files.MapPagedList(f => new DocumentDisplayDto
         {
@@ -888,7 +886,7 @@ public class DocumentBaseAppService(IAppRepository<OrgDocument, int> docReposito
                                   .Include(x => x.Organization)
                                   .OrderBy(x => x.DocumentDate)
                                   .ToListAsync();
-        
+
         if (docs.IsEmpty())
         {
             throw new EmptyResultException("Document not found");

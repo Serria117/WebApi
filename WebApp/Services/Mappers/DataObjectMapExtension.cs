@@ -140,6 +140,19 @@ public static class DataObjectMapExtension
         return entities.Select(mapFunc);
     }
 
+    /// <summary>
+    /// Projects the specified entity to a dynamic object containing only the selected fields, with property names in
+    /// camel case.
+    /// </summary>
+    /// <remarks>Properties that cannot be read are ignored. Property name matching is case-insensitive. <br/>
+    /// The resulting ExpandoObject can be used for dynamic data shaping, such as in API responses.</remarks>
+    /// <typeparam name="TEntity">The type of the entity to project.</typeparam>
+    /// <param name="entity">The entity instance to project. Cannot be null.</param>
+    /// <param name="fields">An optional list of property names to include in the result. <br/>
+    /// If null or empty, all public instance properties are included.</param>
+    /// <returns>An <see cref="ExpandoObject"/> containing the selected properties and their values from the entity, with property names
+    /// converted to camel case.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the entity parameter is null.</exception>
     public static ExpandoObject ProjectToDisplay<TEntity>(this TEntity entity, List<string>? fields = null)
     {
         if (entity == null) throw new ArgumentNullException(nameof(entity));
@@ -181,6 +194,13 @@ public static class DataObjectMapExtension
             Id = o.Id,
             FullName = o.FullName,
             Address = o.Address,
+            OrganizationStatus = o.Status switch
+            {
+                OrganizationStatus.Active => "Hoạt động",
+                OrganizationStatus.Terminated => "Đóng MST",
+                OrganizationStatus.Suspended => "Tạm ngừng",
+                _ => "Không xác định"
+            },
             District = o.District is null
                 ? null
                 : new DistrictDisplayDto
@@ -228,7 +248,8 @@ public static class DataObjectMapExtension
             FiscalYearFirstDate = o.FiscalYearFistDate,
             TypeOfVatPeriod = o.TypeOfVatPeriod,
             Representative = o.Representative,
-            OrganizationLoginInfos = o.OrganizationLoginInfos
+            UnsignName = o.UnsignName,
+            OrganizationLoginInfos = [.. o.OrganizationLoginInfos
                                       .Select(x => new OrganizationLoginInfoDto
                                       {
                                           Id = x.Id,
@@ -237,8 +258,7 @@ public static class DataObjectMapExtension
                                           Password = x.Password,
                                           Url = x.Url,
                                           Username = x.Username,
-                                      })
-                                      .ToHashSet()
+                                      })]
         };
     }
 
@@ -261,16 +281,14 @@ public static class DataObjectMapExtension
             CapitalOwnershipType = (CapitalOwnershipType?)i.CapitalOwnershipType,
             Representative = i.Representative.RemoveSpace(),
             OrganizationLoginInfos =
-            [
-                .. i.OrganizationLoginInfos
-                    .Select(x => new OrganizationLoginInfo
-                    {
-                        AccountName = x.AccountName,
-                        Password = x.Password,
-                        Provider = x.Provider,
-                        Url = x.Url,
-                        Username = x.Username
-                    })
+            [.. i.OrganizationLoginInfos.Select(x => new OrganizationLoginInfo
+                                                    {
+                                                        AccountName = x.AccountName,
+                                                        Password = x.Password,
+                                                        Provider = x.Provider,
+                                                        Url = x.Url,
+                                                        Username = x.Username
+                                                    })
             ]
         };
     }

@@ -23,7 +23,7 @@ public interface IInvoiceImportService
 public class InvoiceImportService(IUserManager userManager,
                                   ILogger<InvoiceImportService> logger,
                                   IHostEnvironment env,
-                                  IInvoiceMongoRepository mongoPurchaseInvoice,
+                                  IInvoicePurchaseRepository purchasePurchaseInvoicePurchase,
                                   IAppRepository<Organization, Guid> orgRepository)
     : BaseAppService(userManager), IInvoiceImportService
 {
@@ -84,7 +84,7 @@ public class InvoiceImportService(IUserManager userManager,
                                              .WithKhMshDon(invoiceGroupNotation.ToInt())
                                              .Build<InvoiceDetailDoc>();
             
-            if (await mongoPurchaseInvoice.InvoiceExist(filter))
+            if (await purchasePurchaseInvoicePurchase.InvoiceExist(filter))
             {
                 logger.LogWarning($"Duplicate invoice {fileName}");
                 //continue; // skip duplicate invoice

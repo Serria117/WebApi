@@ -16,7 +16,7 @@ public partial class InvoiceService
 {
     public async Task<ResponseEntity> DeleteSoldInvoicesAsync(List<string> ids)
     {
-        var result = await soldInvoiceDetailRepository.DeleteSoldInvoice(ids);
+        var result = await invoiceSoldRepo.DeleteSoldInvoice(ids);
         return result ? ResponseEntity.Ok() : ResponseEntity.Error("Failed to delete invoices");
     }
 
@@ -172,7 +172,7 @@ public partial class InvoiceService
                     //Insert every batch of 10 invoice to save time
                     if (deserializedList.Count == 10)
                     {
-                        insertedCount += await soldInvoiceDetailRepository.InsertManyInvoiceAsync(deserializedList);
+                        insertedCount += await invoiceSoldRepo.InsertManyInvoiceAsync(deserializedList);
                         deserializedList.Clear(); //Clear the list after inserted
                     }
                 }
@@ -221,7 +221,7 @@ public partial class InvoiceService
                 {
                     if (deserializedList.Count == 10)
                     {
-                        insertedCount += await soldInvoiceDetailRepository.InsertManyInvoiceAsync(deserializedList);
+                        insertedCount += await invoiceSoldRepo.InsertManyInvoiceAsync(deserializedList);
                         logger.LogInfoFormatted($"A batch of 10 invoices has been successfully inserted. Total {insertedCount} invoices have been saved.");
                         deserializedList.Clear();
                     }
@@ -232,7 +232,7 @@ public partial class InvoiceService
         //Insert any remaining records
         if (deserializedList.Count > 0)
         {
-            insertedCount += await soldInvoiceDetailRepository.InsertManyInvoiceAsync(deserializedList);
+            insertedCount += await invoiceSoldRepo.InsertManyInvoiceAsync(deserializedList);
             logger.LogInfoFormatted($"Inserted remaining {deserializedList.Count} invoices. Total {insertedCount} invoices have been saved.");
         }
 
@@ -260,6 +260,6 @@ public partial class InvoiceService
                                          .WithKhhdon(invoice.Khhdon)
                                          .WithKhMshDon(invoice.Khmshdon)
                                          .Build<SoldInvoiceDetail>();
-        return await soldInvoiceDetailRepository.InvoiceExist(filter);
+        return await invoiceSoldRepo.InvoiceExist(filter);
     }
 }

@@ -42,7 +42,7 @@ public class AccountingController(IFinancialStatementAppService service,
     /// <returns></returns>
     [HttpGet("financial-report/get-all")]
     [HasAuthority(Permissions.FinancialReportView)]
-    public async Task<IActionResult> GetFinancialReportWorkList([FromQuery] int? fromYear, 
+    public async Task<IActionResult> GetFinancialReportWorkList([FromQuery] int? fromYear,
                                                                 [FromQuery] int? toYear)
     {
         var result = await service.GetFinancialReportList(fromYear, toYear);
@@ -371,9 +371,9 @@ public class AccountingController(IFinancialStatementAppService service,
             return BadRequest(e.Message);
         }
     }
-    
+
     [HttpPost("financial-report/import-xml/{id}")]
-    public async Task<IActionResult> ImportFinancialReportFromXml([FromRoute] string id, 
+    public async Task<IActionResult> ImportFinancialReportFromXml([FromRoute] string id,
                                                                   IFormFile xmlFile)
     {
         try

@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Xml.Linq;
+using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
@@ -11,6 +12,7 @@ using WebApp.Services.UserService;
 using WebApp.Utils;
 using X.Extensions.PagedList.EF;
 using X.PagedList.Extensions;
+using Z.EntityFramework.Plus;
 
 namespace WebApp.Services.TaxDutyServices;
 
@@ -70,21 +72,15 @@ public class TaxDutyRecordAppService(IUserManager userManager,
                                              .Where(u => u.Id == UserId.ToGuid())
                                              .SelectMany(u => u.Organizations.Select(o => o.Id))
                                              .ToHashSetAsync();
-        keyword = keyword.RemoveSpace();
         var filterYear = year ?? DateTime.Now.Year; //force year to be current year if it is not provided
-        var filterKeyword = keyword ?? string.Empty;
+        var filterKeyword = keyword.RemoveSpace() ?? string.Empty;
         var query = dbContext.TaxDutyRecords
                              .Where(x => x.Period.EndsWith(filterYear.ToString()))
+                             .WhereIf(periodType.HasValue, x => x.DutyPeriodType == periodType)
+                             .WhereIf(status.HasValue, x => x.Status == status)
+                             .WhereIf(orgId is not null && orgId != Guid.Empty, x => x.OrganizationId == orgId)
+                             .WhereIf(!string.IsNullOrEmpty(period), x => x.Period == period)
                              .AsQueryable();
-
-        if (status != null)
-            query = query.Where(x => x.Status == status); //Filter with status
-        if (orgId is not null && orgId != Guid.Empty)
-            query = query.Where(x => x.OrganizationId == orgId); //Filter with organization
-        if (periodType is not null)
-            query = query.Where(x => x.DutyPeriodType == periodType);
-        if (!string.IsNullOrEmpty(period))
-            query = query.Where(x => x.Period == period); //Filter with period after period type filtering
 
         var duties = await query
                            .Include(x => x.XmlDocs)
@@ -129,8 +125,9 @@ public class TaxDutyRecordAppService(IUserManager userManager,
                                    x.Duty.DueDate,
                                    x.DocumentCount
                                }).OrderBy(x => x.ReportId).ThenBy(x => x.DueDate).ToList()
-                           }).ToListAsync();
-
+                           })
+                           .Cacheable(CacheExpirationMode.Sliding, TimeSpan.FromMinutes(10))
+                           .ToListAsync();
 
         return ResponseEntity.OkResult(duties);
     }
