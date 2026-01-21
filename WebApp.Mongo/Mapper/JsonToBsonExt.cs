@@ -4,6 +4,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using WebApp.Mongo.DeserializedModel;
 using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 
 namespace WebApp.Mongo.Mapper;
 

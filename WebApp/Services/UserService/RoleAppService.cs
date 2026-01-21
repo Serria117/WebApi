@@ -1,10 +1,6 @@
-﻿using System.Diagnostics;
-using System.Linq.Dynamic.Core;
-using Microsoft.EntityFrameworkCore;
-using MongoDB.Driver;
+﻿using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
-using WebApp.Enums;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.Misc;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
 using WebApp.Repositories;
@@ -12,7 +8,6 @@ using WebApp.Services.CachingServices;
 using WebApp.Services.Mappers;
 using WebApp.Services.UserService.Dto;
 using X.Extensions.PagedList.EF;
-using X.PagedList;
 
 namespace WebApp.Services.UserService
 {

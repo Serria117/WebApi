@@ -1,12 +1,13 @@
 ﻿using System.Xml.Linq;
 using WebApp.Mongo.DeserializedModel;
 using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Services.CommonService;
 using WebApp.Services.InvoiceService.dto;
 using WebApp.Services.RestService.Dto;
-using Doc_Hdhhdvu = WebApp.Mongo.DocumentModel.Hdhhdvu;
-using Doc_Thttltsuat = WebApp.Mongo.DocumentModel.Thttltsuat;
+using Doc_Hdhhdvu = WebApp.Mongo.DocumentModel.PurchaseInvoices.Hdhhdvu;
+using Doc_Thttltsuat = WebApp.Mongo.DocumentModel.PurchaseInvoices.Thttltsuat;
 
 namespace WebApp.Utils;
 
@@ -81,7 +82,15 @@ public static class InvoiceMapExtension
             SellerSignature = doc.Nbcks,
             LookUpUrl = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "PortalLink")?.Dlieu,
             LookUpCode = doc.Ttkhac?.FirstOrDefault(x => x.Ttruong == "Fkey")?.Dlieu,
-            TotalOtherFee = doc.Ttttkhac?.FirstOrDefault(x => x.Ttruong == "TotalOtherFee")?.Dlieu.ToDecimal()
+            TotalOtherFee = doc.Ttttkhac?.FirstOrDefault(x => x.Ttruong == "TotalOtherFee")?.Dlieu.ToDecimal(),
+            OriginalInvoice = doc.Shdgoc != null ? new OriginalInvoice
+            {
+                InvoiceNotation = (string?)doc.Khhdgoc,
+                InvoiceNumber = doc.Shdgoc,
+                InvoiceGroupNotation = doc.Khmshdgoc,
+                IssueDate = doc.Tdlhdgoc?.ToLocalTime()
+            } : null,
+
         };
     }
 

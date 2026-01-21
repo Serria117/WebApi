@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
+using WebApp.Enums;
 using WebApp.Payloads;
 using WebApp.Repositories;
 using WebApp.Services.Mappers;
@@ -22,10 +24,9 @@ public interface ITemplateAppService
 
 public class TemplateAppService(IAppRepository<Template, int> templateRepository,
                                 IAppRepository<TemplateFile, int> fileRepository,
+                                AppDbContext dbContext,
                                 IHostEnvironment env) : ITemplateAppService
 {
-    private const string TemplateFolder = "DocumentTemplates";
-
     public async Task<ResponseEntity> CreateTemplate(TemplateCreateDto dto)
     {
         var newTemplate = dto.ToEntity();
@@ -39,7 +40,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
                 newTemplate.TemplateFiles.Add(new TemplateFile
                 {
                     FileName = fileName,
-                    FilePath = $@"Uploads\{TemplateFolder}\{fileName}",
+                    FilePath = $@"Uploads\{FolderName.DocumentTemplate}\{fileName}",
                     Version = file.Version,
                     VersionNote = file.VersionNote,
                     UploadTime = DateTime.Now.ToLocalTime()
@@ -54,8 +55,8 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
     public async Task<ResponseEntity> FindTemplates(PageRequest request)
     {
         var found = await templateRepository.Find(t => !t.Deleted)
-                                            .WhereIf(request.Keyword is not null,
-                                                     t => t.Name.Contains(request.Keyword!))
+                                            .WhereIf(!string.IsNullOrWhiteSpace(request.Keyword),
+                                                     t => t.Name.Contains(request.Keyword))
                                             .OrderBy(t => t.Order)
                                             .ToPagedListAsync(request.Page, request.Size);
         return ResponseEntity.OkResult(found.MapPagedList(t => t.ToDisplayDto()));
@@ -97,7 +98,7 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
         template.TemplateFiles.Add(new TemplateFile
         {
             FileName = fileName,
-            FilePath = $"Uploads\\{TemplateFolder}\\{fileName}",
+            FilePath = @"Uploads\{FolderName.DocumentTemplate}\{fileName}",
             Version = dto.TemplateFile.Version,
             VersionNote = dto.TemplateFile.VersionNote,
             UploadTime = DateTime.Now.ToLocalTime()
@@ -115,14 +116,8 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
         if (!File.Exists(filePath))
             throw new FileNotFoundException("The file has been moved or deleted from disk.");
 
-        var memoryStream = new MemoryStream();
-        using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            await fileStream.CopyToAsync(memoryStream);
-        }
-
-        memoryStream.Position = 0;
-        return (file.FileName, memoryStream.ToArray());
+        
+        return (file.FileName, await filePath.ReadToBytesAsync());
     }
 
     public async Task DeleteTemplateFile(int fileId)
@@ -144,20 +139,19 @@ public class TemplateAppService(IAppRepository<Template, int> templateRepository
             throw new ArgumentException("File is empty.");
 
         var contentRoot = env.ContentRootPath;
-        var templatesDir = Path.Combine(contentRoot, "Uploads", TemplateFolder);
+        var templatesDir = Path.Combine(contentRoot, 
+                                        FolderName.Uploads, 
+                                        FolderName.DocumentTemplate);
 
         if (!Directory.Exists(templatesDir))
             Directory.CreateDirectory(templatesDir);
 
-        var fileName = Path.GetFileNameWithoutExtension(file.FileName)
+        string fileName = Path.GetFileNameWithoutExtension(file.FileName)
                        + Guid.NewGuid() + "." + Path.GetExtension(file.FileName);
-        var filePath = Path.Combine(templatesDir, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
+        string filePath = Path.Combine(templatesDir, fileName);
+        
+        await file.WriteToDiskAsync(filePath);
+        
         return fileName;
     }
 }

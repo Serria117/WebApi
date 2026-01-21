@@ -1,4 +1,4 @@
-﻿using WebApp.Mongo.DocumentModel;
+﻿using WebApp.Mongo.DocumentModel.Misc;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Services.UserService;
 

@@ -67,7 +67,8 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<Department> Departments { get; set; }
     public DbSet<ExpenseType> ExpenseTypes { get; set; }
     public DbSet<ExpenseTypeHistory> ExpenseTypeHistories { get; set; }
-
+    public DbSet<ExcelPayroll> ExcelPayrolls { get; set; }
+    
     public DbSet<Contract> Contracts { get; set; }
 
     public DbSet<Account> Accounts { get; set; }
@@ -100,7 +101,9 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
 
     public DbSet<PITRegulation> PITRegulations { get; set; }
 
-    public DbSet<UserWorkDiary> UserWorkDiaries { get; set; }
+    public DbSet<SocialSecurityRegulation> SocialSecurityRegulations { get; set; }
+
+	public DbSet<UserWorkDiary> UserWorkDiaries { get; set; }
     public DbSet<UserWorkDiaryComment> UserWorkDiaryComments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -246,9 +249,16 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
         {
             en.OwnsMany(u => u.MonthBrackets, builder => { builder.ToJson(); });
 			en.OwnsMany(u => u.YearBrackets, builder => { builder.ToJson(); });
+            en.OwnsMany(u => u.Deductions, builder => { builder.ToJson(); });
 		});
 
-        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<SocialSecurityRegulation>(en =>
+        {
+            en.OwnsMany(u => u.EmployeeRate, builder => { builder.ToJson(); });
+            en.OwnsMany(u => u.EmployerRate, builder => { builder.ToJson(); });
+        });
+
+		base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
     }
     

@@ -1,7 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
 using WebApp.Enums;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Payloads;
 using WebApp.Utils;

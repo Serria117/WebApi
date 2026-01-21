@@ -1,10 +1,8 @@
 ﻿using System.Linq.Dynamic.Core;
 using Microsoft.EntityFrameworkCore;
 using WebApp.Core.Data;
-using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
 using WebApp.Payloads;
-using WebApp.Services.CommonService;
 using WebApp.Services.TaxDutyServices.Dto;
 using WebApp.Utils;
 using X.Extensions.PagedList.EF;
@@ -37,19 +35,19 @@ public class TaxDutyCategoryAppService(AppDbContext dbContext) : ITaxDutyCategor
     public async Task<ResponseEntity> FindAll(RequestParam req)
     {
         req.Valid();
+        if(req.Keyword != null)
+        {
+            req.Keyword = req.Keyword.TrimSpace().UnSign();
+        }
+
         var query = dbContext.TaxDutyCategories
                              .Where(x => !x.Deleted)
+                             .WhereIf(!string.IsNullOrEmpty(req.Keyword),
+                                      x => x.UnsignName.Contains(req.Keyword!) 
+                                      || x.Code.Contains(req.Keyword!))
                              .OrderBy($"{req.SortBy} {req.OrderBy}")
                              .AsNoTracking();
         
-        // Filter by keyword if available
-        if (!string.IsNullOrEmpty(req.Keyword))
-        {
-            var keyword = req.Keyword.UnSign();
-            query = query.Where(x => x.UnsignName.Contains(keyword)
-                                     || x.Code.Contains(keyword));
-        }
-
         // Paging if available
         if (req is { Page: not null, Size: not null })
         {

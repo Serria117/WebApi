@@ -1,7 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace WebApp.Mongo.DocumentModel;
+namespace WebApp.Mongo.DocumentModel.Misc;
 
 public class BlacklistedTokenDoc
 {

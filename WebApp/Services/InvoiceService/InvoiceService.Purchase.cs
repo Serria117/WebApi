@@ -1,11 +1,12 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text.Json;
+using MongoDB.Driver;
 using Newtonsoft.Json;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Enums;
 using WebApp.Mongo.DeserializedModel;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 using WebApp.Mongo.FilterBuilder;
 using WebApp.Payloads;
 using WebApp.Payloads.Messages;
@@ -84,7 +85,8 @@ public partial class InvoiceService
                 existingCount++;
                 Console.WriteLine($"Inv no: [{invoice.Shdon}-{invoice.Khhdon}] already existed in database. Count={existingCount}");
                 continue;
-            };
+            }
+            ;
             invoicesToSaveList.Add(invoice); //if not exist, add to the list
         }
 
@@ -145,7 +147,7 @@ public partial class InvoiceService
             {
                 downloadCount++;
                 unDeserializableInvoices.Add(JsonConvert.SerializeObject(invDetailResponse.Data));
-                await notificationService.SendAsync(UserId,
+                await notificationService.SendAsync(UserId!,
                                                     HubName.InvoiceStatus,
                                                     InvoiceMessage.Create(
                                                         saved: downloadCount, total: invoicesToSaveList.Count));
@@ -237,6 +239,135 @@ public partial class InvoiceService
         };
     }
 
+    public async Task<ResponseEntity> GetSingleInvoice(PurchaseInvoiceQuery queryParams)
+    {
+        var collection = mongoDatabase.GetCollection<InvoiceDetailDoc>(CollectionName.Invoice);
+        var filter = InvoiceFilterBuilder.StartBuilder()
+                                         .WithBuyer(queryParams.BuyerTaxId)
+                                         .WithSeller(queryParams.SellerTaxId)
+                                         .WithInvoiceNumber(queryParams.InvoiceNumber)
+                                         .WithKhhdon(queryParams.InvoiceNotation)
+                                         .WithKhMshDon(queryParams.InvoiceGroupNotation)
+                                         .Build<InvoiceDetailDoc>();
+
+        var invoice = await (await collection.FindAsync<InvoiceDetailDoc>(filter)).FirstOrDefaultAsync();
+        if (invoice is not null)
+        {
+            return new ResponseEntity
+            {
+                Data = invoice.ToDisplayModel(),
+                Message = "Ok",
+                Success = true,
+                Code = "200"
+            };
+        }
+        return new ResponseEntity
+        {
+            Message = "Không tìm thấy hóa đơn",
+            Success = false,
+            Code = "404"
+        };
+    }
+
+    public async Task<ResponseEntity> UpdatePurchaseInvoiceStatus(ICollection<InvoiceDetailDoc> invoices)
+    {
+        var adjustedInfoCollection = mongoDatabase.GetCollection<AdjustedPurchaseInvoiceInfoDoc>(CollectionName.AdjustedPurchase);
+        var invoiceCollection = mongoDatabase.GetCollection<InvoiceDetailDoc>(CollectionName.Invoice);
+
+        var adjustingInvoices = invoices.Where(i => i.Tthai == 3).ToList();
+        if(adjustingInvoices.Count == 0)
+            return ResponseEntity.OkResult("No adjusting invoices to update.");
+        var adjustedInfos = new List<AdjustedPurchaseInvoiceInfoDoc>();
+        var updateModels = new List<WriteModel<InvoiceDetailDoc>>();
+
+        // Build a combined filter to fetch any existing adjusted infos in a single query
+        var existingFilters = new List<FilterDefinition<AdjustedPurchaseInvoiceInfoDoc>>();
+        foreach (var inv in adjustingInvoices)
+        {
+            existingFilters.Add(Builders<AdjustedPurchaseInvoiceInfoDoc>.Filter.And(
+                Builders<AdjustedPurchaseInvoiceInfoDoc>.Filter.Eq(i => i.BuyerTaxCode, inv.Nmmst),
+                Builders<AdjustedPurchaseInvoiceInfoDoc>.Filter.Eq(i => i.Original.Shdon, inv.Shdgoc),
+                Builders<AdjustedPurchaseInvoiceInfoDoc>.Filter.Eq(i => i.Original.Khhdon, inv.Khhdgoc),
+                Builders<AdjustedPurchaseInvoiceInfoDoc>.Filter.Eq(i => i.Original.Khmshdon, inv.Khmshdgoc.ToInt())
+            ));
+        }
+
+        var existingKeys = new HashSet<string>();
+        if (existingFilters.Count > 0)
+        {
+            var combinedFilter = Builders<AdjustedPurchaseInvoiceInfoDoc>.Filter.Or(existingFilters);
+            var existingAdjustedList = await adjustedInfoCollection.Find(combinedFilter).ToListAsync();
+            foreach (var ex in existingAdjustedList)
+            {
+                var key = $"{ex.BuyerTaxCode}|{ex.Original.Shdon}|{ex.Original.Khhdon}|{ex.Original.Khmshdon}";
+                existingKeys.Add(key);
+            }
+        }
+
+        foreach (var inv in adjustingInvoices)
+        {
+            var key = $"{inv.Nmmst}|{inv.Shdgoc}|{inv.Khhdgoc}|{inv.Khmshdgoc.ToInt()}";
+            if (existingKeys.Contains(key)) continue;
+
+            var filter = InvoiceFilterBuilder.StartBuilder()
+                                             .WithBuyer(inv.Nmmst)
+                                             .WithInvoiceNumber(inv.Shdgoc)
+                                             .WithKhhdon(inv.Khhdgoc)
+                                             .WithKhMshDon(inv.Khmshdgoc.ToInt())
+                                             .Build<InvoiceDetailDoc>();
+
+            var updateDef = Builders<InvoiceDetailDoc>.Update.Set(i => i.Tthai, 5);
+            updateModels.Add(new UpdateManyModel<InvoiceDetailDoc>(filter, updateDef));
+
+            adjustedInfos.Add(new AdjustedPurchaseInvoiceInfoDoc
+            {
+                BuyerTaxCode = inv.Nmmst!,
+                SellerTaxCode = inv.Nbmst!,
+                Original = new OriginalInfo
+                {
+                    Shdon = inv.Shdgoc!,
+                    Khhdon = inv.Khhdgoc!,
+                    Khmshdon = inv.Khmshdgoc!.ToInt(),
+                },
+                Adjusted = new AdjustedInfo
+                {
+                    Shdon = inv.Shdon!,
+                    Khhdon = inv.Khhdon!,
+                    Khmshdon = inv.Khmshdon,
+                    Tdlap = inv.Tdlap!,
+                }
+            });
+        }
+
+        if (updateModels.Count == 0 && adjustedInfos.Count == 0)
+            return ResponseEntity.OkResult("Adjusted invoice status update completed.");
+
+        try
+        {
+            if (updateModels.Count > 0)
+            {
+                await invoiceCollection.BulkWriteAsync(updateModels, new BulkWriteOptions { IsOrdered = false });
+            }
+
+            if (adjustedInfos.Count > 0)
+            {
+                await adjustedInfoCollection.InsertManyAsync(adjustedInfos, new InsertManyOptions { IsOrdered = false });
+            }
+        }
+        catch (MongoBulkWriteException bwEx)
+        {
+            logger.LogErrorFormatted(exception: bwEx,
+                                 message: "Bulk write error while updating adjusted invoice statuses.");
+        }
+        catch (Exception e)
+        {
+            logger.LogErrorFormatted(exception: e,
+                                 message: "Error updating adjusted invoice status.");
+        }
+
+        return ResponseEntity.OkResult("Adjusted invoice status update completed.");
+    }
+
     public async Task<ResponseEntity> UploadPurchaseInvoices(List<IFormFile> files)
     {
         try
@@ -280,7 +411,7 @@ public partial class InvoiceService
         var result = await restService.GetPurchaseInvoiceListInRange(token, from, to);
         var total = 0L;
         List<InvoiceDisplayDto> updateList = [];
-        if (result.Success && result.Data is List<InvoiceModel> invoiceList)
+        if (result is { Success: true, Data: List<InvoiceModel> invoiceList })
         {
             foreach (var inv in invoiceList)
             {

@@ -7,7 +7,7 @@ using Spire.Xls;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Enums;
 using WebApp.Mongo.DeserializedModel;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Mongo.FilterBuilder;
 using WebApp.Mongo.Mapper;

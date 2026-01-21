@@ -6,7 +6,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using WebApp.Enums;
 using WebApp.Mongo.DeserializedModel;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 using WebApp.Mongo.FilterBuilder;
 
 namespace WebApp.Mongo.MongoRepositories;

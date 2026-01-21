@@ -1,4 +1,5 @@
 ﻿using WebApp.Enums;
+using WebApp.Utils;
 
 namespace WebApp.Payloads;
 
@@ -9,7 +10,7 @@ public class PageRequest
     public int Page { get; set; }
     public int Size { get; set; }
     public string Sort { get; set; } = "Id DESC";
-    public string? Keyword { get; set; }
+    public string Keyword { get; set; } = string.Empty;
     public int? Total { get; set; }
     public string? From { get; set; }
     public string? To { get; set; }
@@ -31,7 +32,7 @@ public class PageRequest
             SortBy = pr.SortBy ?? "Id",
             OrderBy = pr.OrderBy ?? SortOrder.ASC,
             Sort = $"{pr.SortBy} {pr.OrderBy}",
-            Keyword = pr.Keyword,
+            Keyword = pr.Keyword.TrimSpace(),
             From = pr.From,
             To = pr.To,
             Fields = pr.Fields

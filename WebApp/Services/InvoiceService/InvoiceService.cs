@@ -13,6 +13,8 @@ using WebApp.Enums;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
 using WebApp.Mongo.DeserializedModel;
 using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.Misc;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Mongo.FilterBuilder;
 using WebApp.Mongo.Mapper;
@@ -74,6 +76,8 @@ public interface IInvoiceService
     Task<ResponseEntity> ScanOrganizationSeller(int? year, string? keyword);
     Task<ResponseEntity> ScanOrganizationBuyer(int? year, string? keyword);
     Task<ResponseEntity> GetInvoiceBySeller(string sellerTaxId, int? year);
+    Task<ResponseEntity> UpdatePurchaseInvoiceStatus(ICollection<InvoiceDetailDoc> invoices);
+    Task<ResponseEntity> GetSingleInvoice(PurchaseInvoiceQuery queryParams);
 }
 
 //TODO: refactor this service class to replace the old InvoiceAppService

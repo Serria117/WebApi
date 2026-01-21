@@ -2,6 +2,7 @@
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Enums;
 using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.Misc;
 using WebApp.Mongo.DocumentModel.SoldInvoiceDetails;
 using WebApp.Mongo.FilterBuilder;
 using WebApp.Mongo.MongoRepositories;

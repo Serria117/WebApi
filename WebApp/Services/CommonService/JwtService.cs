@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using WebApp.Core.DomainEntities;
 using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.Misc;
 using WebApp.Mongo.MongoRepositories;
 using JwtRegisteredClaimNames = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames;
 

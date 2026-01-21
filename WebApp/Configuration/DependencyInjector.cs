@@ -124,6 +124,7 @@ public static class DependencyInjector
             s.AddScoped<IRedisCacheService, RedisCacheService>();
             s.AddScoped<IWorkDiaryAppService, WorkDiaryAppService>();
             s.AddScoped<ITaxRegulationAppService, TaxRegulationAppService>();
+            s.AddScoped<ISocialSecurityService, SocialSecurityService>();
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Linq;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson;
 
-namespace WebApp.Mongo.DocumentModel;
+namespace WebApp.Mongo.DocumentModel.Misc;
 
 public class ErrorInvoiceDoc
 {

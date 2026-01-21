@@ -4,6 +4,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 
 [BsonIgnoreExtraElements]
 public class SoldInvoiceDoc

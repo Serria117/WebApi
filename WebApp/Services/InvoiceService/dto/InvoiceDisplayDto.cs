@@ -16,6 +16,8 @@ public class InvoiceDisplayDto
     public string InvoiceNotation { get; set; } = string.Empty; //Ký hiệu hóa đơn
     public int? InvoiceGroupNotation { get; set; } //Ký hiệu mẫu số
     public string? VerifyCode { get; set; }
+
+
     
     public List<Goods> GoodsDetail { get; set; } = []; //Hàng hóa
     public double? TotalPrice { get; set; }
@@ -42,6 +44,8 @@ public class InvoiceDisplayDto
 
     public ICollection<Fee> Fees { get; set; } = [];
     public decimal? TotalOtherFee { get; set; }
+    public OriginalInvoice? OriginalInvoice { get; set; }
+    public AdjustingInvoice? AdjustingInvoice { get; set; }
 }
 
 public class Goods
@@ -61,4 +65,20 @@ public class Fee
 {
     public string FeeName { get; set; } = string.Empty;
     public decimal FeeAmount { get; set; } = 0;
+}
+
+public class OriginalInvoice
+{
+    public int? InvoiceNumber { get; set; }
+    public string? InvoiceNotation { get; set; }
+    public string? InvoiceGroupNotation { get; set; }
+    public DateTime? IssueDate { get; set; }
+}
+
+public class AdjustingInvoice
+{
+    public int? InvoiceNumber { get; set; }
+    public string? InvoiceNotation { get; set; }
+    public string? InvoiceGroupNotation { get; set; }
+    public DateTime? IssueDate { get; set; }
 }

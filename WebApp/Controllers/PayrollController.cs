@@ -7,7 +7,7 @@ using WebApp.Services.PayrollService.Dto;
 namespace WebApp.Controllers;
 
 [ApiController, Route("/api/payroll"), Authorize]
-public class PayrollController(IPayrollAppService service) : ControllerBase
+public partial class PayrollController(IPayrollAppService service) : ControllerBase
 {
     [HttpPost("period/create")]
     public async Task<IActionResult> CreatePayrollPeriods(PayrollPeriodCreateDto dto)

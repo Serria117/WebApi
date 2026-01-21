@@ -16,5 +16,7 @@ public struct CollectionName
     public const string BlacklistedToken = "tokens";
     public const string RefreshToken = "refreshTokens";
     public const string LockedUsers = "lockedUsers";
-    
+
+    public const string AdjustedPurchase = "AdjustedPurchase";
+
 }

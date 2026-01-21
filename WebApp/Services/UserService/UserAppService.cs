@@ -9,7 +9,7 @@ using Spire.Xls;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.Enums;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.Misc;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;
 using WebApp.Payloads.AuthenticationPayloads;

@@ -1,4 +1,5 @@
-﻿using WebApp.Core.DomainEntities;
+﻿using WebApp.Core.Data;
+using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Payroll;
 using WebApp.Payloads;
 using WebApp.Repositories;
@@ -27,10 +28,18 @@ public interface IPayrollAppService
     Task<ResponseEntity> GetDepartmentsAsync(RequestParam requestParam);
     Task<ResponseEntity> GetDepartmentByIdAsync(string id);
     Task<bool> IsDepartmentExistAsync(string name);
+    Task<ResponseEntity> UploadExcelPayroll(ExcelPayrollDto input);
+    Task<ResponseEntity> GetPayrollExcelList(int? year, string? keyword);
+    Task<(string FileName, byte[] File)> DownloadExcelPayroll(string id);
+    Task<ResponseEntity> UpdateExcelPayroll(ExcelPayrollUpdateDto input);
+    Task<ResponseEntity> DeleteExcelPayroll(string id);
+    Task<ResponseEntity> UpdateExcelPayrollStatus(string id);
 }
 
 public partial class PayrollAppService(IUserManager userManager,
                                        IUnitOfWork transaction,
+                                       AppDbContext dbContext,
+                                       IHostEnvironment env,
                                        ILogger<PayrollAppService> logger)
     : BaseAppService(userManager), IPayrollAppService
 {

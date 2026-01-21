@@ -1,7 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace WebApp.Mongo.DocumentModel;
+namespace WebApp.Mongo.DocumentModel.PurchaseInvoices;
 
 [BsonIgnoreExtraElements]
 public class InvoiceDetailDoc
@@ -44,9 +44,9 @@ public class InvoiceDetailDoc
 
     [BsonElement("khdon")] public object? Khdon { get; set; }
 
-    [BsonElement("khhdgoc")] public object? Khhdgoc { get; set; }
+    [BsonElement("khhdgoc")] public string? Khhdgoc { get; set; }
 
-    [BsonElement("khmshdgoc")] public object? Khmshdgoc { get; set; }
+    [BsonElement("khmshdgoc")] public string? Khmshdgoc { get; set; }
 
     [BsonElement("lhdgoc")] public object? Lhdgoc { get; set; }
 
@@ -118,9 +118,9 @@ public class InvoiceDetailDoc
 
     [BsonElement("ptgui")] public int? Ptgui { get; set; }
 
-    [BsonElement("shdgoc")] public object? Shdgoc { get; set; }
+    [BsonElement("shdgoc")] public int? Shdgoc { get; set; } //Số hóa đơn gốc của hóa hóa đơn bị điều chỉnh
 
-    [BsonElement("tchat")] public int? Tchat { get; set; }
+	[BsonElement("tchat")] public int? Tchat { get; set; }
 
     [BsonElement("tdlap")]
     [BsonRepresentation(BsonType.String)]
@@ -198,7 +198,9 @@ public class InvoiceDetailDoc
 
     [BsonElement("bhpngay")] public object? Bhpngay { get; set; }
 
-    [BsonElement("tdlhdgoc")] public object? Tdlhdgoc { get; set; }
+    [BsonElement("tdlhdgoc")]
+	[BsonRepresentation(BsonType.String)]
+	public DateTime? Tdlhdgoc { get; set; }
 
     [BsonElement("tgtphi")] public double? Tgtphi { get; set; }
 

@@ -6,6 +6,7 @@ using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
 using WebApp.Core.DomainEntities.Payroll;
+using WebApp.Core.DomainEntities.Tax;
 using WebApp.Enums;
 using WebApp.Repositories;
 using WebApp.Services.AccountingServices.Dto;
@@ -14,6 +15,7 @@ using WebApp.Services.CommonService;
 using WebApp.Services.OrganizationService.Dto;
 using WebApp.Services.PayrollService.Dto;
 using WebApp.Services.RegionService.Dto;
+using WebApp.Services.TaxRegulationServices.Dto;
 using WebApp.Services.TemplateServices.Dto;
 using WebApp.Services.UserService.Dto;
 using WebApp.Utils;
@@ -788,6 +790,48 @@ public static class DataObjectMapExtension
                 EndingBalance = b.EndingBalance
             }).ToArray(),
             LastYearReportId = r.LastYearReportId
+        };
+    }
+
+    #endregion
+
+    #region Social Security
+
+    public static SocialSecurityDisplayDto ToDisplayDto(this SocialSecurityRegulation s)
+    {
+        return new SocialSecurityDisplayDto
+        {
+            Id = s.Id,
+            Name = s.Name,
+            EffectiveDate = s.EffectiveDate,
+            EndDate = s.EndDate,
+            Order = s.Order,
+            EmployeeRate = s.EmployeeRate.Select(r => new SocialSecurityRateDto
+            {
+                Name = r.Type switch
+                {
+                    SocialSecurityType.SocialInsurance => "BHXH",
+                    SocialSecurityType.HealthInsurance => "BHYT",
+                    SocialSecurityType.UnemploymentInsurance => "BHTN",
+                    SocialSecurityType.UnionFee => "Phí công đoàn",
+                    _ => "Unknown"
+                },
+                Bearer = r.Bearer,
+                Rate = r.Rate
+            }).ToList(),
+            EmployerRate = s.EmployerRate.Select(r => new SocialSecurityRateDto
+            {
+                Name = r.Type switch
+                {
+                    SocialSecurityType.SocialInsurance => "BHXH",
+                    SocialSecurityType.HealthInsurance => "BHYT",
+                    SocialSecurityType.UnemploymentInsurance => "BHTN",
+                    SocialSecurityType.UnionFee => "Phí công đoàn",
+                    _ => "Unknown"
+                },
+                Bearer = r.Bearer,
+                Rate = r.Rate
+            }).ToList(),
         };
     }
 

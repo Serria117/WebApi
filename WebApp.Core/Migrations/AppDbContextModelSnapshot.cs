@@ -1914,6 +1914,48 @@ namespace WebApp.Core.Migrations
                     b.ToTable("PR_Employee");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExcelPayroll", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("nvarchar(26)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("IsFinal")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("PR_ExcelPayroll");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExpenseType", b =>
                 {
                     b.Property<string>("Id")
@@ -2236,8 +2278,9 @@ namespace WebApp.Core.Migrations
                     b.Property<bool>("Deleted")
                         .HasColumnType("bit");
 
-                    b.Property<decimal>("DependantDeductionAmount")
-                        .HasColumnType("decimal(18,0)");
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime>("EffectiveDate")
                         .HasColumnType("datetime2");
@@ -2250,16 +2293,42 @@ namespace WebApp.Core.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("Regulation")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<decimal>("SelfDeductionAmount")
-                        .HasColumnType("decimal(18,0)");
+                    b.Property<int?>("Order")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name");
+
                     b.ToTable("TAX_PIT_Regulation");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Tax.SocialSecurityRegulation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("Order")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TAX_SocialSecurityRegulations");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>
@@ -3102,6 +3171,17 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExcelPayroll", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.Payroll.ExpenseType", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.Organization", "Organization")
@@ -3173,6 +3253,28 @@ namespace WebApp.Core.Migrations
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.Tax.PITRegulation", b =>
                 {
+                    b.OwnsMany("WebApp.Core.DomainEntities.Tax.Deduction", "Deductions", b1 =>
+                        {
+                            b1.Property<Guid>("PITRegulationId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<decimal>("Amount")
+                                .HasColumnType("decimal(18,4)");
+
+                            b1.Property<int>("Type");
+
+                            b1.HasKey("PITRegulationId", "__synthesizedOrdinal");
+
+                            b1.ToTable("TAX_PIT_Regulation");
+
+                            b1.ToJson("Deductions");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PITRegulationId");
+                        });
+
                     b.OwnsMany("WebApp.Core.DomainEntities.Tax.PITBracket", "MonthBrackets", b1 =>
                         {
                             b1.Property<Guid>("PITRegulationId");
@@ -3180,11 +3282,11 @@ namespace WebApp.Core.Migrations
                             b1.Property<int>("__synthesizedOrdinal")
                                 .ValueGeneratedOnAddOrUpdate();
 
-                            b1.Property<decimal>("Limit")
-                                .HasColumnType("decimal(18,0)");
+                            b1.Property<decimal?>("Limit")
+                                .HasColumnType("decimal(18,4)");
 
                             b1.Property<decimal>("Rate")
-                                .HasColumnType("decimal(5,2)");
+                                .HasColumnType("decimal(18,4)");
 
                             b1.HasKey("PITRegulationId", "__synthesizedOrdinal");
 
@@ -3203,11 +3305,11 @@ namespace WebApp.Core.Migrations
                             b1.Property<int>("__synthesizedOrdinal")
                                 .ValueGeneratedOnAddOrUpdate();
 
-                            b1.Property<decimal>("Limit")
-                                .HasColumnType("decimal(18,0)");
+                            b1.Property<decimal?>("Limit")
+                                .HasColumnType("decimal(18,4)");
 
                             b1.Property<decimal>("Rate")
-                                .HasColumnType("decimal(5,2)");
+                                .HasColumnType("decimal(18,4)");
 
                             b1.HasKey("PITRegulationId", "__synthesizedOrdinal");
 
@@ -3219,9 +3321,66 @@ namespace WebApp.Core.Migrations
                                 .HasForeignKey("PITRegulationId");
                         });
 
+                    b.Navigation("Deductions");
+
                     b.Navigation("MonthBrackets");
 
                     b.Navigation("YearBrackets");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Tax.SocialSecurityRegulation", b =>
+                {
+                    b.OwnsMany("WebApp.Core.DomainEntities.Tax.SocialSecurityRate", "EmployeeRate", b1 =>
+                        {
+                            b1.Property<Guid>("SocialSecurityRegulationId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<int>("Bearer");
+
+                            b1.Property<decimal>("Rate")
+                                .HasColumnType("decimal(18,4)");
+
+                            b1.Property<int>("Type");
+
+                            b1.HasKey("SocialSecurityRegulationId", "__synthesizedOrdinal");
+
+                            b1.ToTable("TAX_SocialSecurityRegulations");
+
+                            b1.ToJson("EmployeeRate");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SocialSecurityRegulationId");
+                        });
+
+                    b.OwnsMany("WebApp.Core.DomainEntities.Tax.SocialSecurityRate", "EmployerRate", b1 =>
+                        {
+                            b1.Property<Guid>("SocialSecurityRegulationId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<int>("Bearer");
+
+                            b1.Property<decimal>("Rate")
+                                .HasColumnType("decimal(18,4)");
+
+                            b1.Property<int>("Type");
+
+                            b1.HasKey("SocialSecurityRegulationId", "__synthesizedOrdinal");
+
+                            b1.ToTable("TAX_SocialSecurityRegulations");
+
+                            b1.ToJson("EmployerRate");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SocialSecurityRegulationId");
+                        });
+
+                    b.Navigation("EmployeeRate");
+
+                    b.Navigation("EmployerRate");
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.TaxOffice", b =>

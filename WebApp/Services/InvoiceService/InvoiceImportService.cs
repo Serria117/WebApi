@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebApp.Core.Data;
 using WebApp.Core.DomainEntities;
 using WebApp.GlobalExceptionHandler.CustomExceptions;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.PurchaseInvoices;
 using WebApp.Mongo.FilterBuilder;
 using WebApp.Mongo.MongoRepositories;
 using WebApp.Payloads;

@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
 using MongoDB.Driver;
 using WebApp.Enums;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.Misc;
 
 namespace WebApp.Mongo.MongoRepositories;
 

@@ -13,14 +13,16 @@ public struct SystemBoundary
     public const int MaxBatchSize = 100;
     
     public const int MinPageSize = 10;
-    public const int MaxPageSize = 1000;
+    public const int MaxPageSize = 1_000;
 
     public const int MinPageIndex = 1;
     public const int MaxPageIndex = 100;
     
     public const int MaxFileSize = 1024 * 1024 * 50;
     
-    public const int TimeOut = 30000;
+    public const int TimeOut = 30_000;
+
+    public const long MaxSafeInteger = 999_999_999_999L;
 
     public static readonly string[] AllowFileExt = ["xlsx", "xml", "docx", "pdf", "jpg", "jpeg", "png", "gif"];
 

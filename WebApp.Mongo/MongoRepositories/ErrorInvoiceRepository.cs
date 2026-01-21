@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MongoDB.Driver;
-using WebApp.Mongo.DocumentModel;
+using WebApp.Mongo.DocumentModel.Misc;
 
 namespace WebApp.Mongo.MongoRepositories;
 
