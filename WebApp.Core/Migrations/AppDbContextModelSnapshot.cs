@@ -1205,6 +1205,142 @@ namespace WebApp.Core.Migrations
                     b.ToTable("EmailSenderAddresses");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Invoice.PurchaseInvoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BuyerAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("BuyerName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("BuyerNameIndividual")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("BuyerTaxId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InvoiceGroupNotation")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("InvoiceNotation")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("InvoiceNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InvoiceStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InvoiceType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("IssueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("RiskSeller")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SellerName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SellerTaxId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("SignDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("SuccessRetrieveData")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("TotalBeforeTax")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<decimal>("TotalFee")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<decimal>("TotalTax")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<decimal>("TotalWithTax")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<string>("VerifyCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("SellerName");
+
+                    b.HasIndex("SellerTaxId");
+
+                    b.HasIndex("OrganizationId", "SellerTaxId", "InvoiceNumber");
+
+                    b.ToTable("INV_PurchaseInvoice");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Invoice.PurchaseInvoiceData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdateAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PurchaseInvoiceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseInvoiceId")
+                        .IsUnique();
+
+                    b.ToTable("INV_PurchaseInvoiceData");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.InvoiceServiceToken", b =>
                 {
                     b.Property<string>("Id")
@@ -3051,6 +3187,551 @@ namespace WebApp.Core.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Invoice.PurchaseInvoice", b =>
+                {
+                    b.OwnsOne("WebApp.Core.DomainEntities.Invoice.ReferencePurchaseInvoice", "ReferencePurchaseInvoice", b1 =>
+                        {
+                            b1.Property<Guid>("PurchaseInvoiceId");
+
+                            b1.Property<string>("InvoiceGroupNotation")
+                                .IsRequired();
+
+                            b1.Property<string>("InvoiceNotation")
+                                .IsRequired();
+
+                            b1.Property<int>("InvoiceNumber");
+
+                            b1.Property<int>("InvoiceStatus");
+
+                            b1.Property<string>("SellerTaxCode")
+                                .IsRequired();
+
+                            b1.HasKey("PurchaseInvoiceId");
+
+                            b1.ToTable("INV_PurchaseInvoice");
+
+                            b1.ToJson("ReferencePurchaseInvoice");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PurchaseInvoiceId");
+                        });
+
+                    b.Navigation("ReferencePurchaseInvoice");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Invoice.PurchaseInvoiceData", b =>
+                {
+                    b.HasOne("WebApp.Core.DomainEntities.Invoice.PurchaseInvoice", "PurchaseInvoice")
+                        .WithOne("PurchaseInvoiceData")
+                        .HasForeignKey("WebApp.Core.DomainEntities.Invoice.PurchaseInvoiceData", "PurchaseInvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("WebApp.Core.DomainEntities.Invoice.PurchaseInvoiceJson", "JsonContent", b1 =>
+                        {
+                            b1.Property<string>("PurchaseInvoiceDataId");
+
+                            b1.Property<string>("Bhpcbo");
+
+                            b1.Property<int?>("Bhphap");
+
+                            b1.Property<string>("Bhpldo");
+
+                            b1.Property<string>("Bhpngay");
+
+                            b1.Property<string>("Cqt");
+
+                            b1.Property<string>("Cqtcks");
+
+                            b1.Property<string>("Dcdsbke");
+
+                            b1.Property<string>("Dcdvnunlhdon");
+
+                            b1.Property<string>("Dknlbke");
+
+                            b1.Property<string>("Dvtte");
+
+                            b1.Property<string>("Gchdgoc");
+
+                            b1.Property<string>("Gchu");
+
+                            b1.Property<string>("HdTrung");
+
+                            b1.Property<string>("Hddunlap");
+
+                            b1.Property<string>("Hdgktkhthue");
+
+                            b1.Property<string>("Hdntgia");
+
+                            b1.Property<string>("Hdon");
+
+                            b1.Property<string>("HdonLquans");
+
+                            b1.Property<string>("Hdtbssrses");
+
+                            b1.Property<string>("Hdxkhau");
+
+                            b1.Property<string>("Hdxkptquan");
+
+                            b1.Property<string>("Hsgcma");
+
+                            b1.Property<string>("Hsgoc");
+
+                            b1.Property<int?>("Hthdon");
+
+                            b1.Property<int?>("Htttoan");
+
+                            b1.Property<string>("Id");
+
+                            b1.Property<string>("Idtbao");
+
+                            b1.Property<string>("IsHDTrung");
+
+                            b1.Property<string>("Khdon");
+
+                            b1.Property<string>("Khhdgoc");
+
+                            b1.Property<string>("Khhdon");
+
+                            b1.Property<string>("Khmshdgoc");
+
+                            b1.Property<int?>("Khmshdon");
+
+                            b1.Property<string>("Kqcht");
+
+                            b1.Property<string>("Ktkhthue");
+
+                            b1.Property<int?>("Ladhddt");
+
+                            b1.Property<string>("Ladhddtten");
+
+                            b1.Property<string>("Lhdgoc");
+
+                            b1.Property<string>("Mhdon");
+
+                            b1.Property<string>("Mhso");
+
+                            b1.Property<string>("Mkhang");
+
+                            b1.Property<string>("Mstdvnunlhdon");
+
+                            b1.Property<string>("Msttcgp");
+
+                            b1.Property<string>("Mtdiep");
+
+                            b1.Property<string>("Mtdtchieu");
+
+                            b1.Property<string>("Nbcks");
+
+                            b1.Property<string>("Nbcqcqdinh");
+
+                            b1.Property<string>("Nbdchi");
+
+                            b1.Property<string>("Nbdctdtu");
+
+                            b1.Property<string>("Nbfax");
+
+                            b1.Property<string>("Nbhdktngay");
+
+                            b1.Property<string>("Nbhdktso");
+
+                            b1.Property<string>("Nbhdso");
+
+                            b1.Property<string>("Nbhtban");
+
+                            b1.Property<string>("Nblddnbo");
+
+                            b1.Property<string>("Nbmdvqhnsach");
+
+                            b1.Property<string>("Nbmst");
+
+                            b1.Property<string>("Nbncqdinh");
+
+                            b1.Property<string>("Nbptvchuyen");
+
+                            b1.Property<string>("Nbsdthoai");
+
+                            b1.Property<string>("Nbsqdinh");
+
+                            b1.Property<string>("Nbstkhoan");
+
+                            b1.Property<string>("Nbten");
+
+                            b1.Property<string>("Nbtnban");
+
+                            b1.Property<string>("Nbtnhang");
+
+                            b1.Property<string>("Nbtnvchuyen");
+
+                            b1.Property<string>("Nbwebsite");
+
+                            b1.Property<DateTime?>("Ncma");
+
+                            b1.Property<DateTime?>("Ncnhat");
+
+                            b1.Property<string>("Ngcnhat");
+
+                            b1.Property<DateTime?>("Nky");
+
+                            b1.Property<string>("Nmcks");
+
+                            b1.Property<string>("Nmcmnd");
+
+                            b1.Property<string>("Nmdchi");
+
+                            b1.Property<string>("Nmdctdtu");
+
+                            b1.Property<string>("Nmddvchden");
+
+                            b1.Property<string>("Nmmdvqhnsach");
+
+                            b1.Property<string>("Nmmst");
+
+                            b1.Property<string>("Nmnchchieu");
+
+                            b1.Property<string>("Nmnhhhchieu");
+
+                            b1.Property<string>("Nmqtich");
+
+                            b1.Property<string>("Nmsdthoai");
+
+                            b1.Property<string>("Nmshchieu");
+
+                            b1.Property<string>("Nmstkhoan");
+
+                            b1.Property<string>("Nmten");
+
+                            b1.Property<string>("Nmtgvchdden");
+
+                            b1.Property<string>("Nmtgvchdtu");
+
+                            b1.Property<string>("Nmtnhang");
+
+                            b1.Property<string>("Nmtnmua");
+
+                            b1.Property<DateTime?>("Ntao");
+
+                            b1.Property<DateTime?>("Ntnhan");
+
+                            b1.Property<string>("Pban");
+
+                            b1.Property<string>("Pdndungs");
+
+                            b1.Property<int?>("Ptgui");
+
+                            b1.Property<string>("Qrcode");
+
+                            b1.Property<int?>("Shdgoc");
+
+                            b1.Property<int?>("Shdon");
+
+                            b1.Property<string>("Tbhgtngay");
+
+                            b1.Property<int?>("Tchat");
+
+                            b1.Property<DateTime?>("Tdlap");
+
+                            b1.Property<DateTime?>("Tdlhdgoc");
+
+                            b1.Property<string>("Tdvnunlhdon");
+
+                            b1.Property<double?>("Tgia");
+
+                            b1.Property<double?>("Tgtcthue");
+
+                            b1.Property<double?>("Tgtkcthue");
+
+                            b1.Property<double?>("Tgtkhac");
+
+                            b1.Property<double?>("Tgtphi");
+
+                            b1.Property<double?>("Tgtthue");
+
+                            b1.Property<string>("Tgtttbchu");
+
+                            b1.Property<double?>("Tgtttbso");
+
+                            b1.Property<string>("Thdon");
+
+                            b1.Property<int?>("Thlap");
+
+                            b1.Property<string>("Thtttoan");
+
+                            b1.Property<string>("Tlhdon");
+
+                            b1.Property<double?>("Ttcktmai");
+
+                            b1.Property<int?>("Tthai");
+
+                            b1.Property<bool?>("Tthdclquan");
+
+                            b1.Property<string>("Ttmstten");
+
+                            b1.Property<int?>("Tttbao");
+
+                            b1.Property<int?>("Ttxly");
+
+                            b1.Property<string>("Tvandnkntt");
+
+                            b1.Property<string>("Unhiem");
+
+                            b1.HasKey("PurchaseInvoiceDataId");
+
+                            b1.ToTable("INV_PurchaseInvoiceData");
+
+                            b1.ToJson("JsonContent");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PurchaseInvoiceDataId");
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Cttkhac", "Cttkhac", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Dlieu");
+
+                                    b2.Property<string>("Kdlieu");
+
+                                    b2.Property<string>("Ttruong");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+                                });
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Hdhhdvu", "Hdhhdvu", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<double?>("Dgia");
+
+                                    b2.Property<string>("Dvtinh");
+
+                                    b2.Property<string>("Dvtte");
+
+                                    b2.Property<string>("Id");
+
+                                    b2.Property<string>("Idhdon");
+
+                                    b2.Property<string>("Ltsuat");
+
+                                    b2.Property<double?>("Sluong");
+
+                                    b2.Property<string>("Stbchu");
+
+                                    b2.Property<double?>("Stckhau");
+
+                                    b2.Property<int?>("Stt");
+
+                                    b2.Property<int?>("Sxep");
+
+                                    b2.Property<int?>("Tchat");
+
+                                    b2.Property<string>("Ten");
+
+                                    b2.Property<string>("Tgia");
+
+                                    b2.Property<string>("Thtcthue");
+
+                                    b2.Property<decimal?>("Thtien");
+
+                                    b2.Property<double?>("Tlckhau");
+
+                                    b2.Property<decimal?>("Tsuat");
+
+                                    b2.Property<string>("Tthue");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.OwnsMany("WebApp.Core.DomainEntities.Invoice.Ttkhac", "Ttkhac", b3 =>
+                                        {
+                                            b3.Property<string>("HdhhdvuPurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                            b3.Property<int>("Hdhhdvu__synthesizedOrdinal");
+
+                                            b3.Property<int>("__synthesizedOrdinal")
+                                                .ValueGeneratedOnAddOrUpdate();
+
+                                            b3.Property<string>("Dlieu");
+
+                                            b3.Property<string>("Kdlieu");
+
+                                            b3.Property<string>("Ttruong");
+
+                                            b3.HasKey("HdhhdvuPurchaseInvoiceJsonPurchaseInvoiceDataId", "Hdhhdvu__synthesizedOrdinal", "__synthesizedOrdinal");
+
+                                            b3.ToTable("INV_PurchaseInvoiceData");
+
+                                            b3.WithOwner()
+                                                .HasForeignKey("HdhhdvuPurchaseInvoiceJsonPurchaseInvoiceDataId", "Hdhhdvu__synthesizedOrdinal");
+                                        });
+
+                                    b2.Navigation("Ttkhac");
+                                });
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Nbttkhac", "Nbttkhac", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Dlieu");
+
+                                    b2.Property<string>("Kdlieu");
+
+                                    b2.Property<string>("Ttruong");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+                                });
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Nmttkhac", "Nmttkhac", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Dlieu");
+
+                                    b2.Property<string>("Kdlieu");
+
+                                    b2.Property<string>("Ttruong");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+                                });
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Ttkhac", "Ttkhac", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Dlieu");
+
+                                    b2.Property<string>("Kdlieu");
+
+                                    b2.Property<string>("Ttruong");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+                                });
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Thttlphi", "Thttlphi", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Tlphi");
+
+                                    b2.Property<decimal?>("Tphi");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+                                });
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Thttltsuat", "Thttltsuat", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Gttsuat");
+
+                                    b2.Property<double?>("Thtien");
+
+                                    b2.Property<string>("Tsuat");
+
+                                    b2.Property<double?>("Tthue");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+                                });
+
+                            b1.OwnsMany("WebApp.Core.DomainEntities.Invoice.Ttttkhac", "Ttttkhac", b2 =>
+                                {
+                                    b2.Property<string>("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Dlieu");
+
+                                    b2.Property<string>("Kdlieu");
+
+                                    b2.Property<string>("Ttruong");
+
+                                    b2.HasKey("PurchaseInvoiceJsonPurchaseInvoiceDataId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("INV_PurchaseInvoiceData");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PurchaseInvoiceJsonPurchaseInvoiceDataId");
+                                });
+
+                            b1.Navigation("Cttkhac");
+
+                            b1.Navigation("Hdhhdvu");
+
+                            b1.Navigation("Nbttkhac");
+
+                            b1.Navigation("Nmttkhac");
+
+                            b1.Navigation("Thttlphi");
+
+                            b1.Navigation("Thttltsuat");
+
+                            b1.Navigation("Ttkhac");
+
+                            b1.Navigation("Ttttkhac");
+                        });
+
+                    b.Navigation("JsonContent")
+                        .IsRequired();
+
+                    b.Navigation("PurchaseInvoice");
+                });
+
             modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
                 {
                     b.HasOne("WebApp.Core.DomainEntities.MenuItem", "Parent")
@@ -3285,6 +3966,9 @@ namespace WebApp.Core.Migrations
                             b1.Property<decimal?>("Limit")
                                 .HasColumnType("decimal(18,4)");
 
+                            b1.Property<decimal>("ProgressiveAmount")
+                                .HasColumnType("decimal(18,4)");
+
                             b1.Property<decimal>("Rate")
                                 .HasColumnType("decimal(18,4)");
 
@@ -3306,6 +3990,9 @@ namespace WebApp.Core.Migrations
                                 .ValueGeneratedOnAddOrUpdate();
 
                             b1.Property<decimal?>("Limit")
+                                .HasColumnType("decimal(18,4)");
+
+                            b1.Property<decimal>("ProgressiveAmount")
                                 .HasColumnType("decimal(18,4)");
 
                             b1.Property<decimal>("Rate")
@@ -3498,6 +4185,12 @@ namespace WebApp.Core.Migrations
             modelBuilder.Entity("WebApp.Core.DomainEntities.Accounting.TaxDeclarations.TaxDutyRecord", b =>
                 {
                     b.Navigation("XmlDocs");
+                });
+
+            modelBuilder.Entity("WebApp.Core.DomainEntities.Invoice.PurchaseInvoice", b =>
+                {
+                    b.Navigation("PurchaseInvoiceData")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("WebApp.Core.DomainEntities.MenuItem", b =>
