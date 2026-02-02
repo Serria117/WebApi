@@ -95,7 +95,7 @@ services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 {
     var auditInterceptor = serviceProvider.GetRequiredService<AuditableEntityInterceptor>();
     var cacheInterceptor = serviceProvider.GetRequiredService<SecondLevelCacheInterceptor>();
-    options.UseSqlServer(connectionString: config.GetConnectionString("SqlServer"))
+    options.UseNpgsql(connectionString: config.GetConnectionString("SqlServer"))
            .AddInterceptors(auditInterceptor)
            .AddInterceptors(cacheInterceptor);
 });

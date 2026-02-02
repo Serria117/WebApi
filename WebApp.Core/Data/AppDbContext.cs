@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using WebApp.Core.DomainEntities;
 using WebApp.Core.DomainEntities.Accounting;
 using WebApp.Core.DomainEntities.Accounting.FinancialStatement;
 using WebApp.Core.DomainEntities.Accounting.TaxDeclarations;
-using WebApp.Core.DomainEntities.Invoice;
 using WebApp.Core.DomainEntities.Payroll;
 using WebApp.Core.DomainEntities.Tax;
 
@@ -258,8 +256,6 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
             en.OwnsMany(u => u.EmployeeRate, builder => { builder.ToJson(); });
             en.OwnsMany(u => u.EmployerRate, builder => { builder.ToJson(); });
         });
-
-		
         
 		base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
