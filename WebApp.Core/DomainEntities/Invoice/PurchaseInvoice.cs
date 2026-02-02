@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
+using System.Text.Json;
+using WebApp.Core.DomainEntities;
 
-namespace WebApp.Core.DomainEntities.Invoice;
+namespace WebApp.Core.DomainEntities;
 
 [Table("INV_PurchaseInvoice")]
 [
@@ -16,7 +18,6 @@ namespace WebApp.Core.DomainEntities.Invoice;
 ]
 public class PurchaseInvoice : BaseEntityAuditable<Guid>
 {
-	public new Guid Id { get; set; } = Guid.CreateVersion7();
 	public int InvoiceNumber { get; set; }
 	public string InvoiceNotation { get; set; } = string.Empty;
 	public string InvoiceGroupNotation { get; set; } = string.Empty;
@@ -42,7 +43,7 @@ public class PurchaseInvoice : BaseEntityAuditable<Guid>
 
 	[Column(TypeName = "decimal(18, 2)")]
 	public decimal TotalTax { get; set; }
-	
+
 	[Column(TypeName = "decimal(18, 2)")]
 	public decimal TotalFee { get; set; }
 
@@ -54,14 +55,16 @@ public class PurchaseInvoice : BaseEntityAuditable<Guid>
 
 	public InvoiceType InvoiceType { get; set; }
 	public InvoiceStatus InvoiceStatus { get; set; }
+
 	public string? VerifyCode { get; set; } //mã CQT
 
 	public bool RiskSeller { get; set; } = false; //Mark seller as potential risk
 	public bool SuccessRetrieveData { get; set; } = true; //Successfully retrieve data from tax authority
 
+	[Column(TypeName = "jsonb")]
 	public ReferencePurchaseInvoice? ReferencePurchaseInvoice { get; set; } //Thông tin hóa đơn tham chiếu (nếu có)
 
-	public PurchaseInvoiceData PurchaseInvoiceData { get; set; } = null!;
+
 }
 
 public enum InvoiceStatus
@@ -83,7 +86,7 @@ public enum InvoiceType
 
 public class ReferencePurchaseInvoice
 {
-	public Guid PurchaseInvoiceId { get; set; }						
+	public Guid PurchaseInvoiceId { get; set; }
 	public string InvoiceNotation { get; set; } = string.Empty;
 	public string InvoiceGroupNotation { get; set; } = string.Empty;
 	public int InvoiceNumber { get; set; }

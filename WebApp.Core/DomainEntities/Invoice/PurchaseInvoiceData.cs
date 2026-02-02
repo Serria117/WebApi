@@ -9,8 +9,11 @@ public class PurchaseInvoiceData : BaseEntityAuditable<string>
 	[MaxLength(50)]
 	public new string Id { get; set; } = Ulid.NewUlid().ToString();
 	public Guid PurchaseInvoiceId { get; set; }
+
 	[ForeignKey("PurchaseInvoiceId")]
 	public PurchaseInvoice PurchaseInvoice { get; set; } = null!;
+
+	[Column(TypeName = "jsonb")]
 	public PurchaseInvoiceJson JsonContent { get; set; } = null!;
 }
 

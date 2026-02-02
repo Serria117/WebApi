@@ -54,8 +54,6 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
     public DbSet<EmailSenderAddress> EmailSenderAddresses { get; set; }
 
     public DbSet<InvoiceServiceToken> InvoiceServiceTokens { get; set; }
-	public DbSet<PurchaseInvoice> PurchaseInvoices { get; set; }
-	public DbSet<PurchaseInvoiceData> PurchaseInvoiceData { get; set; }
 
 	// Payroll related entities
 	public DbSet<Employee> Employees { get; set; }
@@ -261,32 +259,8 @@ public class AppDbContext(DbContextOptions op) : DbContext(op)
             en.OwnsMany(u => u.EmployerRate, builder => { builder.ToJson(); });
         });
 
-		modelBuilder.Entity<PurchaseInvoice>(en =>
-        {
-            en.OwnsOne(p => p.ReferencePurchaseInvoice, builder => { builder.ToJson(); });
-		});
-
-        modelBuilder.Entity<PurchaseInvoiceData>(en =>
-        {
-            en.HasOne(p => p.PurchaseInvoice)
-              .WithOne(i => i.PurchaseInvoiceData)
-              .HasForeignKey<PurchaseInvoiceData>(p => p.PurchaseInvoiceId)
-              .OnDelete(DeleteBehavior.Cascade);
-
-			en.OwnsOne(p => p.JsonContent, builder => 
-            { 
-                builder.ToJson();
-                builder.OwnsMany(p => p.Cttkhac);
-				builder.OwnsMany(p => p.Nbttkhac);
-				builder.OwnsMany(p => p.Nmttkhac);
-				builder.OwnsMany(p => p.Thttlphi);
-				builder.OwnsMany(p => p.Thttltsuat);
-				builder.OwnsMany(p => p.Ttkhac);
-				builder.OwnsMany(p => p.Ttttkhac);
-				builder.OwnsMany(p => p.Hdhhdvu, bd => bd.OwnsMany(h => h.Ttkhac));
-				builder.OwnsMany(p => p.Ttkhac);
-			});
-		});
+		
+        
 		base.OnModelCreating(modelBuilder);
         modelBuilder.FinalizeModel();
     }

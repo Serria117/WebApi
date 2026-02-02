@@ -66,7 +66,7 @@ public class Organization : BaseEntityAuditable<Guid>
     public OrganizationStatus Status { get; set; } = OrganizationStatus.Active;
 
 	[MaxLength(5)]
-	public string? FiscalYearFistDate { get; set; } = "01/01";
+	public string? FiscalYearFirstDate { get; set; } = "01/01";
 
 	public virtual ISet<User> Users { get; set; } = new HashSet<User>();
 

@@ -247,7 +247,7 @@ public static class DataObjectMapExtension
             CreateAt = o.CreateAt,
             CreateBy = o.CreateBy,
             LastUpdateAt = o.LastUpdateAt,
-            FiscalYearFirstDate = o.FiscalYearFistDate,
+            FiscalYearFirstDate = o.FiscalYearFirstDate,
             TypeOfVatPeriod = o.TypeOfVatPeriod,
             Representative = o.Representative,
             UnsignName = o.UnsignName,

@@ -272,7 +272,7 @@ public class RestBaseAppService(IRestClient restClient,
         var request = new RestRequest(endpoint, Method.Get);
         request.AddHeader("Cookie", setting.Cookie);
         request.AddHeader("Authorization", $"Bearer {token}");
-        request.AddQueryParameter("sort", "tdlap:desc,khmshdon:asc,shdon:desc");
+        request.AddQueryParameter("sort", "tdlap:desc");
         request.AddQueryParameter("size", 50);
         request.AddQueryParameter("search", $"tdlap=ge={from}T00:00:00;tdlap=le={to}T23:59:59");
         if (state is not null)
@@ -514,7 +514,7 @@ public class RestBaseAppService(IRestClient restClient,
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         request.AddHeader("Cookie", setting.Cookie);
         request.AddHeader("Authorization", $"Bearer {token}");
-        request.AddQueryParameter("sort", "tdlap:desc,khmshdon:asc,shdon:desc");
+        request.AddQueryParameter("sort", "tdlap:desc");
         request.AddQueryParameter("size", 50);
         request.AddQueryParameter("search", $"tdlap=ge={from}T00:00:00;tdlap=le={to}T23:59:59;ttxly=={type}");
 
